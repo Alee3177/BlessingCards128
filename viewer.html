@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <script src="fonts_base64.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blessing Card Viewer</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fff7e6;
+            font-family: "Noto Sans TC", sans-serif;
+            color: #8a5500;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .logo {
+            width: 100px;
+            margin-top: 15px;
+        }
+
+        h1 {
+            margin-top: 10px;
+            font-size: 26px;
+            color: #b37500;
+        }
+
+        #cardImg {
+            width: 90%;
+            max-width: 420px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+        }
+
+        .nav-btn {
+            background: #ffcc66;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin: 10px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            background: #ffdd88;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <!-- LOGO -->
+    <img src="logo3524.png" class="logo" />
+
+    <h1>經句卡片瀏覽</h1>
+
+    <!-- 經句圖片 -->
+    <img id="cardImg" src="" alt="經句圖片" />
+
+    <!-- 操作按鈕（上一張、下一張） -->
+    <div style="margin-top:20px;">
+        <button class="nav-btn" onclick="prevCard()">← 上一張</button>
+        <button class="nav-btn" onclick="nextCard()">下一張 →</button>
+    </div>
+
+    <!-- 返回前頁 -->
+    <div style="margin-top:15px;">
+        <button class="nav-btn" onclick="window.location='index_full.html'">
+            返回抽籤首頁
+        </button>
+    </div>
+
+</div>
+<script>
+/* ----------------------------------------------------
+   取得 URL 參數：?no=001
+---------------------------------------------------- */
+function getQueryParam(name) {
+    let url = new URL(window.location.href);
+    return url.searchParams.get(name);
+}
+
+let currentNo = getQueryParam("no") || "001";
+currentNo = currentNo.toString().padStart(3, "0");
+
+/* ----------------------------------------------------
+   載入對應 PNG
+---------------------------------------------------- */
+function loadCard() {
+    let img = document.getElementById("cardImg");
+    img.src = "cards/" + currentNo + ".png";
+}
+
+loadCard();
+
+/* ----------------------------------------------------
+   上一張 / 下一張
+---------------------------------------------------- */
+function prevCard() {
+    let n = parseInt(currentNo);
+    if (n <= 1) return; // 已是第一張
+    n--;
+    currentNo = n.toString().padStart(3, "0");
+    loadCard();
+}
+
+function nextCard() {
+    let n = parseInt(currentNo);
+    if (n >= 128) return; // 已是最後一張
+    n++;
+    currentNo = n.toString().padStart(3, "0");
+    loadCard();
+}
+
+/* ----------------------------------------------------
+   支援鍵盤 ← → 切換
+---------------------------------------------------- */
+document.addEventListener("keydown", (e)=>{
+    if (e.key === "ArrowLeft") prevCard();
+    if (e.key === "ArrowRight") nextCard();
+});
+</script>
+<style>
+/* 圖片放大模式 */
+#cardImg.zoom {
+    transform: scale(1.8);
+    transition: transform 0.25s ease;
+    z-index: 10;
+}
+
+#cardImg {
+    transition: transform 0.25s ease;
+    cursor: zoom-in;
+}
+</style>
+
+<script>
+/* ----------------------------------------------------
+   點擊圖片 → 放大 / 還原
+---------------------------------------------------- */
+document.getElementById("cardImg").addEventListener("click", function () {
+    if (this.classList.contains("zoom")) {
+        this.classList.remove("zoom");
+        this.style.cursor = "zoom-in";
+    } else {
+        this.classList.add("zoom");
+        this.style.cursor = "zoom-out";
+    }
+});
+
+/* ----------------------------------------------------
+   手機觸控左右滑動 → 切換卡片
+---------------------------------------------------- */
+let touchStartX = 0;
+
+document.addEventListener("touchstart", function (e) {
+    touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener("touchend", function (e) {
+    let diffX = e.changedTouches[0].screenX - touchStartX;
+
+    // 左滑（下一張）
+    if (diffX < -40) {
+        nextCard();
+    }
+
+    // 右滑（上一張）
+    if (diffX > 40) {
+        prevCard();
+    }
+});
+</script>
+
+</div>
+</body>
+</html>
