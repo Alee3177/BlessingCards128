@@ -140,31 +140,6 @@ let isSpinning=false;
 
 const verseTotal = 128;
 
-(function init(){
-    let savedV = localStorage.getItem("usedVersesAll");
-    if(savedV) usedVerses = JSON.parse(savedV);
-    updateVerseCount();
-
-    initAudio();
-    drawNameWheel();
-})();
-
-function initAudio(){
-    if(audioReady) return;
-    drumAudio = new Audio("audio/drum.mp3");
-    winAudio  = new Audio("audio/win.mp3");
-    audioReady=true;
-}
-
-function updateVerseCount(){
-    document.getElementById("verseCount").textContent =
-        `已抽經句：${usedVerses.length} / ${verseTotal}`;
-}
-
-function goCategory(){
-    window.location = "index_category.html";
-}
-
 /* 產生姓名輪盤 */
 const canvas = document.getElementById("nameWheel");
 const ctx = canvas.getContext("2d");
@@ -198,6 +173,16 @@ function drawNameWheel(){
         ctx.restore();
     }
 }
+
+(function init(){
+    let savedV = localStorage.getItem("usedVersesAll");
+    if(savedV) usedVerses = JSON.parse(savedV);
+    updateVerseCount();
+
+    initAudio();
+    drawNameWheel();   // 這時 ctx 已經初始化好了
+})();
+
 
 /* 抽姓名（不重複） */
 function startNameSpin(){
