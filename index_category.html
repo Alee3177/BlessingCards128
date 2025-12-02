@@ -3,17 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Blessing Cards 128 - 分類抽籤</title>
+<title>BlessingCards128 - 分類抽籤</title>
 
-<!-- 內嵌字型 -->
-<script src="fonts_base64.js"></script>
+<link rel="stylesheet" href="fonts/fonts.css">
 
 <style>
     body {
         margin: 0;
         padding: 0;
         background: #fff7e6;
-        font-family: "Noto Sans TC", sans-serif;
+        font-family: "NotoSansTC", sans-serif;
         color: #8a5500;
         text-align: center;
     }
@@ -64,7 +63,7 @@
         border-right: 18px solid transparent;
         border-bottom: 32px solid red;
         margin: auto;
-        margin-top: -10px;
+        margin-top: 10px;
         position: relative;
         z-index: 5;
     }
@@ -102,22 +101,19 @@
 </head>
 
 <body>
+
 <div class="container">
 
     <img src="logo3524.png" class="logo" />
     <h1>飛鷹區 3524 主17小組 - 分類抽籤</h1>
-    <p class="info">先抽分類，再抽該分類的紅包祝福經句</p>
+    <p class="info">先抽分類 → 再抽該分類中的紅包祝福經句</p>
 
-    <button class="btn back-btn" onclick="goHome()">
-        ← 返回「姓名抽籤」首頁
-    </button>
+    <button class="btn back-btn" onclick="goHome()">← 返回抽籤首頁</button>
 
     <div id="verseCount"></div>
 
     <div style="margin-top:16px;">
-        <button class="btn" onclick="startCategorySpin()">
-            開始轉分類輪盤
-        </button>
+        <button class="btn" onclick="startCategorySpin()">開始轉分類輪盤</button>
     </div>
 
     <div id="pointer"></div>
@@ -132,7 +128,7 @@
 </div>
 
 <script>
-/* ------------ 全域變數 ------------ */
+/* ----------------- 分類定義 ----------------- */
 const categoryList = [
     "平安與保護",
     "盼望與力量",
@@ -144,184 +140,74 @@ const categoryList = [
     "其他"
 ];
 
-/* 128 張卡片的分類（第 1 張為 index 0） */
+/* 128 張卡片分類（你的完整清單） */
 const verseCategories = [
-"平安與保護",
-"其他",
-"盼望與力量",
-"恩典與憐憫",
-"平安與保護",
-"供應與豐盛",
-"其他",
-"其他",
-"盼望與力量",
-"盼望與力量",
-"平安與保護",
-"盼望與力量",
-"平安與保護",
-"其他",
-"平安與保護",
-"其他",
-"其他",
-"平安與保護",
-"平安與保護",
-"平安與保護",
-"喜樂與感恩",
-"平安與保護",
-"信心與順服",
-"智慧與引導",
-"平安與保護",
-"智慧與引導",
-"智慧與引導",
-"恩典與憐憫",
-"喜樂與感恩",
-"平安與保護",
-"平安與保護",
-"盼望與力量",
-"平安與保護",
-"信心與順服",
-"盼望與力量",
-"盼望與力量",
-"恩典與憐憫",
-"恩典與憐憫",
-"信心與順服",
-"信心與順服",
-"智慧與引導",
-"其他",
-"喜樂與感恩",
-"喜樂與感恩",
-"恩典與憐憫",
-"其他",
-"信心與順服",
-"其他",
-"盼望與力量",
-"盼望與力量",
-"平安與保護",
-"其他",
-"恩典與憐憫",
-"恩典與憐憫",
-"平安與保護",
-"平安與保護",
-"其他",
-"恩典與憐憫",
-"恩典與憐憫",
-"信心與順服",
-"信心與順服",
-"其他",
-"信心與順服",
-"平安與保護",
-"喜樂與感恩",
-"其他",
-"其他",
-"平安與保護",
-"信心與順服",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他",
-"盼望與力量",
-"恩典與憐憫",
-"平安與保護",
-"信心與順服",
-"平安與保護",
-"平安與保護",
-"智慧與引導",
-"其他",
-"平安與保護",
-"其他",
-"喜樂與感恩",
-"其他",
-"其他",
-"信心與順服",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他",
-"智慧與引導",
-"盼望與力量",
-"其他",
-"平安與保護",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他",
-"信心與順服",
-"其他",
-"平安與保護",
-"其他",
-"平安與保護",
-"智慧與引導",
-"其他",
-"其他",
-"其他",
-"恩典與憐憫",
-"其他",
-"平安與保護",
-"其他",
-"盼望與力量",
-"供應與豐盛",
-"供應與豐盛",
-"喜樂與感恩",
-"其他",
-"盼望與力量",
-"其他",
-"其他",
-"其他",
-"其他",
-"其他"
+"平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護",
+"供應與豐盛","其他","其他","盡望與力量","盼望與力量","平安與保護",
+"盼望與力量","平安與保護","其他","平安與保護","其他","其他","平安與保護",
+"平安與保護","平安與保護","喜樂與感恩","平安與保護","信心與順服","智慧與引導",
+"平安與保護","智慧與引導","智慧與引導","恩典與憐憫","喜樂與感恩","平安與保護",
+"平安與保護","盼望與力量","平安與保護","信心與順服","盼望與力量","盼望與力量",
+"恩典與憐憫","恩典與憐憫","信心與順服","信心與順服","智慧與引導","其他","喜樂與感恩",
+"喜樂與感恩","恩典與憐憫","其他","信心與順服","其他","盼望與力量","盼望與力量",
+"平安與保護","其他","恩典與憐憫","恩典與憐憫","平安與保護","平安與保護","其他",
+"恩典與憐憫","恩典與憐憫","信心與順服","信心與順服","其他","信心與順服","平安與保護",
+"喜樂與感恩","其他","其他","平安與保護","信心與順服","其他","其他","其他","其他",
+"其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服","平安與保護","平安與保護",
+"智慧與引導","其他","平安與保護","其他","喜樂與感恩","其他","其他","信心與順服","其他",
+"其他","其他","其他","其他","其他","其他","其他","智慧與引導","盼望與力量","其他",
+"平安與保護","其他","其他","其他","其他","其他","信心與順服","其他","平安與保護",
+"其他","平安與保護","智慧與引導","其他","其他","其他","恩典與憐憫","其他","平安與保護",
+"其他","盼望與力量","供應與豐盛","供應與豐盛","喜樂與感恩","其他","盼望與力量","其他",
+"其他","其他","其他","其他"
 ];
 
-let usedVersesAll = [];          // 與首頁共用的「已抽經句」
+/* ----------------- 全域狀態 ----------------- */
+let usedVerses = [];
+let currentCategory = null;
+let isSpinning = false;
+
 let drumAudio, winAudio;
 let audioReady = false;
-let isSpinning = false;
-let currentCategory = null;
 
-/* ------------ 初始化 ------------ */
-(function init() {
-    let savedVerses = localStorage.getItem("usedVersesAll");
-    if (savedVerses) {
-        usedVersesAll = JSON.parse(savedVerses);
-    }
+/* ----------------- 初始化 ----------------- */
+(function init(){
+    let saved = localStorage.getItem("usedVersesAll");
+    if(saved) usedVerses = JSON.parse(saved);
+
     updateVerseCount();
     initAudio();
     drawCategoryWheel();
 })();
 
-function initAudio() {
-    if (audioReady) return;
+function initAudio(){
+    if(audioReady) return;
     drumAudio = new Audio("audio/drum.mp3");
     winAudio  = new Audio("audio/win.mp3");
     audioReady = true;
 }
 
-/* ------------ UI 相關 ------------ */
-function goHome() {
-    window.location = "index.html";
+/* ----------------- UI ----------------- */
+function goHome(){
+    window.location="index.html";
 }
 
-function updateVerseCount() {
+function updateVerseCount(){
     document.getElementById("verseCount").textContent =
-        `目前已抽經句：${usedVersesAll.length} / 128`;
+        `已抽經句：${usedVerses.length} / 128`;
 }
 
-/* ------------ 轉盤繪製 ------------ */
+/* ----------------- 繪製分類輪盤 ----------------- */
 const canvas = document.getElementById("categoryWheel");
 const ctx = canvas.getContext("2d");
 
-function drawCategoryWheel() {
+function drawCategoryWheel(){
     ctx.clearRect(0,0,300,300);
     const count = categoryList.length;
-    const arc = (2*Math.PI)/count;
+    const arc = 2*Math.PI / count;
 
-    for (let i=0;i<count;i++) {
+    for(let i=0;i<count;i++){
         const angle = i*arc;
-
         ctx.beginPath();
         ctx.moveTo(150,150);
         ctx.fillStyle = i%2===0 ? "#ffe6a1" : "#ffcc66";
@@ -339,60 +225,60 @@ function drawCategoryWheel() {
     }
 }
 
-/* 檢查有哪些分類還有尚未抽完的經句 */
-function getAvailableCategoryIndices() {
-    const availableIdx = [];
-    for (let c=0;c<categoryList.length;c++) {
-        const catName = categoryList[c];
-        const hasVerse = verseCategories.some((cat, idx) => {
+/* 找出有哪些分類還有剩餘經句 */
+function getAvailableCategories(){
+    const ok = [];
+    for(let c=0;c<categoryList.length;c++){
+        const name = categoryList[c];
+        const has = verseCategories.some((cat,idx)=>{
             const no = idx+1;
-            return cat === catName && !usedVersesAll.includes(no);
+            return cat===name && !usedVerses.includes(no);
         });
-        if (hasVerse) availableIdx.push(c);
+        if(has) ok.push(c);
     }
-    return availableIdx;
+    return ok;
 }
 
-/* 避免停在分界線的分類角度 */
-function randomSafeCategoryAngle() {
-    const validCats = getAvailableCategoryIndices();
-    if (validCats.length === 0) return null;
+/* 避免停在邊界線 */
+function randomSafeAngle(){
+    const available = getAvailableCategories();
+    if(available.length===0) return null;
+
+    const idx = available[Math.floor(Math.random()*available.length)];
 
     const count = categoryList.length;
-    const arc = (2*Math.PI)/count;
+    const arc = 2*Math.PI / count;
     const safe = arc*0.2;
-
-    let cIndex = validCats[Math.floor(Math.random() * validCats.length)];
-
-    const base = cIndex*arc + arc/2;
+    const base = idx * arc + arc/2;
     const angle = base + (Math.random()*safe - safe/2);
-    return { cIndex, angle };
+
+    return { idx, angle };
 }
 
-/* 開始轉分類輪盤 */
-function startCategorySpin() {
-    if (isSpinning) return;
+/* ----------------- 開始轉動分類輪盤 ----------------- */
+function startCategorySpin(){
+    if(isSpinning) return;
 
-    if (usedVersesAll.length >= 128) {
-        alert("全部 128 張紅包祝福經句都已抽完！\n請回首頁按「全部歸零」後重新開始。");
+    if(usedVerses.length >= 128){
+        alert("全部經句都抽完！請回首頁歸零。");
         return;
     }
 
-    const info = randomSafeCategoryAngle();
-    if (!info) {
-        alert("目前所有分類的經句都已抽完！");
+    const info = randomSafeAngle();
+    if(!info){
+        alert("所有分類都抽完了！");
         return;
     }
 
     drumAudio.play().catch(()=>{});
-    isSpinning = true;
 
-    const totalRotation = info.angle + Math.PI * 8;
-    const duration = 3000;
-    let start = null;
+    isSpinning=true;
+    const totalRotation = info.angle + Math.PI*8;
+    const duration=3000;
+    let start=null;
 
-    function animate(ts) {
-        if (!start) start = ts;
+    function animate(ts){
+        if(!start) start=ts;
         const progress = ts - start;
         const ease = Math.pow(progress/duration,3);
         const current = ease * totalRotation;
@@ -404,98 +290,93 @@ function startCategorySpin() {
         drawCategoryWheel();
         ctx.restore();
 
-        if (progress < duration) {
+        if(progress < duration){
             requestAnimationFrame(animate);
         } else {
-            isSpinning = false;
-            finishCategoryDraw(info.cIndex);
+            finishCategory(info.idx);
+            isSpinning=false;
         }
     }
 
     requestAnimationFrame(animate);
 }
 
-/* 轉盤停下後，決定分類 */
-function finishCategoryDraw(idx) {
+/* ----------------- 顯示抽到的分類 ----------------- */
+function finishCategory(idx){
     currentCategory = categoryList[idx];
 
     winAudio.play().catch(()=>{});
     celebrate();
 
     document.getElementById("categoryResult").innerHTML =
-        `抽中分類：<b>${currentCategory}</b><br><br>
-         <button class="btn" onclick="drawCategoryVerse()">
-             抽本分類紅包經句
-         </button>`;
+        `抽到分類：<b>${currentCategory}</b><br><br>
+         <button class="btn" onclick="drawCategoryVerse()">抽本分類經句</button>`;
 }
 
-/* 抽該分類中的一節經句 */
-function drawCategoryVerse() {
-    if (!currentCategory) {
+/* ----------------- 抽該分類的剩餘經句 ----------------- */
+function drawCategoryVerse(){
+    if(!currentCategory){
         alert("請先轉動分類輪盤！");
         return;
     }
 
-    // 篩選出此分類中尚未抽過的經句
-    const candidates = [];
-    for (let i=0;i<verseCategories.length;i++) {
+    const pool = [];
+    for(let i=0;i<verseCategories.length;i++){
         const no = i+1;
-        if (verseCategories[i] === currentCategory &&
-            !usedVersesAll.includes(no)) {
-            candidates.push(no);
+        if(verseCategories[i]===currentCategory &&
+            !usedVerses.includes(no)){
+            pool.push(no);
         }
     }
 
-    if (candidates.length === 0) {
-        alert(`「${currentCategory}」分類的經句已全部抽完。\n請重新轉其他分類。`);
+    if(pool.length===0){
+        alert(`「${currentCategory}」分類已抽完！`);
         return;
     }
 
-    const verseNo = candidates[Math.floor(Math.random()*candidates.length)];
-    usedVersesAll.push(verseNo);
-    localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
+    const v = pool[Math.floor(Math.random()*pool.length)];
+    usedVerses.push(v);
+    localStorage.setItem("usedVersesAll", JSON.stringify(usedVerses));
     updateVerseCount();
 
-    const padded = verseNo.toString().padStart(3,"0");
+    const padded = v.toString().padStart(3,"0");
 
     winAudio.play().catch(()=>{});
     celebrate();
 
-    setTimeout(() => {
+    setTimeout(()=>{
         window.location = `viewer.html?no=${padded}`;
     }, 800);
 }
-</script>
 
-<script>
-/* ---------------- 煙火 + 金幣（與首頁相同） ---------------- */
-let fwCanvas = document.getElementById("fwCanvas");
-let fwCtx = fwCanvas.getContext("2d");
+/* ----------------- 煙火 + 金幣 ----------------- */
+let fwCanvas=document.getElementById("fwCanvas");
+let fwCtx=fwCanvas.getContext("2d");
 
 function resizeFW(){
-    fwCanvas.width = window.innerWidth;
-    fwCanvas.height = window.innerHeight;
+    fwCanvas.width=window.innerWidth;
+    fwCanvas.height=window.innerHeight;
 }
 resizeFW();
 window.addEventListener("resize", resizeFW);
 
-let fireArr = [];
+let fireArr=[];
 
 function launchFire(){
     fireArr.push({
-        x: Math.random()*fwCanvas.width,
-        y: Math.random()*fwCanvas.height*0.5,
-        r: 2,
-        c: `hsl(${Math.random()*360},100%,60%)`,
-        life: 30 + Math.random()*20
+        x:Math.random()*fwCanvas.width,
+        y:Math.random()*fwCanvas.height*0.5,
+        r:2,
+        c:`hsl(${Math.random()*360},100%,60%)`,
+        life:30+Math.random()*20
     });
 }
 
 function drawFire(){
     fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
     for(let i=fireArr.length-1;i>=0;i--){
-        const f = fireArr[i];
-        fwCtx.beginPath();
+        const f=fireArr[i];
+        fwCtx.beginPath(); 
         fwCtx.arc(f.x,f.y,f.r,0,Math.PI*2);
         fwCtx.fillStyle=f.c;
         fwCtx.fill();
@@ -509,7 +390,7 @@ drawFire();
 
 function startFireworks(){
     for(let i=0;i<12;i++){
-        setTimeout(launchFire,i*150);
+        setTimeout(()=>launchFire(), i*150);
     }
 }
 
@@ -523,7 +404,7 @@ function startCoins(){
             coin.style.animationDuration=(1.2+Math.random())+"s";
             document.body.appendChild(coin);
             setTimeout(()=>coin.remove(),2500);
-        },i*120);
+        }, i*120);
     }
 }
 

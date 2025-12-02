@@ -3,113 +3,100 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Blessing Cards 128 - 姓名抽籤（強化版）</title>
+<title>BlessingCards128 - 抽籤首頁</title>
 
-<!-- base64 嵌入字型 -->
-
-
-<!-- PDF 套件 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="fonts/fonts.css">
 
 <style>
     body {
-        margin: 0;
-        padding: 0;
-        background: #fff7e6;
-        font-family: "Noto Sans TC", sans-serif;
-        color: #8a5500;
-        text-align: center;
+        margin:0;
+        background:#fff7e6;
+        font-family:"NotoSansTC", sans-serif;
+        text-align:center;
+        color:#8a5500;
     }
 
     .container {
-        max-width: 900px;
-        margin: auto;
-        padding: 20px;
+        max-width:900px;
+        margin:auto;
+        padding:20px;
     }
 
     .logo {
-        width: 120px;
-        margin-top: 20px;
+        width:120px;
+        margin-top:20px;
     }
 
     h1 {
-        font-size: 30px;
-        margin-top: 10px;
-        color: #b37500;
-    }
-
-    .input-area {
-        background: #fff3d6;
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 0 8px rgba(0,0,0,0.1);
-        margin-top: 20px;
+        font-size:28px;
+        color:#b37500;
+        margin-top:10px;
     }
 
     textarea {
-        width: 90%;
-        height: 80px;
-        font-size: 18px;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #e0c288;
+        width:90%;
+        height:120px;
+        padding:10px;
+        font-size:18px;
+        border-radius:10px;
+        border:1px solid #d0a85c;
+        resize:none;
+        outline:none;
+        font-family:"NotoSansTC";
+        background:#fff;
     }
 
-    button {
-        background: #ffcc66;
-        border: none;
-        padding: 12px 22px;
-        border-radius: 10px;
-        font-size: 20px;
-        cursor: pointer;
-        margin-top: 12px;
+    .btn {
+        background:#ffcc66;
+        border:none;
+        padding:12px 22px;
+        border-radius:10px;
+        font-size:20px;
+        cursor:pointer;
+        margin-top:12px;
     }
-    button:hover {
-        background: #ffdd88;
-    }
-    #resetBtn {
-        background: #ff6666;
-        color: white;
-    }
-    #resetBtn:hover {
-        background: #ff8888;
-    }
+    .btn:hover { background:#ffdd88; }
 
     #pointer {
-        width: 0;
-        height: 0;
-        border-left: 18px solid transparent;
-        border-right: 18px solid transparent;
-        border-bottom: 32px solid red;
-        margin: auto;
-        margin-top: -10px;
-        position: relative;
-        z-index: 5;
+        width:0; height:0;
+        border-left:18px solid transparent;
+        border-right:18px solid transparent;
+        border-bottom:32px solid red;
+        margin:auto;
+        margin-top:15px;
+        position:relative;
+        z-index:5;
     }
 
-    canvas {
-        margin-top: 20px;
-        max-width: 300px;
+    #nameWheel {
+        margin-top:10px;
+        max-width:300px;
     }
 
-    #nameResult {
-        font-size: 24px;
-        margin-top: 10px;
-        min-height: 2em;
+    #resultArea {
+        font-size:26px;
+        margin-top:12px;
+        min-height:2.5em;
+        color:#b37500;
+    }
+
+    #verseCount {
+        margin-top:10px;
+        font-size:16px;
+        color:#9a6a00;
     }
 
     .coin {
-        position: fixed;
-        top: -50px;
-        width: 35px;
-        pointer-events: none;
-        animation: fallCoin linear forwards;
+        position:fixed;
+        top:-50px;
+        width:35px;
+        pointer-events:none;
+        animation:fallCoin linear forwards;
     }
 
     @keyframes fallCoin {
-        from { transform: translateY(-50px); opacity: 1; }
-        to { transform: translateY(100vh); opacity: 0; }
+        from { transform:translateY(-50px); opacity:1; }
+        to   { transform:translateY(100vh); opacity:0; }
     }
 </style>
 </head>
@@ -118,144 +105,79 @@
 <div class="container">
 
     <img src="logo3524.png" class="logo" />
-    <h1>飛鷹區 3524 主17小組 - 姓名抽籤</h1>
+    <h1>飛鷹區 3524 主17小組<br>歡迎來到紅包祝福經句抽籤</h1>
 
-    <div class="input-area">
-        <p>請輸入全部姓名（用逗號分隔，空格可有可無）</p>
+    <textarea id="nameInput" placeholder="請輸入全部組員姓名，用逗號分隔"></textarea>
 
-        <textarea id="nameInput" placeholder="例：孟淇, 秀萍, 又榕, 曉惠, 明隆, 淑宜, 秀雲, 德堅, 艾菱, 泳彥, 惠美"></textarea>
-
-        <br />
-        <button onclick="saveNamesAndStart()">開始抽姓名</button>
-
-        <br />
-        <button onclick="window.location='index_category.html'">
-            ➤ 切換到「分類抽籤」模式
-        </button>
-
-        <br />
-        <button id="resetBtn" onclick="resetAll()">
-            全部歸零（清除名單＋經句紀錄）
-        </button>
-
-        <br />
-        <button onclick="exportPDF()">
-            匯出 PDF 報告
-        </button>
+    <div>
+        <button class="btn" onclick="startNameSpin()">開始抽姓名</button>
+        <button class="btn" onclick="goCategory()">分類抽籤</button>
     </div>
 
-    <div id="pointer"></div>
+    <div id="verseCount"></div>
 
+    <div id="pointer"></div>
     <canvas id="nameWheel" width="300" height="300"></canvas>
 
-    <p id="nameResult"></p>
+    <div id="resultArea"></div>
 
-    <canvas id="fwCanvas"
-        style="position: fixed; left:0; top:0; width:100%; height:100%; pointer-events:none;">
-    </canvas>
+    <button class="btn" onclick="resetAll()">全部歸零</button>
+
+    <!-- 煙火 -->
+    <canvas id="fwCanvas" style="position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
 </div>
 
 <script>
-let usedVersesAll = [];     // 經句抽籤紀錄（1~128）
-let nameList = [];          // 全部姓名
-let usedNames = [];         // 已抽過姓名
-let isSpinning = false;     // 是否正在轉動
+let names = [];
+let usedNames = [];
 
+let usedVerses = [];
 let drumAudio, winAudio;
-let audioReady = false;
+let audioReady=false;
+let isSpinning=false;
 
-/* 初始化：讀取 localStorage */
-(function init() {
-    let savedNames   = localStorage.getItem("nameList");
-    let savedUsed    = localStorage.getItem("usedNames");
-    let savedVerses  = localStorage.getItem("usedVersesAll");
+const verseTotal = 128;
 
-    if (savedNames) {
-        nameList = JSON.parse(savedNames);
-        document.getElementById("nameInput").value = nameList.join(", ");
-        document.getElementById("nameInput").disabled = true;
-    }
-    if (savedUsed) {
-        usedNames = JSON.parse(savedUsed);
-    }
-    if (savedVerses) {
-        usedVersesAll = JSON.parse(savedVerses);
-    }
+(function init(){
+    let savedV = localStorage.getItem("usedVersesAll");
+    if(savedV) usedVerses = JSON.parse(savedV);
+    updateVerseCount();
 
     initAudio();
     drawNameWheel();
 })();
 
-function initAudio() {
-    if (audioReady) return;
+function initAudio(){
+    if(audioReady) return;
     drumAudio = new Audio("audio/drum.mp3");
     winAudio  = new Audio("audio/win.mp3");
-    audioReady = true;
+    audioReady=true;
 }
 
-/* 儲存姓名並開始轉 */
-function saveNamesAndStart() {
-    if (nameList.length === 0) {
-        let raw = document.getElementById("nameInput").value.trim();
-        if (!raw) return alert("請輸入姓名！");
-        nameList = raw.split(",").map(s => s.trim()).filter(s => s.length > 0);
-
-        localStorage.setItem("nameList", JSON.stringify(nameList));
-        document.getElementById("nameInput").disabled = true;
-    }
-
-    if (usedNames.length >= nameList.length) {
-        alert("全部人都已抽過一次！請按「全部歸零」。");
-        return;
-    }
-
-    drumAudio.play().catch(()=>{});
-    if (!isSpinning) {
-        isSpinning = true;
-        spinNameWheel();
-    }
+function updateVerseCount(){
+    document.getElementById("verseCount").textContent =
+        `已抽經句：${usedVerses.length} / ${verseTotal}`;
 }
 
-/* 全部歸零 */
-function resetAll() {
-    if (!confirm("確定要清除紀錄並重來？")) return;
-
-    localStorage.removeItem("nameList");
-    localStorage.removeItem("usedNames");
-    localStorage.removeItem("usedVersesAll");
-
-    nameList = [];
-    usedNames = [];
-    usedVersesAll = [];
-
-    location.reload();
+function goCategory(){
+    window.location = "index_category.html";
 }
 
-/* 畫輪盤 */
+/* 產生姓名輪盤 */
 const canvas = document.getElementById("nameWheel");
 const ctx = canvas.getContext("2d");
 
-function drawNameWheel() {
+function drawNameWheel(){
     ctx.clearRect(0,0,300,300);
 
-    if (nameList.length === 0) {
-        ctx.save();
-        ctx.translate(150,150);
-        ctx.fillStyle="#e0c288";
-        ctx.beginPath();
-        ctx.arc(0,0,120,0,Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle="#8a5500";
-        ctx.font="bold 18px NotoSansTC";
-        ctx.textAlign="center";
-        ctx.fillText("請先輸入姓名",0,0);
-        ctx.restore();
-        return;
-    }
+    names = document.getElementById("nameInput").value
+        .split(",")
+        .map(s=>s.trim())
+        .filter(s=>s.length>0);
 
-    let count = nameList.length;
-    let arc = (2*Math.PI)/count;
+    const count = names.length || 1;
+    const arc = 2*Math.PI / count;
 
     for(let i=0;i<count;i++){
         let angle = i*arc;
@@ -267,43 +189,58 @@ function drawNameWheel() {
 
         ctx.save();
         ctx.translate(150,150);
-        ctx.rotate(angle+arc/2);
+        ctx.rotate(angle + arc/2);
         ctx.textAlign="right";
-        ctx.fillStyle="#8a5500";
         ctx.font="bold 18px NotoSansTC";
-        ctx.fillText(nameList[i],135,8);
+        ctx.fillStyle="#8a5500";
+        ctx.fillText(names[i] || " ", 135, 8);
         ctx.restore();
     }
 }
 
-/* 避免停在分界線 */
-function randomSafeAngle() {
-    let count = nameList.length;
-    let arc = (2*Math.PI)/count;
+/* 抽姓名（不重複） */
+function startNameSpin(){
+    if(isSpinning) return;
+
+    names = document.getElementById("nameInput").value
+        .split(",")
+        .map(s=>s.trim())
+        .filter(s=>s.length>0);
+
+    if(names.length===0){
+        alert("請先輸入姓名");
+        return;
+    }
+
+    let available = names.filter(n => !usedNames.includes(n));
+
+    if(available.length === 0){
+        alert("全部姓名都抽過了！請按「全部歸零」。");
+        return;
+    }
+
+    drumAudio.play().catch(()=>{});
+
+    isSpinning=true;
+    const idx = Math.floor(Math.random()*available.length);
+    const winner = available[idx];
+    const winnerIdx = names.indexOf(winner);
+
+    const arc = 2*Math.PI / names.length;
     let safe = arc*0.2;
 
-    let idx = Math.floor(Math.random()*count);
-    while (usedNames.includes(nameList[idx])) {
-        idx = Math.floor(Math.random()*count);
-    }
-    let base = idx*arc + arc/2;
-    return { idx, angle: base + (Math.random()*safe - safe/2) };
-}
+    const base = winnerIdx * arc + arc/2;
+    const targetAngle = base + (Math.random()*safe - safe/2);
+    const totalRotation = targetAngle + Math.PI*8;
 
-/* 旋轉動畫 */
-function spinNameWheel() {
-    const { idx, angle } = randomSafeAngle();
-    const finalIndex = idx;
-
-    const totalRotation = angle + Math.PI*8;
-    const duration = 3000;
-    let start = null;
+    let startTime=null;
+    const duration=3000;
 
     function animate(ts){
-        if(!start) start = ts;
-        let progress = ts-start;
-        let ease = (progress/duration)**3;
-        let current = ease * totalRotation;
+        if(!startTime) startTime=ts;
+        const progress = ts - startTime;
+        const ease = Math.pow(progress/duration,3);
+        const current = ease * totalRotation;
 
         ctx.save();
         ctx.translate(150,150);
@@ -315,75 +252,82 @@ function spinNameWheel() {
         if(progress < duration){
             requestAnimationFrame(animate);
         } else {
-            isSpinning = false;
-            finishName(finalIndex);
+            finishDrawName(winner);
+            isSpinning=false;
         }
     }
+
     requestAnimationFrame(animate);
 }
 
-/* 抽姓名完成 */
-function finishName(idx){
-    let name = nameList[idx];
-
-    if(!usedNames.includes(name)){
-        usedNames.push(name);
-        localStorage.setItem("usedNames", JSON.stringify(usedNames));
-    }
-
+function finishDrawName(winner){
     winAudio.play().catch(()=>{});
     celebrate();
 
-    document.getElementById("nameResult").innerHTML =
-        `抽中：<b>${name}</b><br><br>
-         <button onclick="drawBlessingVerse()">抽紅包祝福經句</button>`;
+    usedNames.push(winner);
+
+    document.getElementById("resultArea").innerHTML =
+        `抽中：<b>${winner}</b><br><br>
+        <button class="btn" onclick="drawVerse()">抽紅包祝福經句</button>`;
 }
 
-/* 抽紅包經句 */
-function drawBlessingVerse(){
-    if(usedVersesAll.length >= 128){
-        alert("128 張經句已抽完！請按「全部歸零」。");
+/* 抽經句（不重複） */
+function drawVerse(){
+    if(usedVerses.length >= verseTotal){
+        alert("128 張經句都已抽完，請歸零再開始！");
         return;
     }
 
-    const all = Array.from({length:128},(_,i)=>i+1);
-    const available = all.filter(n=>!usedVersesAll.includes(n));
-    const verseNo = available[Math.floor(Math.random()*available.length)];
+    let remaining = [];
+    for(let i=1;i<=verseTotal;i++){
+        if(!usedVerses.includes(i)) remaining.push(i);
+    }
 
-    usedVersesAll.push(verseNo);
-    localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
+    const v = remaining[Math.floor(Math.random()*remaining.length)];
+    usedVerses.push(v);
+    localStorage.setItem("usedVersesAll", JSON.stringify(usedVerses));
+    updateVerseCount();
 
-    let padded = verseNo.toString().padStart(3,"0");
+    const padded = v.toString().padStart(3,"0");
 
     winAudio.play().catch(()=>{});
     celebrate();
 
-    setTimeout(()=>window.location=`viewer.html?no=${padded}`,800);
+    setTimeout(()=>{
+        window.location = `viewer.html?no=${padded}`;
+    }, 700);
 }
 
-/* ------------------ 煙火＋金幣 ------------------ */
-let fwCanvas = document.getElementById("fwCanvas");
-let fwCtx = fwCanvas.getContext("2d");
+function resetAll(){
+    if(!confirm("確定全部重置嗎？")) return;
+    usedNames=[];
+    usedVerses=[];
+    localStorage.removeItem("usedVersesAll");
+    updateVerseCount();
+    document.getElementById("resultArea").textContent="";
+}
+
+/* 煙火 + 金幣 */
+let fwCanvas=document.getElementById("fwCanvas");
+let fwCtx=fwCanvas.getContext("2d");
 
 function resizeFW(){
-    fwCanvas.width = window.innerWidth;
-    fwCanvas.height = window.innerHeight;
+    fwCanvas.width=window.innerWidth;
+    fwCanvas.height=window.innerHeight;
 }
 resizeFW();
 window.addEventListener("resize", resizeFW);
 
-let fireArr = [];
-
+let fireArr=[];
 function launchFire(){
     fireArr.push({
-        x: Math.random()*fwCanvas.width,
-        y: Math.random()*fwCanvas.height*0.5,
-        r: 2,
-        c: `hsl(${Math.random()*360},100%,60%)`,
-        life: 30+Math.random()*20
+        x:Math.random()*fwCanvas.width,
+        y:Math.random()*fwCanvas.height*0.5,
+        r:2,
+        c:`hsl(${Math.random()*360},100%,60%)`,
+        life:30+Math.random()*20
     });
 }
-
 function drawFire(){
     fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
     for(let i=fireArr.length-1;i>=0;i--){
@@ -399,13 +343,9 @@ function drawFire(){
     requestAnimationFrame(drawFire);
 }
 drawFire();
-
 function startFireworks(){
-    for(let i=0;i<12;i++){
-        setTimeout(launchFire,i*150);
-    }
+    for(let i=0;i<12;i++) setTimeout(launchFire, i*150);
 }
-
 function startCoins(){
     for(let i=0;i<15;i++){
         setTimeout(()=>{
@@ -416,29 +356,12 @@ function startCoins(){
             coin.style.animationDuration=(1.2+Math.random())+"s";
             document.body.appendChild(coin);
             setTimeout(()=>coin.remove(),2500);
-        },i*120);
+        }, i*120);
     }
 }
-
 function celebrate(){
     startFireworks();
     startCoins();
-}
-
-/* ------------------ 匯出 PDF ------------------ */
-async function exportPDF(){
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF("p","mm","a4");
-
-    let target=document.querySelector(".container");
-    let canvas=await html2canvas(target,{scale:2});
-    let img=canvas.toDataURL("image/jpeg",0.95);
-
-    let pdfW=pdf.internal.pageSize.getWidth();
-    let pdfH=(canvas.height*pdfW)/canvas.width;
-    pdf.addImage(img,"JPEG",0,0,pdfW,pdfH);
-
-    pdf.save("BlessingCards_Report.pdf");
 }
 </script>
 

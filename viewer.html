@@ -3,24 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blessing Cards Viewer</title>
+<title>BlessingCards128 - 經句檢視</title>
+
+<link rel="stylesheet" href="fonts/fonts.css">
 
 <style>
     body {
         margin: 0;
         padding: 0;
         background: #fff7e6;
-        font-family: "Noto Sans TC", sans-serif;
+        font-family: "NotoSansTC", sans-serif;
         text-align: center;
         color: #8a5500;
     }
     .container {
         padding: 20px;
     }
+    h2 {
+        margin-top: 5px;
+        margin-bottom: 5px;
+        color: #b37500;
+    }
     .verse-info {
-        font-size: 22px;
-        margin-top: 10px;
-        margin-bottom: 15px;
+        font-size: 20px;
+        margin-top: 8px;
+        margin-bottom: 12px;
     }
     #cardImg {
         width: 90%;
@@ -28,15 +35,17 @@
         border-radius: 12px;
         box-shadow: 0 0 10px rgba(0,0,0,0.25);
         cursor: zoom-in;
+        background: #fff;
     }
     .nav-btn {
         margin: 10px;
-        padding: 12px 20px;
+        padding: 10px 18px;
         font-size: 18px;
         border: none;
         border-radius: 10px;
         background: #ffcc66;
         color: #8a5500;
+        cursor: pointer;
     }
     .nav-btn:hover {
         background: #ffdd88;
@@ -51,10 +60,11 @@
         display: none;
         justify-content: center;
         align-items: center;
+        z-index: 999;
     }
     #lightbox img {
         width: 95%;
-        max-width: 650px;
+        max-width: 700px;
         border-radius: 12px;
         cursor: zoom-out;
     }
@@ -73,20 +83,23 @@
         <button class="nav-btn" onclick="nextCard()">下一張 →</button>
     </div>
 
-    <div style="margin-top:15px;">
+    <div style="margin-top: 10px;">
         <button class="nav-btn" onclick="window.location='index.html'">
             返回抽籤首頁
+        </button>
+        <button class="nav-btn" onclick="window.location='index_category.html'">
+            返回分類抽籤
         </button>
     </div>
 </div>
 
-<!-- Lightbox -->
+<!-- Lightbox 放大檢視 -->
 <div id="lightbox" onclick="hideLightbox()">
     <img id="lightboxImg" src="">
 </div>
 
 <script>
-/* 書卷＋章節 mapping（001～128）你提供的清單 */
+/* 001～128 書卷＋章節對應 */
 const verseInfoMapping = [
 "以賽亞書 26:3-4",
 "以賽亞書 27:3",
@@ -218,21 +231,26 @@ const verseInfoMapping = [
 "馬可福音 12:30-31"
 ];
 
-/* 取得 URL 參數 no=001 */
+// 讀取 URL 參數 no
 const params = new URLSearchParams(window.location.search);
-let no = parseInt(params.get("no"));
+let no = parseInt(params.get("no"), 10);
 
 if (!no || no < 1 || no > 128) {
     alert("無效的經句編號，將返回首頁");
     window.location = "index.html";
 }
 
-/* 顯示資訊 */
+/* 顯示當前卡片 */
 function updateViewer() {
     const padded = no.toString().padStart(3, "0");
-    document.getElementById("cardImg").src = `cards/${padded}.png`;
+    const imgPath = `cards/${padded}.png`;
+
+    document.getElementById("cardImg").src = imgPath;
+    document.getElementById("lightboxImg").src = imgPath;
+
+    const verseText = verseInfoMapping[no - 1] || "";
     document.getElementById("verseInfo").textContent =
-        `${padded}｜${verseInfoMapping[no-1]}`;
+        `${padded} ｜ ${verseText}`;
 }
 
 /* 上一張 */
@@ -251,29 +269,27 @@ function nextCard() {
     }
 }
 
-/* Lightbox */
+/* Lightbox 顯示 / 關閉 */
 function showLightbox() {
-    document.getElementById("lightboxImg").src =
-        document.getElementById("cardImg").src;
     document.getElementById("lightbox").style.display = "flex";
 }
 function hideLightbox() {
     document.getElementById("lightbox").style.display = "none";
 }
 
-/* 手勢滑動支援 */
+/* 手機滑動切換上下張 */
 let startX = 0;
-
 document.addEventListener("touchstart", e => {
     startX = e.touches[0].clientX;
 });
-
 document.addEventListener("touchend", e => {
-    let endX = e.changedTouches[0].clientX;
-    let diff = endX - startX;
-
-    if (diff > 50) prevCard();
-    else if (diff < -50) nextCard();
+    const endX = e.changedTouches[0].clientX;
+    const diff = endX - startX;
+    if (diff > 50) {
+        prevCard();
+    } else if (diff < -50) {
+        nextCard();
+    }
 });
 
 /* 初始化畫面 */
