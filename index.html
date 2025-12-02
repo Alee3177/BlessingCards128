@@ -6,7 +6,6 @@
 <title>BlessingCards128 - 抽籤首頁</title>
 
 <link rel="stylesheet" href="fonts/fonts.css">
-<!-- test rebuild -->
 
 <style>
     body {
@@ -124,26 +123,41 @@
 
     <button class="btn" onclick="resetAll()">全部歸零</button>
 
-    <!-- 煙火 -->
     <canvas id="fwCanvas" style="position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;"></canvas>
 
 </div>
 
 <script>
+/* -----------------------------------------------------------
+   全域變數
+----------------------------------------------------------- */
 let names = [];
 let usedNames = [];
-
 let usedVerses = [];
+
 let drumAudio, winAudio;
 let audioReady=false;
 let isSpinning=false;
 
 const verseTotal = 128;
 
-/* 產生姓名輪盤 */
+/* -----------------------------------------------------------
+   Canvas 與 ctx (最重要：必須在 init() 前初始化)
+----------------------------------------------------------- */
 const canvas = document.getElementById("nameWheel");
 const ctx = canvas.getContext("2d");
 
+/* -----------------------------------------------------------
+   更新經句計數
+----------------------------------------------------------- */
+function updateVerseCount(){
+    document.getElementById("verseCount").textContent =
+        `已抽經句：${usedVerses.length} / ${verseTotal}`;
+}
+
+/* -----------------------------------------------------------
+   畫姓名輪盤
+----------------------------------------------------------- */
 function drawNameWheel(){
     ctx.clearRect(0,0,300,300);
 
@@ -174,17 +188,40 @@ function drawNameWheel(){
     }
 }
 
+/* -----------------------------------------------------------
+   初始化
+----------------------------------------------------------- */
 (function init(){
+
     let savedV = localStorage.getItem("usedVersesAll");
     if(savedV) usedVerses = JSON.parse(savedV);
     updateVerseCount();
 
     initAudio();
-    drawNameWheel();   // 這時 ctx 已經初始化好了
+    drawNameWheel();   // ctx 已可正常使用
+
 })();
 
+/* -----------------------------------------------------------
+   音效初始化
+----------------------------------------------------------- */
+function initAudio(){
+    if(audioReady) return;
+    drumAudio = new Audio("audio/drum.mp3");
+    winAudio  = new Audio("audio/win.mp3");
+    audioReady=true;
+}
 
-/* 抽姓名（不重複） */
+/* -----------------------------------------------------------
+   進入分類頁面
+----------------------------------------------------------- */
+function goCategory(){
+    window.location = "index_category.html";
+}
+
+/* -----------------------------------------------------------
+   抽姓名
+----------------------------------------------------------- */
 function startNameSpin(){
     if(isSpinning) return;
 
@@ -246,6 +283,9 @@ function startNameSpin(){
     requestAnimationFrame(animate);
 }
 
+/* -----------------------------------------------------------
+   抽姓名後行為
+----------------------------------------------------------- */
 function finishDrawName(winner){
     winAudio.play().catch(()=>{});
     celebrate();
@@ -257,7 +297,9 @@ function finishDrawName(winner){
         <button class="btn" onclick="drawVerse()">抽紅包祝福經句</button>`;
 }
 
-/* 抽經句（不重複） */
+/* -----------------------------------------------------------
+   抽紅包經句
+----------------------------------------------------------- */
 function drawVerse(){
     if(usedVerses.length >= verseTotal){
         alert("128 張經句都已抽完，請歸零再開始！");
@@ -284,6 +326,9 @@ function drawVerse(){
     }, 700);
 }
 
+/* -----------------------------------------------------------
+   歸零
+----------------------------------------------------------- */
 function resetAll(){
     if(!confirm("確定全部重置嗎？")) return;
     usedNames=[];
@@ -293,7 +338,9 @@ function resetAll(){
     document.getElementById("resultArea").textContent="";
 }
 
-/* 煙火 + 金幣 */
+/* -----------------------------------------------------------
+   煙火 + 金幣
+----------------------------------------------------------- */
 let fwCanvas=document.getElementById("fwCanvas");
 let fwCtx=fwCanvas.getContext("2d");
 
