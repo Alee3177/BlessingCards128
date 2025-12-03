@@ -342,8 +342,8 @@ function resetAll(){
 </script>
 <!-- jsPDF CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="font_base64.js"></script>
 
-<script>
 function exportPDF(){
     const raw = localStorage.getItem("drawLogs") || "[]";
     let logs;
@@ -361,9 +361,15 @@ function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "pt" });
 
-    doc.setFont("Helvetica", "normal");
+    // ★★★ 這是你現在最需要的三行：載入中文字型 ★★★
+    doc.addFileToVFS("NotoSansTC-Regular.ttf", window.PDF_FONT.normal);
+    doc.addFont("NotoSansTC-Regular.ttf", "NotoSansTC", "normal");
+    doc.setFont("NotoSansTC");
+
+    // -------- PDF 內容 --------
     doc.setFontSize(16);
     doc.text("BlessingCards128 抽籤紀錄", 40, 40);
+
     doc.setFontSize(12);
     doc.text("（由系統自動產生）", 40, 60);
     doc.line(40, 70, 555, 70);
@@ -372,12 +378,18 @@ function exportPDF(){
     const lineHeight = 18;
 
     logs.forEach(log => {
-        const line = `[${log.time}] 「${log.name}」 在「${log.category}」中抽到 → ${log.verseRef}（${String(log.verseNo).padStart(3,"0")}.png）`;
-        const { jsPDF } = window.jspdf;
-        const split = doc.splitTextToSize(line, 515);
-        split.forEach(part => {
-            if (y > 780) {
+
+        const line =
+            `[${log.time}] 「${log.name}」 在「${log.category}」中抽到 ` +
+            `→ ${log.verseRef}（${String(log.verseNo).padStart(3,"0")}.png）`;
+
+        // 頁面寬度 = 555（右邊界）- 40（左邊界）
+        const wrapped = doc.splitTextToSize(line, 515);
+
+        wrapped.forEach(part => {
+            if (y > 780) {            // 超過 A4 邊界 → 換頁
                 doc.addPage();
+                doc.setFont("NotoSansTC");   // 每頁重新指定中文
                 y = 40;
             }
             doc.text(part, 40, y);
@@ -391,4 +403,7 @@ function exportPDF(){
 
 
 </body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="font_base64.js"></script>
+
 </html>

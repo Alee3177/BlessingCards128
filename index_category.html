@@ -513,8 +513,8 @@ function goHome(){
 
 <!-- jsPDF CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="font_base64.js"></script>
 
-<script>
 function exportPDF(){
     const raw = localStorage.getItem("drawLogs") || "[]";
     let logs;
@@ -532,9 +532,15 @@ function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "pt" });
 
-    doc.setFont("Helvetica", "normal");
+    // ★★★ 這是你現在最需要的三行：載入中文字型 ★★★
+    doc.addFileToVFS("NotoSansTC-Regular.ttf", window.PDF_FONT.normal);
+    doc.addFont("NotoSansTC-Regular.ttf", "NotoSansTC", "normal");
+    doc.setFont("NotoSansTC");
+
+    // -------- PDF 內容 --------
     doc.setFontSize(16);
     doc.text("BlessingCards128 抽籤紀錄", 40, 40);
+
     doc.setFontSize(12);
     doc.text("（由系統自動產生）", 40, 60);
     doc.line(40, 70, 555, 70);
