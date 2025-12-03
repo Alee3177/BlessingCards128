@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>祝福經句顯示 - BlessingCards128</title>
+<title>紅包祝福經句</title>
 
 <link rel="stylesheet" href="fonts/fonts.css">
 
 <style>
-    body {
+    body{
         margin:0;
         background:#fff7e6;
         font-family:"NotoSansTC", sans-serif;
@@ -16,37 +16,21 @@
         color:#8a5500;
     }
 
-    .container {
+    .container{
         max-width:900px;
         margin:auto;
         padding:20px;
     }
 
-    .logo {
-        width:120px;
+    .verse-img{
+        width:90%;
+        max-width:500px;
         margin-top:20px;
-    }
-
-    h1 {
-        font-size:26px;
-        margin-top:10px;
-        color:#b37500;
-    }
-
-    #verseImage {
-        margin-top:20px;
-        max-width:90%;
         border-radius:12px;
         box-shadow:0 0 10px rgba(0,0,0,0.2);
     }
 
-    #infoLines {
-        margin-top:16px;
-        font-size:20px;
-        line-height:1.6;
-    }
-
-    .btn {
+    .btn{
         background:#ffcc66;
         border:none;
         padding:12px 22px;
@@ -54,335 +38,173 @@
         font-size:20px;
         cursor:pointer;
         margin-top:20px;
-        margin-bottom:25px;
     }
-    .btn:hover { background:#ffdd88; }
+    .btn:hover{
+        background:#ffdd88;
+    }
+
+    .coin{
+        position:fixed;
+        top:-50px;
+        width:35px;
+        pointer-events:none;
+        animation:fallCoin linear forwards;
+    }
+
+    @keyframes fallCoin{
+        from{ transform:translateY(-50px); opacity:1;}
+        to{ transform:translateY(100vh); opacity:0;}
+    }
 </style>
 </head>
 
 <body>
 <div class="container">
 
-    <img src="logo3524.png" class="logo" />
     <h1>紅包祝福經句</h1>
 
-    <img id="verseImage" src="" alt="經句圖片">
+    <div id="infoArea" style="margin-top:10px;font-size:22px;"></div>
+    <img id="verseImg" class="verse-img">
 
-    <div id="infoLines">
-        <div id="lineNumber"></div>
-        <div id="lineRef"></div>
-    </div>
-
-    <div>
-        <button class="btn" onclick="goHome()">回首頁</button>
+    <div style="margin-top:20px;">
+        <button class="btn" onclick="goBack()">返回</button>
     </div>
 
 </div>
 
+<!-- 煙火 -->
+<canvas id="fwCanvas" style="position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
 <script>
-
-/* -----------------------------------------------------------
-   128 張卡片對應的書卷 + 章節
-   001 對應陣列第 0 筆，002 對應第 1 筆，… 依此類推
------------------------------------------------------------ */
-const bibleRefs = [
-  { book: "以賽亞書", verse: "26:3-4" },
-  { book: "以賽亞書", verse: "27:3" },
-  { book: "以賽亞書", verse: "30:15" },
-  { book: "以賽亞書", verse: "30:18" },
-  { book: "以賽亞書", verse: "33:2" },
-  { book: "以賽亞書", verse: "33:6" },
-  { book: "以賽亞書", verse: "33:15-16" },
-  { book: "以賽亞書", verse: "38:3" },
-  { book: "以賽亞書", verse: "40:31" },
-  { book: "以賽亞書", verse: "41:9-10" },
-  { book: "以賽亞書", verse: "49:25" },
-  { book: "以賽亞書", verse: "54:2" },
-  { book: "以賽亞書", verse: "53:5" },
-  { book: "以賽亞書", verse: "49:15" },
-  { book: "以賽亞書", verse: "48:17-18" },
-  { book: "以賽亞書", verse: "43:4" },
-  { book: "以賽亞書", verse: "43:2" },
-  { book: "以賽亞書", verse: "12:2" },
-  { book: "以賽亞書", verse: "54:10" },
-  { book: "以賽亞書", verse: "61:10" },
-  { book: "耶利米書", verse: "15:16" },
-  { book: "耶利米書", verse: "16:19" },
-  { book: "耶利米書", verse: "17:7-8" },
-  { book: "耶利米書", verse: "20:11" },
-  { book: "耶利米書", verse: "29:11-13" },
-  { book: "詩篇", verse: "1:1-3" },
-  { book: "詩篇", verse: "3:3，16:11" },
-  { book: "詩篇", verse: "5:11-12" },
-  { book: "詩篇", verse: "16:8-9" },
-  { book: "詩篇", verse: "17:8" },
-  { book: "詩篇", verse: "18:2" },
-  { book: "詩篇", verse: "18:30-32" },
-  { book: "詩篇", verse: "27:1" },
-  { book: "詩篇", verse: "27:4" },
-  { book: "詩篇", verse: "27:14" },
-  { book: "詩篇", verse: "28:7" },
-  { book: "詩篇", verse: "30:4-5" },
-  { book: "詩篇", verse: "31:19" },
-  { book: "詩篇", verse: "34:8-10" },
-  { book: "詩篇", verse: "37:3-5" },
-  { book: "詩篇", verse: "37:23-24" },
-  { book: "詩篇", verse: "41:12-13" },
-  { book: "詩篇", verse: "50:14-15" },
-  { book: "詩篇", verse: "50:23" },
-  { book: "詩篇", verse: "52:8-9" },
-  { book: "詩篇", verse: "55:22" },
-  { book: "詩篇", verse: "60:12" },
-  { book: "詩篇", verse: "63:7-8" },
-  { book: "詩篇", verse: "71:5-6，9" },
-  { book: "詩篇", verse: "73:25-26" },
-  { book: "詩篇", verse: "73:28" },
-  { book: "詩篇", verse: "81:10" },
-  { book: "詩篇", verse: "84:10-11" },
-  { book: "詩篇", verse: "86:11-13" },
-  { book: "詩篇", verse: "91:1-2" },
-  { book: "詩篇", verse: "91:9-12" },
-  { book: "詩篇", verse: "91:14-16" },
-  { book: "詩篇", verse: "103:2-5" },
-  { book: "詩篇", verse: "103:17-18" },
-  { book: "詩篇", verse: "108:13" },
-  { book: "詩篇", verse: "115:11-13" },
-  { book: "詩篇", verse: "118:5-6" },
-  { book: "詩篇", verse: "118:8-9" },
-  { book: "詩篇", verse: "118:14" },
-  { book: "詩篇", verse: "118:24" },
-  { book: "詩篇", verse: "119:105" },
-  { book: "詩篇", verse: "121:1-2" },
-  { book: "詩篇", verse: "121:5-8" },
-  { book: "詩篇", verse: "125:1-2" },
-  { book: "詩篇", verse: "127:1-2" },
-  { book: "詩篇", verse: "128:1-2" },
-  { book: "詩篇", verse: "131:1-2" },
-  { book: "詩篇", verse: "139:13-14" },
-  { book: "詩篇", verse: "139:17-18" },
-  { book: "詩篇", verse: "140:7" },
-  { book: "詩篇", verse: "144:2" },
-  { book: "詩篇", verse: "145:17-19" },
-  { book: "箴言", verse: "3:5-6" },
-  { book: "箴言", verse: "3:24-26" },
-  { book: "箴言", verse: "4:20-23" },
-  { book: "箴言", verse: "9:10-11" },
-  { book: "箴言", verse: "10:22" },
-  { book: "箴言", verse: "14:26-27" },
-  { book: "箴言", verse: "16:3" },
-  { book: "箴言", verse: "17:22" },
-  { book: "箴言", verse: "19:23" },
-  { book: "箴言", verse: "22:4" },
-  { book: "箴言", verse: "31:10-12" },
-  { book: "申命記", verse: "6:4-5" },
-  { book: "申命記", verse: "28:6-7" },
-  { book: "申命記", verse: "28:12" },
-  { book: "申命記", verse: "28:13-14" },
-  { book: "申命記", verse: "30:20" },
-  { book: "申命記", verse: "31:8" },
-  { book: "申命記", verse: "33:12" },
-  { book: "約書亞記", verse: "1:8" },
-  { book: "約書亞記", verse: "1:9" },
-  { book: "約書亞記", verse: "24:15" },
-  { book: "撒母耳記下", verse: "22:2-3" },
-  { book: "撒母耳記下", verse: "22:31" },
-  { book: "撒母耳記下", verse: "23:5" },
-  { book: "馬太福音", verse: "7:7" },
-  { book: "馬太福音", verse: "6:32-33" },
-  { book: "馬太福音", verse: "11:28-29" },
-  { book: "馬太福音", verse: "21:21-22" },
-  { book: "約翰福音", verse: "14:21" },
-  { book: "約翰福音", verse: "14:27" },
-  { book: "約翰福音", verse: "15:5" },
-  { book: "約翰福音", verse: "16:33" },
-  { book: "使徒行傳", verse: "2:25-28" },
-  { book: "羅馬書", verse: "8:26-28" },
-  { book: "羅馬書", verse: "8:31-32" },
-  { book: "哥林多前書", verse: "2:9" },
-  { book: "哥林多後書", verse: "12:9" },
-  { book: "以弗所書", verse: "3:20" },
-  { book: "腓立比書", verse: "4:4，6-7" },
-  { book: "腓立比書", verse: "3:13-14" },
-  { book: "腓立比書", verse: "4:11-13" },
-  { book: "腓立比書", verse: "4:19" },
-  { book: "歌羅西書", verse: "3:16-17" },
-  { book: "帖撒羅尼迦前書", verse: "5:16-18" },
-  { book: "提摩太前書", verse: "6:6-7" },
-  { book: "提摩太後書", verse: "1:7" },
-  { book: "希伯來書", verse: "13:15-16" },
-  { book: "彼得前書", verse: "5:7-8" },
-  { book: "約翰壹書", verse: "4:4" },
-  { book: "約翰壹書", verse: "5:14-15" },
-  { book: "馬可福音", verse: "12:30-31" },
-];
-
-/* -----------------------------------------------------------
-   分類 → 經句編號（跟 index_category.html 裡的一樣）
-   用來從「經句編號」反推「分類名稱」
------------------------------------------------------------ */
-const categoryVerses = {
-  "平安與保護": [
-    1, 5, 11, 13, 15, 18, 19, 20,
-    22, 25, 30, 31, 33, 51, 55, 56,
-    64, 68, 77, 79, 80, 83, 99, 107,
-    109, 116
-  ],
-  "其他": [
-    2, 7, 8, 14, 16, 17, 42, 46, 48, 52,
-    57, 62, 66, 67, 70, 71, 72, 73, 74,
-    82, 84, 86, 87, 89, 90, 91, 92, 93,
-    94, 95, 98, 100, 101, 102, 103, 104,
-    106, 108, 111, 112, 113, 115, 117,
-    122, 124, 125, 126, 127, 128
-  ],
-  "盼望與力量": [
-    3, 9, 10, 12, 32, 35, 36,
-    49, 50, 75, 97, 118, 123
-  ],
-  "恩典與憐憫": [
-    4, 28, 37, 38, 45, 53, 54,
-    58, 59, 76, 114
-  ],
-  "供應與豐盛": [
-    6, 119, 120
-  ],
-  "喜樂與感恩": [
-    21, 29, 43, 44, 65, 85, 121
-  ],
-  "信心與順服": [
-    23, 34, 39, 40, 47, 60, 61,
-    63, 69, 78, 88, 105
-  ],
-  "智慧與引導": [
-    24, 26, 27, 41, 81, 96, 110
-  ]
+/* ---------------------- */
+/*     書卷章節資料表     */
+/* ---------------------- */
+const verseRefs = {
+1:"以賽亞書 26:3-4",2:"以賽亞書 27:3",3:"以賽亞書 30:15",4:"以賽亞書 30:18",
+5:"以賽亞書 33:2",6:"以賽亞書 33:6",7:"以賽亞書 33:15-16",8:"以賽亞書 38:3",
+9:"以賽亞書 40:31",10:"以賽亞書 41:9-10",11:"以賽亞書 49:25",12:"以賽亞書 54:2",
+13:"以賽亞書 53:5",14:"以賽亞書 49:15",15:"以賽亞書 48:17-18",16:"以賽亞書 43:4",
+17:"以賽亞書 43:2",18:"以賽亞書 12:2",19:"以賽亞書 54:10",20:"以賽亞書 61:10",
+21:"耶利米書 15:16",22:"耶利米書 16:19",23:"耶利米書 17:7-8",24:"耶利米書 20:11",
+25:"耶利米書 29:11-13",26:"詩篇 1:1-3",27:"詩篇 3:3，16:11",28:"詩篇 5:11-12",
+29:"詩篇 16:8-9",30:"詩篇 17:8",31:"詩篇 18:2",32:"詩篇 18:30-32",
+33:"詩篇 27:1",34:"詩篇 27:4",35:"詩篇 27:14",36:"詩篇 28:7",
+37:"詩篇 30:4-5",38:"詩篇 31:19",39:"詩篇 34:8-10",40:"詩篇 37:3-5",
+41:"詩篇 37:23-24",42:"詩篇 41:12-13",43:"詩篇 50:14-15",44:"詩篇 50:23",
+45:"詩篇 52:8-9",46:"詩篇 55:22",47:"詩篇 60:12",48:"詩篇 63:7-8",
+49:"詩篇 71:5-6，9",50:"詩篇 73:25-26",51:"詩篇 73:28",52:"詩篇 81:10",
+53:"詩篇 84:10-11",54:"詩篇 86:11-13",55:"詩篇 91:1-2",56:"詩篇 91:9-12",
+57:"詩篇 91:14-16",58:"詩篇 103:2-5",59:"詩篇 103:17-18",60:"詩篇 108:13",
+61:"詩篇 115:11-13",62:"詩篇 118:5-6",63:"詩篇 118:8-9",64:"詩篇 118:14",
+65:"詩篇 118:24",66:"詩篇 119:105",67:"詩篇 121:1-2",68:"詩篇 121:5-8",
+69:"詩篇 125:1-2",70:"詩篇 127:1-2",71:"詩篇 128:1-2",72:"詩篇 131:1-2",
+73:"詩篇 139:13-14",74:"詩篇 139:17-18",75:"詩篇 140:7",76:"詩篇 144:2",
+77:"詩篇 145:17-19",78:"箴言 3:5-6",79:"箴言 3:24-26",80:"箴言 4:20-23",
+81:"箴言 9:10-11",82:"箴言 10:22",83:"箴言 14:26-27",84:"箴言 16:3",
+85:"箴言 17:22",86:"箴言 19:23",87:"箴言 22:4",88:"箴言 31:10-12",
+89:"申命記 6:4-5",90:"申命記 28:6-7",91:"申命記 28:12",92:"申命記 28:13-14",
+93:"申命記 30:20",94:"申命記 31:8",95:"申命記 33:12",96:"約書亞記 1:8",
+97:"約書亞記 1:9",98:"約書亞記 24:15",99:"撒母耳記下 22:2-3",100:"撒母耳記下 22:31",
+101:"撒母耳記下 23:5",102:"馬太福音 7:7",103:"馬太福音 6:32-33",104:"馬太福音 11:28-29",
+105:"馬太福音 21:21-22",106:"約翰福音 14:21",107:"約翰福音 14:27",108:"約翰福音 15:5",
+109:"約翰福音 16:33",110:"使徒行傳 2:25-28",111:"羅馬書 8:26-28",112:"羅馬書 8:31-32",
+113:"哥林多前書 2:9",114:"哥林多後書 12:9",115:"以弗所書 3:20",116:"腓立比書 4:4，6-7",
+117:"腓立比書 3:13-14",118:"腓立比書 4:11-13",119:"腓立比書 4:19",120:"歌羅西書 3:16-17",
+121:"帖撒羅尼迦前書 5:16-18",122:"提摩太前書 6:6-7",123:"提摩太後書 1:7",
+124:"希伯來書 13:15-16",125:"彼得前書 5:7-8",126:"約翰壹書 4:4",
+127:"約翰壹書 5:14-15",128:"馬可福音 12:30-31"
 };
 
-function getCategoryFromVerse(num){
-  for(const cat in categoryVerses){
-    if(categoryVerses[cat].includes(num)) return cat;
-  }
-  return "其他";
-}
+/* ---------------------- */
+/*   讀取網址參數 no=XXX   */
+/* ---------------------- */
+const urlParams = new URLSearchParams(window.location.search);
+const no = urlParams.get("no");
+let num = parseInt(no,10);
 
-/* -----------------------------------------------------------
-   讀取 URL 參數
------------------------------------------------------------ */
-function getQueryValue(key){
-    const params = new URLSearchParams(window.location.search);
-    return params.get(key);
-}
-
-/* -----------------------------------------------------------
-   音效
------------------------------------------------------------ */
-let winAudio, audioReady = false;
-function initAudio(){
-    if(audioReady) return;
-    winAudio = new Audio("audio/win.mp3");
-    audioReady = true;
-}
-
-/* -----------------------------------------------------------
-   時間字串（含「上午 / 下午」）
------------------------------------------------------------ */
-function formatNow(){
-    const d = new Date();
-    let h = d.getHours();
-    const isPM = h >= 12;
-    let hh12 = h % 12;
-    if(hh12 === 0) hh12 = 12;
-    const mm = String(d.getMinutes()).padStart(2,"0");
-    const ss = String(d.getSeconds()).padStart(2,"0");
-    const yyyy = d.getFullYear();
-    const MM = String(d.getMonth()+1).padStart(2,"0");
-    const DD = String(d.getDate()).padStart(2,"0");
-    const ampm = isPM ? "下午" : "上午";
-    return `${yyyy}/${MM}/${DD} ${ampm}${hh12}:${mm}:${ss}`;
-}
-
-/* -----------------------------------------------------------
-   寫入抽籤紀錄到 localStorage.drawLogs
------------------------------------------------------------ */
-function logDraw(name, category, num, refText){
-    let logs = [];
-    try{
-        const raw = localStorage.getItem("drawLogs");
-        if(raw) logs = JSON.parse(raw);
-    }catch(e){
-        logs = [];
-    }
-    logs.push({
-        time: formatNow(),
-        name: name || "（未填姓名）",
-        category: category || "其他",
-        verseNo: num,
-        verseRef: refText
-    });
-    localStorage.setItem("drawLogs", JSON.stringify(logs));
-}
-
-/* -----------------------------------------------------------
-   主流程：顯示圖片＋顯示編號＋顯示書卷章節＋播放 win.mp3＋紀錄
------------------------------------------------------------ */
-(function init(){
-    let no = getQueryValue("no");
-
-    if(!no || isNaN(no)){
-        alert("無效的經句編號，將返回首頁");
-        return goHome();
-    }
-
-    let num = Number(no);
-    if(num < 1 || num > 128){
-        alert("經句編號超出範圍，將返回首頁");
-        return goHome();
-    }
-
-    // 三位數字串
-    let padded = num.toString().padStart(3,"0");
-
-    // 圖片路徑：cards/001.png ~ cards/128.png
-    let imgPath = `cards/${padded}.png`;
-    document.getElementById("verseImage").src = imgPath;
-
-    // 顯示「抽中第幾號紅包經句」
-    document.getElementById("lineNumber").textContent =
-        `✨ 抽中第 ${padded} 號紅包經句`;
-
-    // 對應書卷章節文字
-    let refObj = bibleRefs[num - 1];
-    let refText = refObj ? `${refObj.book} ${refObj.verse}` : "（未設定對應經文）";
-    document.getElementById("lineRef").textContent = refText;
-
-    // 從 URL 取得姓名 & 分類（分類頁會帶 cat，一般首頁不帶）
-    let nameFromUrl = getQueryValue("name") || "";
-    let catFromUrl = getQueryValue("cat");  // index_category.html 會帶這個
-
-    // 如果沒有 cat，就用經句編號反查分類（首頁一般抽籤走這邊）
-    let category = catFromUrl || getCategoryFromVerse(num);
-
-    // 播放 win.mp3
-    initAudio();
-    winAudio.currentTime = 0;
-    winAudio.play().catch(()=>{});
-
-    // 寫紀錄
-    logDraw(nameFromUrl, category, num, refText);
-
-})();
-
-/* -----------------------------------------------------------
-   回首頁
------------------------------------------------------------ */
-function goHome(){
+if(!num || num<1 || num>128){
+    alert("無效的經句編號，將返回首頁");
     window.location = "index.html";
+}
+
+/* ---------------------- */
+/*  顯示經句圖片 + 文字     */
+/* ---------------------- */
+let padded = no.padStart(3,"0");
+document.getElementById("verseImg").src = `cards/${padded}.png`;
+
+document.getElementById("infoArea").innerHTML =
+`
+✨ 抽中第 <b>${num}</b> 號紅包經句<br>
+📖 ${verseRefs[num]}
+`;
+
+/* ---------------------- */
+/*    判斷返回按鈕來源     */
+/* ---------------------- */
+function goBack(){
+    if(document.referrer.includes("index_category.html"))
+        window.location = "index_category.html";
+    else
+        window.location = "index.html";
+}
+
+/* ---------------------- */
+/*      特效（亮片+煙火）  */
+/* ---------------------- */
+let winAudio = new Audio("audio/win.mp3");
+winAudio.play().catch(()=>{});
+
+let fwCanvas=document.getElementById("fwCanvas");
+let fwCtx=fwCanvas.getContext("2d");
+
+function resizeFW(){
+    fwCanvas.width=window.innerWidth;
+    fwCanvas.height=window.innerHeight;
+}
+resizeFW();
+window.addEventListener("resize",resizeFW);
+
+let fireArr=[];
+function launchFire(){
+    fireArr.push({
+        x:Math.random()*fwCanvas.width,
+        y:Math.random()*fwCanvas.height*0.5,
+        r:2,
+        c:`hsl(${Math.random()*360},100%,60%)`,
+        life:30+Math.random()*20
+    });
+}
+function drawFire(){
+    fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
+    for(let i=fireArr.length-1;i>=0;i--){
+        let f=fireArr[i];
+        fwCtx.beginPath();
+        fwCtx.arc(f.x,f.y,f.r,0,Math.PI*2);
+        fwCtx.fillStyle=f.c;
+        fwCtx.fill();
+        f.r+=2;
+        f.life--;
+        if(f.life<=0) fireArr.splice(i,1);
+    }
+    requestAnimationFrame(drawFire);
+}
+drawFire();
+
+for(let i=0;i<12;i++) setTimeout(launchFire,i*150);
+
+for(let i=0;i<15;i++){
+    setTimeout(()=>{
+        let coin=document.createElement("img");
+        coin.src="https://cdn-icons-png.flaticon.com/512/138/138292.png";
+        coin.className="coin";
+        coin.style.left=Math.random()*window.innerWidth+"px";
+        coin.style.animationDuration=(1.2+Math.random())+"s";
+        document.body.appendChild(coin);
+        setTimeout(()=>coin.remove(),2500);
+    },i*120);
 }
 </script>
 
 </body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="font_base64.js"></script>
-
-
 </html>
