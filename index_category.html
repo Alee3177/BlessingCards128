@@ -515,6 +515,7 @@ function goHome(){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="font_base64.js"></script>
 
+<script>
 function exportPDF(){
     const raw = localStorage.getItem("drawLogs") || "[]";
     let logs;
@@ -532,12 +533,12 @@ function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "pt" });
 
-    // ★★★ 這是你現在最需要的三行：載入中文字型 ★★★
+    // ★★★ 這三行一定要放（中文字型）★★★
     doc.addFileToVFS("NotoSansTC-Regular.ttf", window.PDF_FONT.normal);
     doc.addFont("NotoSansTC-Regular.ttf", "NotoSansTC", "normal");
     doc.setFont("NotoSansTC");
 
-    // -------- PDF 內容 --------
+    // 標題
     doc.setFontSize(16);
     doc.text("BlessingCards128 抽籤紀錄", 40, 40);
 
@@ -551,6 +552,7 @@ function exportPDF(){
     logs.forEach(log => {
         const line = `[${log.time}] 「${log.name}」 在「${log.category}」中抽到 → ${log.verseRef}（${String(log.verseNo).padStart(3,"0")}.png）`;
         const split = doc.splitTextToSize(line, 515);
+
         split.forEach(part => {
             if (y > 780) {
                 doc.addPage();

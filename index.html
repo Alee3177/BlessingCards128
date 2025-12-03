@@ -339,11 +339,12 @@ function resetAll(){
     updateVerseCount();
     document.getElementById("resultArea").textContent = "";
 }
-</script>
+
 <!-- jsPDF CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="font_base64.js"></script>
 
+<script>
 function exportPDF(){
     const raw = localStorage.getItem("drawLogs") || "[]";
     let logs;
@@ -361,12 +362,12 @@ function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "pt" });
 
-    // ★★★ 這是你現在最需要的三行：載入中文字型 ★★★
+    // ★★★ 必須加入中文字型（你現在缺這三行）★★★
     doc.addFileToVFS("NotoSansTC-Regular.ttf", window.PDF_FONT.normal);
     doc.addFont("NotoSansTC-Regular.ttf", "NotoSansTC", "normal");
     doc.setFont("NotoSansTC");
 
-    // -------- PDF 內容 --------
+    // 標題
     doc.setFontSize(16);
     doc.text("BlessingCards128 抽籤紀錄", 40, 40);
 
@@ -383,13 +384,12 @@ function exportPDF(){
             `[${log.time}] 「${log.name}」 在「${log.category}」中抽到 ` +
             `→ ${log.verseRef}（${String(log.verseNo).padStart(3,"0")}.png）`;
 
-        // 頁面寬度 = 555（右邊界）- 40（左邊界）
         const wrapped = doc.splitTextToSize(line, 515);
 
         wrapped.forEach(part => {
-            if (y > 780) {            // 超過 A4 邊界 → 換頁
+            if (y > 780) {
                 doc.addPage();
-                doc.setFont("NotoSansTC");   // 每頁重新指定中文
+                doc.setFont("NotoSansTC");
                 y = 40;
             }
             doc.text(part, 40, y);
