@@ -8,155 +8,148 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 
 <style>
-    body {
-        margin:0;
-        background:#fff7e6;
-        font-family:"NotoSansTC", sans-serif;
-        text-align:center;
-        color:#8a5500;
-    }
+  body {
+    margin:0;
+    background:#fff7e6;
+    font-family:"NotoSansTC", sans-serif;
+    text-align:center;
+    color:#8a5500;
+  }
+  .container {
+    max-width:900px;
+    margin:auto;
+    padding:20px;
+  }
+  .logo {
+    width:120px;
+    margin-top:20px;
+  }
+  h1 {
+    font-size:28px;
+    color:#b37500;
+    margin-top:10px;
+  }
 
-    .container {
-        max-width:900px;
-        margin:auto;
-        padding:20px;
-    }
+  select, textarea {
+    width:90%;
+    padding:10px;
+    font-size:18px;
+    border-radius:10px;
+    border:1px solid #d0a85c;
+    outline:none;
+    margin-top:12px;
+    font-family:"NotoSansTC";
+    background:#fff;
+  }
 
-    .logo {
-        width:120px;
-        margin-top:20px;
-    }
+  .btn {
+    background:#ffcc66;
+    border:none;
+    padding:12px 22px;
+    border-radius:10px;
+    font-size:20px;
+    cursor:pointer;
+    margin-top:12px;
+  }
+  .btn:hover { background:#ffdd88; }
 
-    h1 {
-        font-size:28px;
-        color:#b37500;
-        margin-top:10px;
-    }
+  .wheel-wrapper {
+    position:relative;
+    width:300px;
+    margin:15px auto 0 auto;
+    display:none;
+  }
+  #categoryWheel {
+    display:block;
+    width:100%;
+    height:auto;
+  }
+  .pointer {
+    position:absolute;
+    left:50%;
+    top:-26px;
+    transform:translateX(-50%);
+    width:0;
+    height:0;
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-bottom:32px solid red;
+    z-index:10;
+  }
 
-    select, textarea {
-        width:90%;
-        padding:10px;
-        font-size:18px;
-        border-radius:10px;
-        border:1px solid #d0a85c;
-        outline:none;
-        margin-top:12px;
-        font-family:"NotoSansTC";
-        background:#fff;
-    }
+  #resultArea {
+    font-size:26px;
+    margin-top:16px;
+    min-height:2.5em;
+    color:#b37500;
+  }
 
-    .btn {
-        background:#ffcc66;
-        border:none;
-        padding:12px 22px;
-        border-radius:10px;
-        font-size:20px;
-        cursor:pointer;
-        margin-top:12px;
-    }
-    .btn:hover { background:#ffdd88; }
-
-    .wheel-wrapper {
-        position:relative;
-        width:300px;
-        margin:15px auto 0 auto;
-        display:none;
-    }
-
-    canvas#categoryWheel {
-        display:block;
-        width:100%;
-        height:auto;
-    }
-
-    .pointer {
-        position:absolute;
-        left:50%;
-        top:-24px;
-        transform:translateX(-50%);
-        width:0;
-        height:0;
-        border-left:18px solid transparent;
-        border-right:18px solid transparent;
-        border-bottom:32px solid red;
-        z-index:10;
-    }
-
-    #resultArea {
-        font-size:26px;
-        margin-top:16px;
-        min-height:2.5em;
-        color:#b37500;
-    }
-
-    .bottom-buttons {
-        margin-top:12px;
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-        align-items:center;
-    }
+  .bottom-buttons {
+    margin-top:12px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    align-items:center;
+  }
 </style>
 </head>
-
 <body>
 <div class="container">
+  <img src="logo3524.png" class="logo" alt="logo" />
+  <h1>分類抽籤</h1>
 
-    <img src="logo3524.png" class="logo" alt="logo" />
-    <h1>分類抽籤</h1>
+  <select id="categorySelect" onchange="onCategorySelected()">
+    <option value="">請選擇分類</option>
+  </select>
 
-    <select id="categorySelect" onchange="onCategorySelected()">
-        <option value="">請選擇分類</option>
-    </select>
+  <textarea id="nameInput" style="display:none"
+    placeholder="請輸入此分類要抽籤的姓名（逗號分隔）"
+    oninput="updateNames()"></textarea>
 
-    <textarea id="nameInput" style="display:none"
-              placeholder="請輸入此分類內要抽籤的姓名（逗號分隔）"
-              oninput="updateNames()"></textarea>
+  <div class="bottom-buttons">
+    <button id="startBtn" class="btn" style="display:none" onclick="startNameSpin()">
+      開始抽姓名
+    </button>
+    <button id="resetBtn" class="btn" style="display:none" onclick="resetAll()">
+      全部歸零
+    </button>
+  </div>
 
-    <div class="bottom-buttons">
-        <button id="startBtn" class="btn" style="display:none" onclick="startNameSpin()">
-            開始抽姓名
-        </button>
-        <button id="resetBtn" class="btn" style="display:none" onclick="resetAll()">
-            全部歸零
-        </button>
-    </div>
+  <div class="wheel-wrapper" id="wheelWrapper">
+    <div class="pointer"></div>
+    <canvas id="categoryWheel" width="300" height="300"></canvas>
+  </div>
 
-    <div class="wheel-wrapper" id="wheelWrapper">
-        <div class="pointer"></div>
-        <canvas id="categoryWheel" width="300" height="300"></canvas>
-    </div>
+  <div id="resultArea"></div>
 
-    <div id="resultArea"></div>
-
-    <button class="btn" onclick="goHome()">回首頁</button>
-
+  <button class="btn" onclick="goHome()">回首頁</button>
 </div>
 
 <script>
-/* 1~128 對應分類：可在這裡未來自行修改 */
+/* 1~128 對應分類（未來要改，可以改這裡） */
 const categoryMap = [
-    "",
-    "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
-    "盼望與力量","盼望與力量","平安與保護","盼望與力量","平安與保護","其他","平安與保護",
-    "其他","其他","平安與保護","平安與保護","平安與保護","喜樂與感恩","平安與保護",
-    "信心與順服","智慧與引導","平安與保護","智慧與引導","智慧與引導","恩典與憐憫",
-    "喜樂與感恩","平安與保護","平安與保護","盼望與力量","平安與保護","信心與順服",
-    "盼望與力量","盼望與力量","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
-    "智慧與引導","其他","喜樂與感恩","喜樂與感恩","恩典與憐憫","其他","信心與順服",
-    "其他","盼望與力量","盼望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
-    "平安與保護","平安與保護","其他","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
-    "其他","信心與順服","平安與保護","喜樂與感恩","其他","其他","平安與保護","信心與順服",
-    "其他","其他","其他","其他","其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服",
-    "平安與保護","平安與保護","智慧與引導","其他","平安與保護","其他","喜樂與感恩",
-    "其他","其他","信心與順服","其他","其他","其他","其他","其他","其他","其他",
-    "智慧與引導","盼望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
-    "信心與順服","其他","平安與保護","其他","平安與保護","智慧與引導","其他","其他",
-    "其他","恩典與憐憫","其他","平安與保護","其他","盼望與力量","供應與豐盛","供應與豐盛",
-    "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
+  "",
+  "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
+  "盼望與力量","盼望與力量","平安與保護","盼望與力量","平安與保護","其他","平安與保護",
+  "其他","其他","平安與保護","平安與保護","平安與保護","喜樂與感恩","平安與保護",
+  "信心與順服","智慧與引導","平安與保護","智慧與引導","智慧與引導","恩典與憐憫",
+  "喜樂與感恩","平安與保護","平安與保護","盼望與力量","平安與保護","信心與順服",
+  "盼望與力量","盼望與力量","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
+  "智慧與引導","其他","喜樂與感恩","喜樂與感恩","恩典與憐憫","其他","信心與順服",
+  "其他","盼望與力量","盼望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
+  "平安與保護","平安與保護","其他","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
+  "其他","信心與順服","平安與保護","喜樂與感恩","其他","其他","平安與保護","信心與順服",
+  "其他","其他","其他","其他","其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服",
+  "平安與保護","平安與保護","智慧與引導","其他","平安與保護","其他","喜樂與感恩",
+  "其他","其他","信心與順服","其他","其他","其他","其他","其他","其他","其他",
+  "智慧與引導","盼望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
+  "信心與順服","其他","平安與保護","其他","平安與保護","智慧與引導","其他","其他",
+  "其他","恩典與憐憫","其他","平安與保護","其他","盼望與力量","供應與豐盛","供應與豐盛",
+  "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
 ];
 
-const POINTER_ANGLE = -Math.PI/2;
+const POINTER_ANGLE = -Math.PI / 2;
+
 let canvas, ctx;
 let names = [];
 let selectedCategory = "";
@@ -165,218 +158,216 @@ let usedVersesAll = [];
 let isSpinning = false;
 let drumAudio = new Audio("audio/drum.mp3");
 
-/* 初始化：讀取紀錄、計算分類統計、設定下拉選單 */
+/* 初始化 */
 document.addEventListener("DOMContentLoaded", () => {
-    try{
-        usedNamesAll  = JSON.parse(localStorage.getItem("usedNamesAll"))  || [];
-        usedVersesAll = JSON.parse(localStorage.getItem("usedVersesAll")) || [];
-    }catch(e){
-        usedNamesAll = [];
-        usedVersesAll = [];
-    }
+  try{
+    usedNamesAll  = JSON.parse(localStorage.getItem("usedNamesAll")  || "[]");
+    usedVersesAll = JSON.parse(localStorage.getItem("usedVersesAll") || "[]");
+  }catch(e){
+    usedNamesAll = [];
+    usedVersesAll = [];
+  }
 
-    canvas = document.getElementById("categoryWheel");
-    ctx = canvas.getContext("2d");
+  canvas = document.getElementById("categoryWheel");
+  ctx    = canvas.getContext("2d");
 
-    buildCategoryOptions();
+  buildCategoryOptions();
 });
 
 function buildCategoryOptions(){
-    const counts = {};
-    for(let i=1;i<categoryMap.length;i++){
-        const cat = categoryMap[i] || "未分類";
-        counts[cat] = (counts[cat] || 0) + 1;
-    }
-    const select = document.getElementById("categorySelect");
-    Object.keys(counts).forEach(cat=>{
-        const opt = document.createElement("option");
-        opt.value = cat;
-        opt.textContent = `${cat}（共 ${counts[cat]} 節）`;
-        select.appendChild(opt);
-    });
+  const counts = {};
+  for(let i=1;i<categoryMap.length;i++){
+    const cat = categoryMap[i] || "未分類";
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  const sel = document.getElementById("categorySelect");
+  Object.keys(counts).forEach(cat=>{
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = `${cat}（共 ${counts[cat]} 節）`;
+    sel.appendChild(opt);
+  });
 }
 
 function onCategorySelected(){
-    selectedCategory = document.getElementById("categorySelect").value;
-    const show = !!selectedCategory;
+  selectedCategory = document.getElementById("categorySelect").value;
+  const show = !!selectedCategory;
 
-    document.getElementById("nameInput").style.display = show ? "block" : "none";
-    document.getElementById("startBtn").style.display  = show ? "block" : "none";
-    document.getElementById("resetBtn").style.display  = show ? "block" : "none";
-    document.getElementById("wheelWrapper").style.display = show ? "block" : "none";
+  document.getElementById("nameInput").style.display   = show ? "block" : "none";
+  document.getElementById("startBtn").style.display    = show ? "block" : "none";
+  document.getElementById("resetBtn").style.display    = show ? "block" : "none";
+  document.getElementById("wheelWrapper").style.display= show ? "block" : "none";
 
-    document.getElementById("resultArea").textContent = "";
-    if(show) updateNames();
+  document.getElementById("resultArea").textContent = "";
+  if(show) updateNames();
 }
 
-/* 姓名與輪盤 */
+/* 姓名＋輪盤 */
 function updateNames(){
-    names = document.getElementById("nameInput").value
-        .split(",")
-        .map(s=>s.trim())
-        .filter(s=>s.length>0);
-    drawWheel();
+  names = document.getElementById("nameInput").value
+    .split(",")
+    .map(s=>s.trim())
+    .filter(s=>s.length>0);
+  drawWheel(0);
 }
 
-function drawWheel(){
-    if(!ctx) return;
-    ctx.clearRect(0,0,300,300);
+function drawWheel(baseRotation){
+  if(!ctx) return;
+  ctx.save();
+  ctx.clearRect(0,0,300,300);
 
-    const count = names.length || 1;
-    const arc = 2*Math.PI / count;
+  ctx.translate(150,150);
+  ctx.rotate(baseRotation);
+  ctx.translate(-150,-150);
 
-    for(let i=0;i<count;i++){
-        const start = i*arc;
-        const end   = start+arc;
+  const count = names.length || 1;
+  const arc = 2*Math.PI / count;
 
-        ctx.beginPath();
-        ctx.moveTo(150,150);
-        ctx.arc(150,150,150,start,end);
-        ctx.closePath();
-        ctx.fillStyle = (i%2===0) ? "#ffe6a1" : "#ffcc66";
-        ctx.fill();
+  for(let i=0;i<count;i++){
+    const start = i*arc;
+    const end   = start+arc;
 
-        ctx.lineWidth=2;
-        ctx.strokeStyle="#ffffff";
-        ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(150,150);
+    ctx.arc(150,150,150,start,end);
+    ctx.closePath();
+    ctx.fillStyle = (i%2===0) ? "#ffe6a1" : "#ffcc66";
+    ctx.fill();
 
-        const name = names[i];
-        if(name){
-            ctx.save();
-            ctx.translate(150,150);
-            ctx.rotate(start + arc/2);
-            ctx.textAlign="right";
-            ctx.font="bold 18px NotoSansTC";
-            ctx.fillStyle="#8a5500";
-            ctx.fillText(name,135,8);
-            ctx.restore();
-        }
+    ctx.lineWidth=2;
+    ctx.strokeStyle="#ffffff";
+    ctx.stroke();
+
+    const name = names[i];
+    if(name){
+      ctx.save();
+      ctx.translate(150,150);
+      ctx.rotate(start + arc/2);
+      ctx.textAlign="right";
+      ctx.font="bold 18px NotoSansTC";
+      ctx.fillStyle="#8a5500";
+      ctx.fillText(name,135,8);
+      ctx.restore();
     }
+  }
+  ctx.restore();
 }
 
 /* 抽姓名（只有 drum.mp3） */
 function startNameSpin(){
-    if(isSpinning) return;
+  if(isSpinning) return;
 
-    if(!selectedCategory){
-        alert("請先選擇分類");
-        return;
+  if(!selectedCategory){
+    alert("請先選擇分類");
+    return;
+  }
+  if(names.length===0){
+    alert("請先輸入姓名");
+    return;
+  }
+
+  const available = names.filter(n => !usedNamesAll.includes(n));
+  if(!available.length){
+    alert("全部姓名都已抽過了！\n請按「全部歸零」重置紀錄後再抽。");
+    return;
+  }
+
+  const winner = available[Math.floor(Math.random()*available.length)];
+
+  const count = names.length;
+  const arc = 2*Math.PI / count;
+  const winnerIndex = names.indexOf(winner);
+  const centerAngle = winnerIndex * arc + arc/2;
+  const finalRotation = POINTER_ANGLE - centerAngle;
+  const spins = 6;
+  const totalRotation = spins*2*Math.PI + finalRotation;
+
+  isSpinning = true;
+  drumAudio.currentTime = 0;
+  drumAudio.play().catch(()=>{});
+
+  let startTime = null;
+  const duration = 10000;
+
+  function animate(ts){
+    if(!startTime) startTime = ts;
+    const t = Math.min((ts-startTime)/duration, 1);
+    const ease = 1 - Math.pow(1-t,3);
+    const angle = ease * totalRotation;
+
+    drawWheel(angle);
+
+    if(t < 1){
+      requestAnimationFrame(animate);
+    }else{
+      drumAudio.pause();
+      drumAudio.currentTime = 0;
+      isSpinning = false;
+
+      if(!usedNamesAll.includes(winner)){
+        usedNamesAll.push(winner);
+        localStorage.setItem("usedNamesAll", JSON.stringify(usedNamesAll));
+      }
+      showWinner(winner);
     }
-    if(names.length===0){
-        alert("請先輸入姓名");
-        return;
-    }
-
-    const available = names.filter(n => !usedNamesAll.includes(n));
-    if(!available.length){
-        alert("全部姓名都已抽過了！\n請按「全部歸零」重置紀錄後再抽。");
-        return;
-    }
-
-    const winner = available[Math.floor(Math.random()*available.length)];
-
-    const count = names.length;
-    const arc = 2*Math.PI / count;
-    const winnerIndex = names.indexOf(winner);
-
-    const centerAngle = winnerIndex * arc + arc/2;
-    const visualOffset = 0;
-    const finalAngle = POINTER_ANGLE - (centerAngle + visualOffset);
-    const spins = 6;
-    const totalRotation = spins*2*Math.PI + finalAngle;
-
-    isSpinning = true;
-    drumAudio.currentTime = 0;
-    drumAudio.play().catch(()=>{});
-
-    let startTime = null;
-    const duration = 10000;
-
-    function animate(ts){
-        if(!startTime) startTime = ts;
-        const t = Math.min((ts-startTime)/duration, 1);
-        const ease = 1 - Math.pow(1-t,3);
-        const angle = ease * totalRotation;
-
-        ctx.save();
-        ctx.translate(150,150);
-        ctx.rotate(angle);
-        ctx.translate(-150,-150);
-        drawWheel();
-        ctx.restore();
-
-        if(t < 1){
-            requestAnimationFrame(animate);
-        }else{
-            drumAudio.pause();
-            drumAudio.currentTime = 0;
-            isSpinning = false;
-
-            if(!usedNamesAll.includes(winner)){
-                usedNamesAll.push(winner);
-                localStorage.setItem("usedNamesAll", JSON.stringify(usedNamesAll));
-            }
-            showWinner(winner);
-        }
-    }
-    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
 }
 
 function showWinner(name){
-    document.getElementById("resultArea").innerHTML =
-        `抽中：<b>${name}</b><br><br>
-         <button class="btn" onclick="drawCategoryVerse('${name}')">
-             抽紅包祝福經句
-         </button>`;
+  document.getElementById("resultArea").innerHTML =
+    `抽中：<b>${name}</b><br><br>
+     <button class="btn" onclick="drawCategoryVerse('${name}')">
+       抽紅包祝福經句
+     </button>`;
 }
 
-/* 指定分類內抽經句（不重複） */
+/* 在該分類中抽經句 */
 function drawCategoryVerse(name){
-    if(!selectedCategory){
-        alert("請先選擇分類");
-        return;
+  if(!selectedCategory){
+    alert("請先選擇分類");
+    return;
+  }
+
+  const remain = [];
+  for(let i=1;i<categoryMap.length;i++){
+    if(categoryMap[i]===selectedCategory && !usedVersesAll.includes(i)){
+      remain.push(i);
     }
+  }
 
-    const remain = [];
-    for(let i=1;i<categoryMap.length;i++){
-        if(categoryMap[i] === selectedCategory && !usedVersesAll.includes(i)){
-            remain.push(i);
-        }
-    }
+  if(!remain.length){
+    alert("此分類的經句已全部抽完！");
+    return;
+  }
 
-    if(!remain.length){
-        alert("此分類的經句已全部抽完！");
-        return;
-    }
+  const v = remain[Math.floor(Math.random()*remain.length)];
+  usedVersesAll.push(v);
+  localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
 
-    const v = remain[Math.floor(Math.random()*remain.length)];
-    usedVersesAll.push(v);
-    localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
-
-    const padded = String(v).padStart(3,"0");
-    const nameParam = encodeURIComponent(name);
-    const catParam = encodeURIComponent(selectedCategory);
-    window.location = `viewer.html?no=${padded}&name=${nameParam}&cat=${catParam}`;
+  const padded = String(v).padStart(3,"0");
+  const nameParam = encodeURIComponent(name);
+  const catParam  = encodeURIComponent(selectedCategory);
+  window.location = `viewer.html?no=${padded}&name=${nameParam}&cat=${catParam}`;
 }
 
-/* 全部歸零 */
+/* 全部歸零（姓名＋經句） */
 function resetAll(){
-    if(!confirm("確定要全部重置？\n（一併清除已抽過姓名與已抽過經句紀錄）")) return;
+  if(!confirm("確定要全部重置？\n（一併清除已抽過姓名與已抽過經句紀錄）")) return;
 
-    usedNamesAll  = [];
-    usedVersesAll = [];
-    localStorage.setItem("usedNamesAll",  JSON.stringify(usedNamesAll));
-    localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
+  usedNamesAll  = [];
+  usedVersesAll = [];
+  localStorage.setItem("usedNamesAll",  "[]");
+  localStorage.setItem("usedVersesAll", "[]");
 
-    document.getElementById("resultArea").textContent = "";
-    alert("已全部重置，現在可以重新開始抽籤。");
+  document.getElementById("resultArea").textContent = "";
+  alert("已全部重置，現在可以重新開始抽籤。");
 }
 
 /* 回首頁 */
 function goHome(){
-    window.location = "index.html";
+  window.location = "index.html";
 }
 </script>
-
 </body>
 </html>
