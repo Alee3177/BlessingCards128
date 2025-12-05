@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BlessingCards128 - 紅包祝福經句</title>
+<title>BlessingCards128 - 經句</title>
 
 <link rel="stylesheet" href="fonts/fonts.css">
 
@@ -15,57 +15,51 @@
         text-align:center;
         color:#8a5500;
     }
+
     .container {
         max-width:900px;
         margin:auto;
         padding:20px;
     }
+
     .logo {
         width:120px;
         margin-top:20px;
     }
+
     h1 {
         font-size:26px;
         color:#b37500;
         margin-top:10px;
-        margin-bottom:5px;
     }
-    #nameInfo {
-        margin-top:5px;
-        font-size:18px;
-        color:#7a4a00;
-    }
+
     #cardImg {
-        margin-top:20px;
-        max-width:320px;
-        width:80%;
-        box-shadow:0 4px 12px rgba(0,0,0,0.2);
-        border-radius:10px;
-        background:#fff;
+        max-width:90%;
+        height:auto;
+        margin-top:15px;
+        border-radius:12px;
+        box-shadow:0 4px 10px rgba(0,0,0,0.15);
     }
-    #line1 {
-        margin-top:18px;
-        font-size:22px;
-        font-weight:bold;
-        color:#b37500;
-    }
-    #line2 {
-        margin-top:8px;
+
+    .info {
+        margin-top:15px;
         font-size:20px;
-        color:#8a5500;
+        line-height:1.6;
     }
+
     .btn {
         background:#ffcc66;
         border:none;
-        padding:10px 20px;
+        padding:12px 22px;
         border-radius:10px;
-        font-size:18px;
+        font-size:20px;
         cursor:pointer;
-        margin:12px 6px 0 6px;
+        margin-top:16px;
+        margin-inline:4px;
     }
     .btn:hover { background:#ffdd88; }
 
-    /* 煙火畫布 */
+    /* 煙火 canvas */
     #fwCanvas {
         position:fixed;
         left:0;
@@ -73,20 +67,18 @@
         width:100%;
         height:100%;
         pointer-events:none;
-        z-index:10;
     }
 
-    /* 金幣 */
     .coin {
         position:fixed;
-        top:-50px;
-        width:35px;
+        top:-40px;
+        width:32px;
         pointer-events:none;
         animation:fallCoin linear forwards;
-        z-index:11;
     }
+
     @keyframes fallCoin {
-        from { transform:translateY(-50px); opacity:1; }
+        from { transform:translateY(-40px); opacity:1; }
         to   { transform:translateY(100vh); opacity:0; }
     }
 </style>
@@ -96,321 +88,271 @@
 <canvas id="fwCanvas"></canvas>
 
 <div class="container">
-    <img src="logo3524.png" class="logo" />
+    <img src="logo3524.png" class="logo" alt="logo" />
     <h1>紅包祝福經句</h1>
-    <div id="nameInfo"></div>
 
-    <img id="cardImg" src="" alt="紅包經句圖片" />
+    <img id="cardImg" src="" alt="經句圖片" />
 
-    <div id="line1"></div>
-    <div id="line2"></div>
+    <div class="info" id="infoText"></div>
 
     <div>
         <button class="btn" onclick="goHome()">回首頁</button>
-        <button class="btn" onclick="goCategory()">回分類抽籤</button>
+        <button class="btn" onclick="goCategory()">分類抽籤</button>
     </div>
 </div>
 
 <script>
-/* -----------------------------------------------------------
-   經句表（1~128）：對應 cards/001.png～128.png
------------------------------------------------------------ */
-const verseRefs = [
-    "", // 0 佔位
-    "以賽亞書 26:3-4",
-    "以賽亞書 27:3",
-    "以賽亞書 30:15",
-    "以賽亞書 30:18",
-    "以賽亞書 33:2",
-    "以賽亞書 33:6",
-    "以賽亞書 33:15-16",
-    "以賽亞書 38:3",
-    "以賽亞書 40:31",
-    "以賽亞書 41:9-10",
-    "以賽亞書 49:25",
-    "以賽亞書 54:2",
-    "以賽亞書 53:5",
-    "以賽亞書 49:15",
-    "以賽亞書 48:17-18",
-    "以賽亞書 43:4",
-    "以賽亞書 43:2",
-    "以賽亞書 12:2",
-    "以賽亞書 54:10",
-    "以賽亞書 61:10",
-    "耶利米書 15:16",
-    "耶利米書 16:19",
-    "耶利米書 17:7-8",
-    "耶利米書 20:11",
-    "耶利米書 29:11-13",
-    "詩篇 1:1-3",
-    "詩篇 3:3，16:11",
-    "詩篇 5:11-12",
-    "詩篇 16:8-9",
-    "詩篇 17:8",
-    "詩篇 18:2",
-    "詩篇 18:30-32",
-    "詩篇 27:1",
-    "詩篇 27:4",
-    "詩篇 27:14",
-    "詩篇 28:7",
-    "詩篇 30:4-5",
-    "詩篇 31:19",
-    "詩篇 34:8-10",
-    "詩篇 37:3-5",
-    "詩篇 37:23-24",
-    "詩篇 41:12-13",
-    "詩篇 50:14-15",
-    "詩篇 50:23",
-    "詩篇 52:8-9",
-    "詩篇 55:22",
-    "詩篇 60:12",
-    "詩篇 63:7-8",
-    "詩篇 71:5-6，9",
-    "詩篇 73:25-26",
-    "詩篇 73:28",
-    "詩篇 81:10",
-    "詩篇 84:10-11",
-    "詩篇 86:11-13",
-    "詩篇 91:1-2",
-    "詩篇 91:9-12",
-    "詩篇 91:14-16",
-    "詩篇 103:2-5",
-    "詩篇 103:17-18",
-    "詩篇 108:13",
-    "詩篇 115:11-13",
-    "詩篇 118:5-6",
-    "詩篇 118:8-9",
-    "詩篇 118:14",
-    "詩篇 118:24",
-    "詩篇 119:105",
-    "詩篇 121:1-2",
-    "詩篇 121:5-8",
-    "詩篇 125:1-2",
-    "詩篇 127:1-2",
-    "詩篇 128:1-2",
-    "詩篇 131:1-2",
-    "詩篇 139:13-14",
-    "詩篇 139:17-18",
-    "詩篇 140:7",
-    "詩篇 144:2",
-    "詩篇 145:17-19",
-    "箴言 3:5-6",
-    "箴言 3:24-26",
-    "箴言 4:20-23",
-    "箴言 9:10-11",
-    "箴言 10:22",
-    "箴言 14:26-27",
-    "箴言 16:3",
-    "箴言 17:22",
-    "箴言 19:23",
-    "箴言 22:4",
-    "箴言 31:10-12",
-    "申命記 6:4-5",
-    "申命記 28:6-7",
-    "申命記 28:12",
-    "申命記 28:13-14",
-    "申命記 30:20",
-    "申命記 31:8",
-    "申命記 33:12",
-    "約書亞記 1:8",
-    "約書亞記 1:9",
-    "約書亞記 24:15",
-    "撒母耳記下 22:2-3",
-    "撒母耳記下 22:31",
-    "撒母耳記下 23:5",
-    "馬太福音 7:7",
-    "馬太福音 6:32-33",
-    "馬太福音 11:28-29",
-    "馬太福音 21:21-22",
-    "約翰福音 14:21",
-    "約翰福音 14:27",
-    "約翰福音 15:5",
-    "約翰福音 16:33",
-    "使徒行傳 2:25-28",
-    "羅馬書 8:26-28",
-    "羅馬書 8:31-32",
-    "哥林多前書 2:9",
-    "哥林多後書 12:9",
-    "以弗所書 3:20",
-    "腓立比書 4:4，6-7",
-    "腓立比書 3:13-14",
-    "腓立比書 4:11-13",
-    "腓立比書 4:19",
-    "歌羅西書 3:16-17",
-    "帖撒羅尼迦前書 5:16-18",
-    "提摩太前書 6:6-7",
-    "提摩太後書 1:7",
-    "希伯來書 13:15-16",
-    "彼得前書 5:7-8",
-    "約翰壹書 4:4",
-    "約翰壹書 5:14-15",
-    "馬可福音 12:30-31"
+/* 1~128 書卷＋章節（依你提供的順序） */
+const verseInfo = [
+    {},
+    {book:"以賽亞書",ref:"26:3-4"},
+    {book:"以賽亞書",ref:"27:3"},
+    {book:"以賽亞書",ref:"30:15"},
+    {book:"以賽亞書",ref:"30:18"},
+    {book:"以賽亞書",ref:"33:2"},
+    {book:"以賽亞書",ref:"33:6"},
+    {book:"以賽亞書",ref:"33:15-16"},
+    {book:"以賽亞書",ref:"38:3"},
+    {book:"以賽亞書",ref:"40:31"},
+    {book:"以賽亞書",ref:"41:9-10"},
+    {book:"以賽亞書",ref:"49:25"},
+    {book:"以賽亞書",ref:"54:2"},
+    {book:"以賽亞書",ref:"53:5"},
+    {book:"以賽亞書",ref:"49:15"},
+    {book:"以賽亞書",ref:"48:17-18"},
+    {book:"以賽亞書",ref:"43:4"},
+    {book:"以賽亞書",ref:"43:2"},
+    {book:"以賽亞書",ref:"12:2"},
+    {book:"以賽亞書",ref:"54:10"},
+    {book:"以賽亞書",ref:"61:10"},
+    {book:"耶利米書",ref:"15:16"},
+    {book:"耶利米書",ref:"16:19"},
+    {book:"耶利米書",ref:"17:7-8"},
+    {book:"耶利米書",ref:"20:11"},
+    {book:"耶利米書",ref:"29:11-13"},
+    {book:"詩篇",ref:"1:1-3"},
+    {book:"詩篇",ref:"3:3，16:11"},
+    {book:"詩篇",ref:"5:11-12"},
+    {book:"詩篇",ref:"16:8-9"},
+    {book:"詩篇",ref:"17:8"},
+    {book:"詩篇",ref:"18:2"},
+    {book:"詩篇",ref:"18:30-32"},
+    {book:"詩篇",ref:"27:1"},
+    {book:"詩篇",ref:"27:4"},
+    {book:"詩篇",ref:"27:14"},
+    {book:"詩篇",ref:"28:7"},
+    {book:"詩篇",ref:"30:4-5"},
+    {book:"詩篇",ref:"31:19"},
+    {book:"詩篇",ref:"34:8-10"},
+    {book:"詩篇",ref:"37:3-5"},
+    {book:"詩篇",ref:"37:23-24"},
+    {book:"詩篇",ref:"41:12-13"},
+    {book:"詩篇",ref:"50:14-15"},
+    {book:"詩篇",ref:"50:23"},
+    {book:"詩篇",ref:"52:8-9"},
+    {book:"詩篇",ref:"55:22"},
+    {book:"詩篇",ref:"60:12"},
+    {book:"詩篇",ref:"63:7-8"},
+    {book:"詩篇",ref:"71:5-6，9"},
+    {book:"詩篇",ref:"73:25-26"},
+    {book:"詩篇",ref:"73:28"},
+    {book:"詩篇",ref:"81:10"},
+    {book:"詩篇",ref:"84:10-11"},
+    {book:"詩篇",ref:"86:11-13"},
+    {book:"詩篇",ref:"91:1-2"},
+    {book:"詩篇",ref:"91:9-12"},
+    {book:"詩篇",ref:"91:14-16"},
+    {book:"詩篇",ref:"103:2-5"},
+    {book:"詩篇",ref:"103:17-18"},
+    {book:"詩篇",ref:"108:13"},
+    {book:"詩篇",ref:"115:11-13"},
+    {book:"詩篇",ref:"118:5-6"},
+    {book:"詩篇",ref:"118:8-9"},
+    {book:"詩篇",ref:"118:14"},
+    {book:"詩篇",ref:"118:24"},
+    {book:"詩篇",ref:"119:105"},
+    {book:"詩篇",ref:"121:1-2"},
+    {book:"詩篇",ref:"121:5-8"},
+    {book:"詩篇",ref:"125:1-2"},
+    {book:"詩篇",ref:"127:1-2"},
+    {book:"詩篇",ref:"128:1-2"},
+    {book:"詩篇",ref:"131:1-2"},
+    {book:"詩篇",ref:"139:13-14"},
+    {book:"詩篇",ref:"139:17-18"},
+    {book:"詩篇",ref:"140:7"},
+    {book:"詩篇",ref:"144:2"},
+    {book:"詩篇",ref:"145:17-19"},
+    {book:"箴言",ref:"3:5-6"},
+    {book:"箴言",ref:"3:24-26"},
+    {book:"箴言",ref:"4:20-23"},
+    {book:"箴言",ref:"9:10-11"},
+    {book:"箴言",ref:"10:22"},
+    {book:"箴言",ref:"14:26-27"},
+    {book:"箴言",ref:"16:3"},
+    {book:"箴言",ref:"17:22"},
+    {book:"箴言",ref:"19:23"},
+    {book:"箴言",ref:"22:4"},
+    {book:"箴言",ref:"31:10-12"},
+    {book:"申命記",ref:"6:4-5"},
+    {book:"申命記",ref:"28:6-7"},
+    {book:"申命記",ref:"28:12"},
+    {book:"申命記",ref:"28:13-14"},
+    {book:"申命記",ref:"30:20"},
+    {book:"申命記",ref:"31:8"},
+    {book:"申命記",ref:"33:12"},
+    {book:"約書亞記",ref:"1:8"},
+    {book:"約書亞記",ref:"1:9"},
+    {book:"約書亞記",ref:"24:15"},
+    {book:"撒母耳記下",ref:"22:2-3"},
+    {book:"撒母耳記下",ref:"22:31"},
+    {book:"撒母耳記下",ref:"23:5"},
+    {book:"馬太福音",ref:"7:7"},
+    {book:"馬太福音",ref:"6:32-33"},
+    {book:"馬太福音",ref:"11:28-29"},
+    {book:"馬太福音",ref:"21:21-22"},
+    {book:"約翰福音",ref:"14:21"},
+    {book:"約翰福音",ref:"14:27"},
+    {book:"約翰福音",ref:"15:5"},
+    {book:"約翰福音",ref:"16:33"},
+    {book:"使徒行傳",ref:"2:25-28"},
+    {book:"羅馬書",ref:"8:26-28"},
+    {book:"羅馬書",ref:"8:31-32"},
+    {book:"哥林多前書",ref:"2:9"},
+    {book:"哥林多後書",ref:"12:9"},
+    {book:"以弗所書",ref:"3:20"},
+    {book:"腓立比書",ref:"4:4，6-7"},
+    {book:"腓立比書",ref:"3:13-14"},
+    {book:"腓立比書",ref:"4:11-13"},
+    {book:"腓立比書",ref:"4:19"},
+    {book:"歌羅西書",ref:"3:16-17"},
+    {book:"帖撒羅尼迦前書",ref:"5:16-18"},
+    {book:"提摩太前書",ref:"6:6-7"},
+    {book:"提摩太後書",ref:"1:7"},
+    {book:"希伯來書",ref:"13:15-16"},
+    {book:"彼得前書",ref:"5:7-8"},
+    {book:"約翰壹書",ref:"4:4"},
+    {book:"約翰壹書",ref:"5:14-15"},
+    {book:"馬可福音",ref:"12:30-31"}
 ];
 
-/* -----------------------------------------------------------
-   分類表（1~128）：與你提供的對照一致
------------------------------------------------------------ */
+/* 與 index_category.html 相同的分類表（用來顯示分類） */
 const categoryMap = [
     "",
-    "平安與保護",
-    "其他",
-    "盼望與力量",
-    "恩典與憐憫",
-    "平安與保護",
-    "供應與豐盛",
-    "其他",
-    "其他",
-    "盼望與力量",
-    "盼望與力量",
-    "平安與保護",
-    "盼望與力量",
-    "平安與保護",
-    "其他",
-    "平安與保護",
-    "其他",
-    "其他",
-    "平安與保護",
-    "平安與保護",
-    "平安與保護",
-    "喜樂與感恩",
-    "平安與保護",
-    "信心與順服",
-    "智慧與引導",
-    "平安與保護",
-    "智慧與引導",
-    "智慧與引導",
-    "恩典與憐憫",
-    "喜樂與感恩",
-    "平安與保護",
-    "平安與保護",
-    "盼望與力量",
-    "平安與保護",
-    "信心與順服",
-    "盼望與力量",
-    "盼望與力量",
-    "恩典與憐憫",
-    "恩典與憐憫",
-    "信心與順服",
-    "信心與順服",
-    "智慧與引導",
-    "其他",
-    "喜樂與感恩",
-    "喜樂與感恩",
-    "恩典與憐憫",
-    "其他",
-    "信心與順服",
-    "其他",
-    "盼望與力量",
-    "盼望與力量",
-    "平安與保護",
-    "其他",
-    "恩典與憐憫",
-    "恩典與憐憫",
-    "平安與保護",
-    "平安與保護",
-    "其他",
-    "恩典與憐憫",
-    "恩典與憐憫",
-    "信心與順服",
-    "信心與順服",
-    "其他",
-    "信心與順服",
-    "平安與保護",
-    "喜樂與感恩",
-    "其他",
-    "其他",
-    "平安與保護",
-    "信心與順服",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "盼望與力量",
-    "恩典與憐憫",
-    "平安與保護",
-    "信心與順服",
-    "平安與保護",
-    "平安與保護",
-    "智慧與引導",
-    "其他",
-    "平安與保護",
-    "其他",
-    "喜樂與感恩",
-    "其他",
-    "其他",
-    "信心與順服",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "智慧與引導",
-    "盼望與力量",
-    "其他",
-    "平安與保護",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "信心與順服",
-    "其他",
-    "平安與保護",
-    "其他",
-    "平安與保護",
-    "智慧與引導",
-    "其他",
-    "其他",
-    "其他",
-    "恩典與憐憫",
-    "其他",
-    "平安與保護",
-    "其他",
-    "盼望與力量",
-    "供應與豐盛",
-    "供應與豐盛",
-    "喜樂與感恩",
-    "其他",
-    "盼望與力量",
-    "其他",
-    "其他",
-    "其他",
-    "其他",
-    "其他"
+    "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
+    "盼望與力量","盼望與力量","平安與保護","盢望與力量","平安與保護","其他","平安與保護",
+    "其他","其他","平安與保護","平安與保護","平安與保護","喜樂與感恩","平安與保護",
+    "信心與順服","智慧與引導","平安與保護","智慧與引導","智慧與引導","恩典與憐憫",
+    "喜樂與感恩","平安與保護","平安與保護","盼望與力量","平安與保護","信心與順服",
+    "盼望與力量","盼望與力量","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
+    "智慧與引導","其他","喜樂與感恩","喜樂與感恩","恩典與憐憫","其他","信心與順服",
+    "其他","盼望與力量","盼望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
+    "平安與保護","平安與保護","其他","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
+    "其他","信心與順服","平安與保護","喜樂與感恩","其他","其他","平安與保護","信心與順服",
+    "其他","其他","其他","其他","其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服",
+    "平安與保護","平安與保護","智慧與引導","其他","平安與保護","其他","喜樂與感恩",
+    "其他","其他","信心與順服","其他","其他","其他","其他","其他","其他","其他",
+    "智慧與引導","盼望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
+    "信心與順服","其他","平安與保護","其他","平安與保護","智慧與引導","其他","其他",
+    "其他","恩典與憐憫","其他","平安與保護","其他","盼望與力量","供應與豐盛","供應與豐盛",
+    "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
 ];
 
-/* -----------------------------------------------------------
-   抽籤紀錄寫入 localStorage.drawLogs
------------------------------------------------------------ */
-function saveDrawLog(name, verseNo, verseRef, category){
+let winAudio = new Audio("audio/win.mp3");
+let audioUnlocked = false;
+
+document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(location.search);
+    const noStr = params.get("no");
+    const name  = decodeURIComponent(params.get("name") || "（未填姓名）");
+    let catFromQuery = params.get("cat");
+    if(catFromQuery) catFromQuery = decodeURIComponent(catFromQuery);
+
+    const verseNo = parseInt(noStr,10);
+    if(!verseNo || verseNo<1 || verseNo>128){
+        alert("無效的經句編號，將返回首頁。");
+        location.href = "index.html";
+        return;
+    }
+
+    const info = verseInfo[verseNo] || {book:"",ref:""};
+    const book = info.book;
+    const ref  = info.ref;
+
+    // 若 URL 沒帶分類，就依表自動判斷
+    const category = catFromQuery || categoryMap[verseNo] || "未分類";
+
+    // 顯示圖片：先試 cards/XXX.png，失敗再用根目錄 XXX.png
+    const padded = String(verseNo).padStart(3,"0");
+    const img = document.getElementById("cardImg");
+    img.src = `cards/${padded}.png`;
+    img.onerror = function(){
+        img.onerror = null;
+        img.src = `${padded}.png`;
+    };
+
+    // 顯示文字
+    const infoDiv = document.getElementById("infoText");
+    infoDiv.innerHTML =
+        `✨ 抽中第 <b>${padded}</b> 號紅包經句<br>` +
+        `${book} ${ref}<br>` +
+        `分類：${category}<br>` +
+        `得獎者：<b>${name}</b>`;
+
+    // 寫入抽籤紀錄（提供 PDF 使用）
+    writeLog(name, category, verseNo, `${book} ${ref}`);
+
+    // 特效＋音效
+    setupAudio();
+    startFireworks();
+    startCoins();
+});
+
+/* 抽籤紀錄 */
+function writeLog(name, category, verseNo, verseRef){
     let logs = [];
     try{
-        logs = JSON.parse(localStorage.getItem("drawLogs")) || [];
+        logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
     }catch(e){
         logs = [];
     }
 
-    const timeStr = new Date().toLocaleString("zh-TW", { hour12:false });
+    const now = new Date();
+    const timeStr = now.toLocaleString("zh-TW", {
+        year:"numeric", month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", second:"2-digit",
+        hour12:true
+    });
 
     logs.push({
         time: timeStr,
-        name: name || "（未填姓名）",
+        name,
+        category,
         verseNo,
-        verseRef,
-        category
+        verseRef
     });
 
     localStorage.setItem("drawLogs", JSON.stringify(logs));
 }
 
-/* -----------------------------------------------------------
-   煙火 + 金幣特效
------------------------------------------------------------ */
-let fwCanvas = document.getElementById("fwCanvas");
-let fwCtx = fwCanvas.getContext("2d");
+/* 手機音效解鎖 */
+function setupAudio(){
+    function tryPlay(){
+        if(audioUnlocked) return;
+        audioUnlocked = true;
+        winAudio.currentTime = 0;
+        winAudio.play().catch(()=>{});
+    }
+
+    // 先嘗試一次（桌機通常可播）
+    winAudio.play().catch(()=>{});
+
+    document.addEventListener("click", tryPlay, {once:true});
+    document.addEventListener("touchstart", tryPlay, {once:true});
+}
+
+/* 煙火與金幣特效 */
+const fwCanvas = document.getElementById("fwCanvas");
+const fwCtx = fwCanvas.getContext("2d");
 let fireArr = [];
 
 function resizeFW(){
@@ -422,22 +364,23 @@ window.addEventListener("resize", resizeFW);
 
 function launchFire(){
     fireArr.push({
-        x: Math.random()*fwCanvas.width,
-        y: Math.random()*fwCanvas.height*0.5,
-        r: 2,
-        c: `hsl(${Math.random()*360},100%,60%)`,
-        life: 30+Math.random()*20
+        x:Math.random()*fwCanvas.width,
+        y:Math.random()*fwCanvas.height*0.5,
+        r:2,
+        c:`hsl(${Math.random()*360},100%,60%)`,
+        life:30+Math.random()*20
     });
 }
+
 function drawFire(){
     fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
     for(let i=fireArr.length-1;i>=0;i--){
-        let f=fireArr[i];
+        const f = fireArr[i];
         fwCtx.beginPath();
         fwCtx.arc(f.x,f.y,f.r,0,Math.PI*2);
-        fwCtx.fillStyle=f.c;
+        fwCtx.fillStyle = f.c;
         fwCtx.fill();
-        f.r+=2;
+        f.r += 2;
         f.life--;
         if(f.life<=0) fireArr.splice(i,1);
     }
@@ -446,80 +389,31 @@ function drawFire(){
 drawFire();
 
 function startFireworks(){
-    for(let i=0;i<12;i++) setTimeout(launchFire, i*150);
+    for(let i=0;i<12;i++){
+        setTimeout(launchFire, i*150);
+    }
 }
+
 function startCoins(){
     for(let i=0;i<15;i++){
         setTimeout(()=>{
-            let coin=document.createElement("img");
-            coin.src="https://cdn-icons-png.flaticon.com/512/138/138292.png";
-            coin.className="coin";
-            coin.style.left=Math.random()*window.innerWidth+"px";
-            coin.style.animationDuration=(1.2+Math.random())+"s";
+            const coin = document.createElement("img");
+            coin.src = "https://cdn-icons-png.flaticon.com/512/138/138292.png";
+            coin.className = "coin";
+            coin.style.left = Math.random()*window.innerWidth + "px";
+            coin.style.animationDuration = (1.2 + Math.random()) + "s";
             document.body.appendChild(coin);
-            setTimeout(()=>coin.remove(),2500);
+            setTimeout(()=>coin.remove(), 2500);
         }, i*120);
     }
 }
-function celebrate(){
-    startFireworks();
-    startCoins();
-}
 
-/* -----------------------------------------------------------
-   主流程：讀參數、顯示圖片與文字、播放音效、記錄
------------------------------------------------------------ */
-let winAudio = new Audio("audio/win.mp3");
-
-document.addEventListener("DOMContentLoaded", () => {
-    const url = new URL(location.href);
-    const noStr = url.searchParams.get("no") || "";
-    const name  = url.searchParams.get("name") || "";
-
-    const n = parseInt(noStr,10);
-    if(!n || n<1 || n>128){
-        alert("無效的經句編號，將返回首頁");
-        location.href = "index.html";
-        return;
-    }
-
-    const padded = String(n).padStart(3,"0");
-    const verseRef = verseRefs[n] || "";
-    const category = categoryMap[n] || "其他";
-
-    // 顯示姓名
-    if(name){
-        document.getElementById("nameInfo").textContent = `抽籤姓名：${name}`;
-    }else{
-        document.getElementById("nameInfo").textContent = "";
-    }
-
-    // 設定圖片
-    const img = document.getElementById("cardImg");
-    img.src = `cards/${padded}.png`;
-
-    // 兩行文字
-    document.getElementById("line1").textContent =
-        `✨ 抽中第 ${padded} 號紅包經句`;
-    document.getElementById("line2").textContent = verseRef;
-
-    // 記錄到 localStorage 供 PDF 使用
-    saveDrawLog(name, n, verseRef, category);
-
-    // 播放音效＋特效
-    winAudio.currentTime = 0;
-    winAudio.play().catch(()=>{});
-    celebrate();
-});
-
-/* -----------------------------------------------------------
-   導覽按鈕
------------------------------------------------------------ */
+/* 導覽 */
 function goHome(){
-    window.location = "index.html";
+    location.href = "index.html";
 }
 function goCategory(){
-    window.location = "index_category.html";
+    location.href = "index_category.html";
 }
 </script>
 

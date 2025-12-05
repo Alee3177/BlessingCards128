@@ -28,7 +28,7 @@
     }
 
     h1 {
-        font-size:26px;
+        font-size:28px;
         color:#b37500;
         margin-top:10px;
     }
@@ -56,22 +56,30 @@
     }
     .btn:hover { background:#ffdd88; }
 
-    /* 指針：固定在輪盤正上方，尖端朝下 */
-    #pointer {
-        width:0; height:0;
-        border-left:18px solid transparent;
-        border-right:18px solid transparent;
-        border-top:32px solid red; /* 朝下 */
-        margin:auto;
-        margin-top:15px;
+    .wheel-wrapper {
         position:relative;
-        z-index:5;
-        transform: translateY(8px);
+        width:300px;
+        margin:15px auto 0 auto;
+        display:none;
     }
 
-    #categoryWheel {
-        margin-top:0;
-        max-width:300px;
+    canvas#categoryWheel {
+        display:block;
+        width:100%;
+        height:auto;
+    }
+
+    .pointer {
+        position:absolute;
+        left:50%;
+        top:-24px;
+        transform:translateX(-50%);
+        width:0;
+        height:0;
+        border-left:18px solid transparent;
+        border-right:18px solid transparent;
+        border-bottom:32px solid red;
+        z-index:10;
     }
 
     #resultArea {
@@ -94,38 +102,30 @@
 <body>
 <div class="container">
 
-    <img src="logo3524.png" class="logo" />
+    <img src="logo3524.png" class="logo" alt="logo" />
     <h1>分類抽籤</h1>
 
-    <!-- 下拉分類 -->
     <select id="categorySelect" onchange="onCategorySelected()">
         <option value="">請選擇分類</option>
-        <option>平安與保護</option>
-        <option>盼望與力量</option>
-        <option>恩典與憐憫</option>
-        <option>喜樂與感恩</option>
-        <option>信心與順服</option>
-        <option>智慧與引導</option>
-        <option>供應與豐盛</option>
-        <option>其他</option>
     </select>
 
-    <!-- 姓名輸入區 -->
-    <textarea id="nameInput" placeholder="請輸入此分類內要抽籤的姓名（逗號分隔）"
-              style="display:none"
+    <textarea id="nameInput" style="display:none"
+              placeholder="請輸入此分類內要抽籤的姓名（逗號分隔）"
               oninput="updateNames()"></textarea>
 
     <div class="bottom-buttons">
-        <button id="startBtn" class="btn" onclick="startNameSpin()" style="display:none">
+        <button id="startBtn" class="btn" style="display:none" onclick="startNameSpin()">
             開始抽姓名
         </button>
-        <button id="resetBtn" class="btn" onclick="resetAll()" style="display:none">
+        <button id="resetBtn" class="btn" style="display:none" onclick="resetAll()">
             全部歸零
         </button>
     </div>
 
-    <div id="pointer" style="display:none"></div>
-    <canvas id="categoryWheel" width="300" height="300" style="display:none"></canvas>
+    <div class="wheel-wrapper" id="wheelWrapper">
+        <div class="pointer"></div>
+        <canvas id="categoryWheel" width="300" height="300"></canvas>
+    </div>
 
     <div id="resultArea"></div>
 
@@ -134,9 +134,7 @@
 </div>
 
 <script>
-/* -----------------------------------------------------------
-   與 128 張經句對應的分類表（1~128）
------------------------------------------------------------ */
+/* 1~128 對應分類：可在這裡未來自行修改 */
 const categoryMap = [
     "",
     "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
@@ -158,20 +156,16 @@ const categoryMap = [
     "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
 ];
 
-/* -----------------------------------------------------------
-   轉盤與狀態
------------------------------------------------------------ */
-let canvas = null, ctx = null;
+const POINTER_ANGLE = -Math.PI/2;
+let canvas, ctx;
 let names = [];
+let selectedCategory = "";
+let usedNamesAll = [];
+let usedVersesAll = [];
 let isSpinning = false;
 let drumAudio = new Audio("audio/drum.mp3");
-let usedNamesAll = [];    // 全站共用「已抽過姓名」
-let usedVersesAll = [];   // 全站共用「已抽過經句」
-const POINTER_ANGLE = -Math.PI/2;
 
-/* -----------------------------------------------------------
-   初始化：讀取 localStorage & 準備畫布
------------------------------------------------------------ */
+/* 初始化：讀取紀錄、計算分類統計、設定下拉選單 */
 document.addEventListener("DOMContentLoaded", () => {
     try{
         usedNamesAll  = JSON.parse(localStorage.getItem("usedNamesAll"))  || [];
@@ -183,31 +177,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
     canvas = document.getElementById("categoryWheel");
     ctx = canvas.getContext("2d");
+
+    buildCategoryOptions();
 });
 
-/* -----------------------------------------------------------
-   切換分類時：顯示輸入框與按鈕
------------------------------------------------------------ */
-function onCategorySelected(){
-    const cat = document.getElementById("categorySelect").value;
-    const show = !!cat;
-
-    document.getElementById("nameInput").style.display   = show ? "block" : "none";
-    document.getElementById("startBtn").style.display    = show ? "block" : "none";
-    document.getElementById("resetBtn").style.display    = show ? "block" : "none";
-    document.getElementById("pointer").style.display     = show ? "block" : "none";
-    document.getElementById("categoryWheel").style.display = show ? "block" : "none";
-
-    if(!show){
-        document.getElementById("resultArea").textContent = "";
-    }else{
-        updateNames();
+function buildCategoryOptions(){
+    const counts = {};
+    for(let i=1;i<categoryMap.length;i++){
+        const cat = categoryMap[i] || "未分類";
+        counts[cat] = (counts[cat] || 0) + 1;
     }
+    const select = document.getElementById("categorySelect");
+    Object.keys(counts).forEach(cat=>{
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = `${cat}（共 ${counts[cat]} 節）`;
+        select.appendChild(opt);
+    });
 }
 
-/* -----------------------------------------------------------
-   更新姓名並畫輪盤
------------------------------------------------------------ */
+function onCategorySelected(){
+    selectedCategory = document.getElementById("categorySelect").value;
+    const show = !!selectedCategory;
+
+    document.getElementById("nameInput").style.display = show ? "block" : "none";
+    document.getElementById("startBtn").style.display  = show ? "block" : "none";
+    document.getElementById("resetBtn").style.display  = show ? "block" : "none";
+    document.getElementById("wheelWrapper").style.display = show ? "block" : "none";
+
+    document.getElementById("resultArea").textContent = "";
+    if(show) updateNames();
+}
+
+/* 姓名與輪盤 */
 function updateNames(){
     names = document.getElementById("nameInput").value
         .split(",")
@@ -238,37 +240,33 @@ function drawWheel(){
         ctx.strokeStyle="#ffffff";
         ctx.stroke();
 
-        if(names[i]){
+        const name = names[i];
+        if(name){
             ctx.save();
             ctx.translate(150,150);
             ctx.rotate(start + arc/2);
             ctx.textAlign="right";
             ctx.font="bold 18px NotoSansTC";
             ctx.fillStyle="#8a5500";
-            ctx.fillText(names[i],135,8);
+            ctx.fillText(name,135,8);
             ctx.restore();
         }
     }
 }
 
-/* -----------------------------------------------------------
-   抽姓名（只有 drum.mp3，無特效）
------------------------------------------------------------ */
+/* 抽姓名（只有 drum.mp3） */
 function startNameSpin(){
     if(isSpinning) return;
 
+    if(!selectedCategory){
+        alert("請先選擇分類");
+        return;
+    }
     if(names.length===0){
         alert("請先輸入姓名");
         return;
     }
 
-    const cat = document.getElementById("categorySelect").value;
-    if(!cat){
-        alert("請先選擇分類");
-        return;
-    }
-
-    // 全站不重複：從未抽過名單中挑
     const available = names.filter(n => !usedNamesAll.includes(n));
     if(!available.length){
         alert("全部姓名都已抽過了！\n請按「全部歸零」重置紀錄後再抽。");
@@ -278,28 +276,26 @@ function startNameSpin(){
     const winner = available[Math.floor(Math.random()*available.length)];
 
     const count = names.length;
-    const arc   = 2*Math.PI / count;
-    const idx   = names.indexOf(winner);
+    const arc = 2*Math.PI / count;
+    const winnerIndex = names.indexOf(winner);
 
-    const baseCenter = idx * arc + arc/2;
-    const offset     = (Math.random()-0.5)*arc*0.3;
-    const targetCenter = baseCenter + offset;
-
-    const spins = 5;
-    const totalRotation =
-        spins * 2*Math.PI + (POINTER_ANGLE - targetCenter);
+    const centerAngle = winnerIndex * arc + arc/2;
+    const visualOffset = 0;
+    const finalAngle = POINTER_ANGLE - (centerAngle + visualOffset);
+    const spins = 6;
+    const totalRotation = spins*2*Math.PI + finalAngle;
 
     isSpinning = true;
     drumAudio.currentTime = 0;
     drumAudio.play().catch(()=>{});
 
     let startTime = null;
-    const duration = 10000; // 10 秒
+    const duration = 10000;
 
     function animate(ts){
         if(!startTime) startTime = ts;
         const t = Math.min((ts-startTime)/duration, 1);
-        const ease = 1 - Math.pow(1-t, 3);
+        const ease = 1 - Math.pow(1-t,3);
         const angle = ease * totalRotation;
 
         ctx.save();
@@ -309,43 +305,41 @@ function startNameSpin(){
         drawWheel();
         ctx.restore();
 
-        if(t<1){
+        if(t < 1){
             requestAnimationFrame(animate);
         }else{
             drumAudio.pause();
-            drumAudio.currentTime=0;
-            isSpinning=false;
+            drumAudio.currentTime = 0;
+            isSpinning = false;
 
             if(!usedNamesAll.includes(winner)){
                 usedNamesAll.push(winner);
                 localStorage.setItem("usedNamesAll", JSON.stringify(usedNamesAll));
             }
-
-            showWinner(winner, cat);
+            showWinner(winner);
         }
     }
-
     requestAnimationFrame(animate);
 }
 
-/* -----------------------------------------------------------
-   顯示中獎姓名 + 按鈕抽對應分類經句
------------------------------------------------------------ */
-function showWinner(name, category){
+function showWinner(name){
     document.getElementById("resultArea").innerHTML =
         `抽中：<b>${name}</b><br><br>
-         <button class="btn" onclick="drawCategoryVerse('${name}','${category}')">
+         <button class="btn" onclick="drawCategoryVerse('${name}')">
              抽紅包祝福經句
          </button>`;
 }
 
-/* -----------------------------------------------------------
-   抽出此分類的經句（依 categoryMap 過濾）
------------------------------------------------------------ */
-function drawCategoryVerse(name, category){
+/* 指定分類內抽經句（不重複） */
+function drawCategoryVerse(name){
+    if(!selectedCategory){
+        alert("請先選擇分類");
+        return;
+    }
+
     const remain = [];
-    for(let i=1;i<=128;i++){
-        if(categoryMap[i]===category && !usedVersesAll.includes(i)){
+    for(let i=1;i<categoryMap.length;i++){
+        if(categoryMap[i] === selectedCategory && !usedVersesAll.includes(i)){
             remain.push(i);
         }
     }
@@ -359,15 +353,13 @@ function drawCategoryVerse(name, category){
     usedVersesAll.push(v);
     localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
 
-    const padded   = String(v).padStart(3,"0");
+    const padded = String(v).padStart(3,"0");
     const nameParam = encodeURIComponent(name);
-
-    window.location = `viewer.html?no=${padded}&name=${nameParam}`;
+    const catParam = encodeURIComponent(selectedCategory);
+    window.location = `viewer.html?no=${padded}&name=${nameParam}&cat=${catParam}`;
 }
 
-/* -----------------------------------------------------------
-   全部歸零（清除全站姓名＆經句紀錄）
------------------------------------------------------------ */
+/* 全部歸零 */
 function resetAll(){
     if(!confirm("確定要全部重置？\n（一併清除已抽過姓名與已抽過經句紀錄）")) return;
 
@@ -380,9 +372,7 @@ function resetAll(){
     alert("已全部重置，現在可以重新開始抽籤。");
 }
 
-/* -----------------------------------------------------------
-   回首頁
------------------------------------------------------------ */
+/* 回首頁 */
 function goHome(){
     window.location = "index.html";
 }
