@@ -80,6 +80,7 @@
   }
 </style>
 </head>
+
 <body>
 <canvas id="fwCanvas"></canvas>
 
@@ -101,7 +102,7 @@
 </div>
 
 <script>
-/* 1~128 書卷＋章節對照 */
+/* 經句資訊表：1~128 */
 const verseInfo = [
   {},
   {book:"以賽亞書",ref:"26:3-4"},
@@ -234,26 +235,26 @@ const verseInfo = [
   {book:"馬可福音",ref:"12:30-31"}
 ];
 
-/* 同 index_category 的分類表（若 URL 沒帶 cat，就用這裡推算） */
+/* 與 index_category 相同分類表（若 URL 未帶 cat 時使用） */
 const categoryMap = [
   "",
   "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
-  "盼望與力量","盞望與力量","平安與保護","盼望與力量","平安與保護","其他","平安與保護",
+  "盼望與力量","盞望與力量","平安與保護","盞望與力量","平安與保護","其他","平安與保護",
   "其他","其他","平安與保護","平安與保護","平安與保護","喜樂與感恩","平安與保護",
   "信心與順服","智慧與引導","平安與保護","智慧與引導","智慧與引導","恩典與憐憫",
-  "喜樂與感恩","平安與保護","平安與保護","盼望與力量","平安與保護","信心與順服",
-  "盼望與力量","盼望與力量","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
+  "喜樂與感恩","平安與保護","平安與保護","盞望與力量","平安與保護","信心與順服",
+  "盞望與力量","盞望與力量","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
   "智慧與引導","其他","喜樂與感恩","喜樂與感恩","恩典與憐憫","其他","信心與順服",
-  "其他","盼望與力量","盼望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
+  "其他","盞望與力量","盞望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
   "平安與保護","平安與保護","其他","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
   "其他","信心與順服","平安與保護","喜樂與感恩","其他","其他","平安與保護","信心與順服",
-  "其他","其他","其他","其他","其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服",
+  "其他","其他","其他","其他","其他","盞望與力量","恩典與憐憫","平安與保護","信心與順服",
   "平安與保護","平安與保護","智慧與引導","其他","平安與保護","其他","喜樂與感恩",
   "其他","其他","信心與順服","其他","其他","其他","其他","其他","其他","其他",
-  "智慧與引導","盼望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
+  "智慧與引導","盞望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
   "信心與順服","其他","平安與保護","其他","平安與保護","智慧與引導","其他","其他",
-  "其他","恩典與憐憫","其他","平安與保護","其他","盼望與力量","供應與豐盛","供應與豐盛",
-  "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
+  "其他","恩典與憐憫","其他","平安與保護","其他","盞望與力量","供應與豐盛","供應與豐盛",
+  "喜樂與感恩","其他","盞望與力量","其他","其他","其他","其他","其他"
 ];
 
 let winAudio = new Audio("audio/win.mp3");
@@ -276,52 +277,47 @@ document.addEventListener("DOMContentLoaded", () => {
   const info = verseInfo[verseNo] || {book:"",ref:""};
   const book = info.book;
   const ref  = info.ref;
-  const category = catQuery || categoryMap[verseNo] || "未分類";
 
+  const category = catQuery || categoryMap[verseNo] || "未分類";
   const padded = String(verseNo).padStart(3,"0");
 
-  // 圖片載入：先看 cards/，失敗再看根目錄
   const img = document.getElementById("cardImg");
   img.src = `cards/${padded}.png`;
   img.onerror = function(){
-    img.onerror = null;
-    img.src = `${padded}.png`;
+    img.onerror=null;
+    img.src=`${padded}.png`;
   };
 
-  // 顯示文字
   document.getElementById("infoText").innerHTML =
     `✨ 抽中第 <b>${padded}</b> 號紅包經句<br>` +
     `${book} ${ref}<br>` +
     `分類：${category}<br>` +
     `得獎者：<b>${name}</b>`;
 
-  // 寫入抽籤紀錄（供 PDF 使用）
+  /* 寫入抽籤紀錄（drawLogs）→ index.html 匯出 PDF 用 */
   writeLog(name, category, verseNo, `${book} ${ref}`);
 
-  // 特效＋音效
+  /* 特效 & 音效 */
   startFireworks();
   startCoins();
   setupAudioAutoPlay();
 });
 
-/* 抽籤紀錄寫入 drawLogs */
+/* 📝 寫入抽籤紀錄（格式已統一） */
 function writeLog(name, category, verseNo, verseRef){
-  let logs = [];
-  try{
-    logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-  }catch(e){
-    logs = [];
-  }
+  let logs=[];
+  try{ logs = JSON.parse(localStorage.getItem("drawLogs") || "[]"); }
+  catch(e){ logs=[]; }
 
   const now = new Date();
-  const timeStr = now.toLocaleString("zh-TW", {
+  const t = now.toLocaleString("zh-TW", {
     year:"numeric", month:"2-digit", day:"2-digit",
     hour:"2-digit", minute:"2-digit", second:"2-digit",
-    hour12:true
+    hour12:false
   });
 
   logs.push({
-    time: timeStr,
+    time: t,
     name,
     category,
     verseNo,
@@ -331,49 +327,44 @@ function writeLog(name, category, verseNo, verseRef){
   localStorage.setItem("drawLogs", JSON.stringify(logs));
 }
 
-/* 音效：先嘗試自動播放，若被擋掉就顯示提示，等待使用者觸控一次 */
+/* 🔊 自動播音效，如果被擋則顯示提示 */
 function setupAudioAutoPlay(){
   const hint = document.getElementById("audioHint");
 
-  winAudio.currentTime = 0;
-  winAudio.play().then(()=>{
-    // 可以自動播放，什麼都不用做
-  }).catch(()=>{
-    // 自動播放被阻擋，顯示提示，並等待使用者點一下
-    showAudioHint();
-    const onceHandler = () => {
-      winAudio.currentTime = 0;
-      winAudio.play().finally(()=>{
-        hideAudioHint();
-      });
-      document.removeEventListener("click", onceHandler);
-      document.removeEventListener("touchstart", onceHandler);
+  winAudio.currentTime=0;
+  winAudio.play().then(()=>{}).catch(()=>{
+    showHint();
+    const once = () => {
+      winAudio.currentTime=0;
+      winAudio.play().finally(()=>{ hideHint(); });
+      document.removeEventListener("click",once);
+      document.removeEventListener("touchstart",once);
     };
-    document.addEventListener("click", onceHandler);
-    document.addEventListener("touchstart", onceHandler);
+    document.addEventListener("click",once);
+    document.addEventListener("touchstart",once);
   });
 
-  function showAudioHint(){
+  function showHint(){
     if(audioHintShown) return;
     audioHintShown = true;
-    hint.style.display = "block";
+    hint.style.display="block";
   }
-  function hideAudioHint(){
-    hint.style.display = "none";
+  function hideHint(){
+    hint.style.display="none";
   }
 }
 
-/* 煙火與金幣特效 */
+/* 🎆 煙火 */
 const fwCanvas = document.getElementById("fwCanvas");
 const fwCtx = fwCanvas.getContext("2d");
-let fireArr = [];
+let fireArr=[];
 
 function resizeFW(){
   fwCanvas.width = window.innerWidth;
   fwCanvas.height = window.innerHeight;
 }
 resizeFW();
-window.addEventListener("resize", resizeFW);
+window.addEventListener("resize",resizeFW);
 
 function launchFire(){
   fireArr.push({
@@ -388,12 +379,12 @@ function launchFire(){
 function drawFire(){
   fwCtx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
   for(let i=fireArr.length-1;i>=0;i--){
-    const f = fireArr[i];
+    const f=fireArr[i];
     fwCtx.beginPath();
     fwCtx.arc(f.x,f.y,f.r,0,Math.PI*2);
-    fwCtx.fillStyle = f.c;
+    fwCtx.fillStyle=f.c;
     fwCtx.fill();
-    f.r += 2;
+    f.r+=2;
     f.life--;
     if(f.life<=0) fireArr.splice(i,1);
   }
@@ -407,14 +398,15 @@ function startFireworks(){
   }
 }
 
+/* 🪙 金幣掉落效果 */
 function startCoins(){
   for(let i=0;i<15;i++){
     setTimeout(()=>{
-      const coin = document.createElement("img");
-      coin.src = "https://cdn-icons-png.flaticon.com/512/138/138292.png";
-      coin.className = "coin";
-      coin.style.left = Math.random()*window.innerWidth + "px";
-      coin.style.animationDuration = (1.2 + Math.random()) + "s";
+      const coin=document.createElement("img");
+      coin.src="https://cdn-icons-png.flaticon.com/512/138/138292.png";
+      coin.className="coin";
+      coin.style.left=Math.random()*window.innerWidth + "px";
+      coin.style.animationDuration=(1.2+Math.random())+"s";
       document.body.appendChild(coin);
       setTimeout(()=>coin.remove(),2500);
     }, i*120);
@@ -423,10 +415,10 @@ function startCoins(){
 
 /* 導覽 */
 function goHome(){
-  location.href = "index.html";
+  location.href="index.html";
 }
 function goCategory(){
-  location.href = "index_category.html";
+  location.href="index_category.html";
 }
 </script>
 
