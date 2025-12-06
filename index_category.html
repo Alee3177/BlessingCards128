@@ -130,10 +130,10 @@
 </div>
 
 <script>
-/* 🎯 指針朝下（6 點鐘方向） */
+/* 指針：固定在畫面最上方，箭頭朝下（▼），對應角度 -90° = -Math.PI/2 */
+const POINTER_ANGLE = -Math.PI / 2;
 
-
-/* 1~128 對應分類 */
+/* 1~128 對應分類（沿用你原本的對照表） */
 const categoryMap = [
   "",
   "平安與保護","其他","盼望與力量","恩典與憐憫","平安與保護","供應與豐盛","其他","其他",
@@ -146,13 +146,13 @@ const categoryMap = [
   "其他","盼望與力量","盼望與力量","平安與保護","其他","恩典與憐憫","恩典與憐憫",
   "平安與保護","平安與保護","其他","恩典與憐憫","恩典與憐憫","信心與順服","信心與順服",
   "其他","信心與順服","平安與保護","喜樂與感恩","其他","其他","平安與保護","信心與順服",
-  "其他","其他","其他","其他","其他","盼望與力量","恩典與憐憫","平安與保護","信心與順服",
+  "其他","其他","其他","其他","其他","盞望與力量","恩典與憐憫","平安與保護","信心與順服",
   "平安與保護","平安與保護","智慧與引導","其他","平安與保護","其他","喜樂與感恩",
   "其他","其他","信心與順服","其他","其他","其他","其他","其他","其他","其他",
-  "智慧與引導","盼望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
+  "智慧與引導","盞望與力量","其他","平安與保護","其他","其他","其他","其他","其他",
   "信心與順服","其他","平安與保護","其他","平安與保護","智慧與引導","其他","其他",
-  "其他","恩典與憐憫","其他","平安與保護","其他","盼望與力量","供應與豐盛","供應與豐盛",
-  "喜樂與感恩","其他","盼望與力量","其他","其他","其他","其他","其他"
+  "其他","恩典與憐憫","其他","平安與保護","其他","盞望與力量","供應與豐盛","供應與豐盛",
+  "喜樂與感恩","其他","盞望與力量","其他","其他","其他","其他","其他"
 ];
 
 let canvas, ctx;
@@ -179,81 +179,86 @@ document.addEventListener("DOMContentLoaded", () => {
   buildCategoryOptions();
 });
 
+/* 建立分類下拉選單 */
 function buildCategoryOptions(){
-  const counts={};
-  for(let i=1;i<categoryMap.length;i++){
+  const counts = {};
+  for(let i = 1; i < categoryMap.length; i++){
     const c = categoryMap[i] || "未分類";
-    counts[c]=(counts[c]||0)+1;
+    counts[c] = (counts[c] || 0) + 1;
   }
   const sel = document.getElementById("categorySelect");
-  Object.keys(counts).forEach(cat=>{
-    const opt=document.createElement("option");
-    opt.value=cat;
-    opt.textContent=`${cat}（共 ${counts[cat]} 節）`;
+  Object.keys(counts).forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = `${cat}（共 ${counts[cat]} 節）`;
     sel.appendChild(opt);
   });
 }
 
+/* 選擇分類後，顯示姓名輸入＋輪盤 */
 function onCategorySelected(){
   selectedCategory = document.getElementById("categorySelect").value;
   const show = !!selectedCategory;
 
-  document.getElementById("nameInput").style.display   = show?"block":"none";
-  document.getElementById("startBtn").style.display    = show?"block":"none";
-  document.getElementById("resetBtn").style.display    = show?"block":"none";
-  document.getElementById("wheelWrapper").style.display= show?"block":"none";
+  document.getElementById("nameInput").style.display    = show ? "block" : "none";
+  document.getElementById("startBtn").style.display     = show ? "block" : "none";
+  document.getElementById("resetBtn").style.display     = show ? "block" : "none";
+  document.getElementById("wheelWrapper").style.display = show ? "block" : "none";
 
-  document.getElementById("resultArea").textContent="";
+  document.getElementById("resultArea").textContent = "";
   if(show) updateNames();
 }
 
+/* 更新 names 陣列並重新畫輪盤 */
 function updateNames(){
   names = document.getElementById("nameInput").value
     .split(",")
-    .map(s=>s.trim())
-    .filter(s=>s.length>0);
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
 
   drawWheel(0);
 }
 
+/* 畫分類輪盤：angle = 整個輪盤目前的旋轉角度（弧度） */
 function drawWheel(angle){
   if(!ctx) return;
 
   ctx.save();
-  ctx.clearRect(0,0,300,300);
+  ctx.clearRect(0, 0, 300, 300);
 
-  ctx.translate(150,150);
-  // 讓 angle = 0 時，第 0 格的中心在「正上方」（對齊指針）
-  ctx.rotate(angle - Math.PI / 2);
-  ctx.translate(-150,-150);
+  ctx.translate(150, 150);
+  ctx.rotate(angle);
+  ctx.translate(-150, -150);
 
   const count = names.length || 1;
-  const arc = 2 * Math.PI / count;
+  const arc   = 2 * Math.PI / count;
 
-  for(let i=0;i<count;i++){
+  for(let i = 0; i < count; i++){
     const start = i * arc;
     const end   = start + arc;
 
     ctx.beginPath();
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,150,start,end);
+    ctx.moveTo(150, 150);
+    ctx.arc(150, 150, 150, start, end);
     ctx.closePath();
     ctx.fillStyle = (i % 2 === 0) ? "#ffe6a1" : "#ffcc66";
     ctx.fill();
 
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
+    ctx.lineWidth   = 2;
     ctx.stroke();
 
     const name = names[i];
     if(name){
+      const centerAngle = start + arc / 2;
+
       ctx.save();
-      ctx.translate(150,150);
-      ctx.rotate(start + arc/2);
+      ctx.translate(150, 150);
+      ctx.rotate(centerAngle);
       ctx.textAlign = "right";
-      ctx.font = "bold 18px NotoSansTC";
+      ctx.font      = "bold 18px NotoSansTC";
       ctx.fillStyle = "#8a5500";
-      ctx.fillText(name,135,8);
+      ctx.fillText(name, 135, 8);
       ctx.restore();
     }
   }
@@ -261,6 +266,7 @@ function drawWheel(angle){
   ctx.restore();
 }
 
+/* 開始抽姓名（分類模式） */
 function startNameSpin(){
   if(isSpinning) return;
 
@@ -269,7 +275,6 @@ function startNameSpin(){
     return;
   }
 
-  // 同樣先更新姓名陣列
   updateNames();
 
   if(names.length === 0){
@@ -286,16 +291,17 @@ function startNameSpin(){
   const winner = available[Math.floor(Math.random() * available.length)];
 
   const count = names.length;
-  const arc = 2 * Math.PI / count;
-  const idx = names.indexOf(winner);
+  const arc   = 2 * Math.PI / count;
+  const idx   = names.indexOf(winner);
 
-  const winnerAngle = idx * arc + arc / 2;
-  const angleFinal  = Math.PI / 2 - winnerAngle;
-  const totalRotation = 6 * 2 * Math.PI + angleFinal;
+  const winnerCenterAngle = idx * arc + arc / 2;
+  const spins = 6;
+  const angleFinal =
+    spins * 2 * Math.PI + (POINTER_ANGLE - winnerCenterAngle);
 
   isSpinning = true;
   drumAudio.currentTime = 0;
-  drumAudio.play().catch(()=>{});
+  drumAudio.play().catch(() => {});
 
   let startTime = null;
   const duration = 10000;
@@ -304,7 +310,7 @@ function startNameSpin(){
     if(!startTime) startTime = ts;
     const t = Math.min((ts - startTime) / duration, 1);
     const ease = 1 - Math.pow(1 - t, 3);
-    const angle = ease * totalRotation;
+    const angle = ease * angleFinal;
 
     drawWheel(angle);
 
@@ -323,10 +329,11 @@ function startNameSpin(){
       showWinner(winner);
     }
   }
+
   requestAnimationFrame(animate);
 }
 
-
+/* 顯示中獎者，並提供「抽分類經句」按鈕 */
 function showWinner(name){
   document.getElementById("resultArea").innerHTML =
     `抽中：<b>${name}</b><br><br>
@@ -335,15 +342,16 @@ function showWinner(name){
      </button>`;
 }
 
+/* 在所選分類中抽一節尚未抽過的經句 */
 function drawCategoryVerse(name){
   if(!selectedCategory){
     alert("請先選擇分類");
     return;
   }
 
-  const remain=[];
-  for(let i=1;i<categoryMap.length;i++){
-    if(categoryMap[i]===selectedCategory &&
+  const remain = [];
+  for(let i = 1; i < categoryMap.length; i++){
+    if(categoryMap[i] === selectedCategory &&
        !usedVersesAll.includes(i)){
       remain.push(i);
     }
@@ -354,31 +362,33 @@ function drawCategoryVerse(name){
     return;
   }
 
-  const v = remain[Math.floor(Math.random()*remain.length)];
+  const v = remain[Math.floor(Math.random() * remain.length)];
   usedVersesAll.push(v);
   localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
 
-  const padded = String(v).padStart(3,"0");
+  const padded = String(v).padStart(3, "0");
   const n = encodeURIComponent(name);
   const c = encodeURIComponent(selectedCategory);
 
-  window.location=`viewer.html?no=${padded}&name=${n}&cat=${c}`;
+  window.location = `viewer.html?no=${padded}&name=${n}&cat=${c}`;
 }
 
+/* 重置全部紀錄（共用與首頁相同的 usedNamesAll / usedVersesAll / drawLogs） */
 function resetAll(){
   if(!confirm("確定重置全部紀錄？")) return;
 
-  usedNamesAll=[];
-  usedVersesAll=[];
-  localStorage.setItem("usedNamesAll","[]");
-  localStorage.setItem("usedVersesAll","[]");
-  localStorage.setItem("drawLogs","[]");
+  usedNamesAll  = [];
+  usedVersesAll = [];
+  localStorage.setItem("usedNamesAll", "[]");
+  localStorage.setItem("usedVersesAll", "[]");
+  localStorage.setItem("drawLogs", "[]");
 
-  document.getElementById("resultArea").textContent="";
+  document.getElementById("resultArea").textContent = "";
 }
 
+/* 回首頁 */
 function goHome(){
-  window.location="index.html";
+  window.location = "index.html";
 }
 </script>
 

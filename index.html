@@ -132,9 +132,8 @@
 
 <script>
 const verseTotal = 128;
-
-/* 🎯 指針朝下（6 點鐘方向） */
-
+/* 指針：固定在畫面最上方，箭頭朝下（▼），對應角度 -90° = -Math.PI/2 */
+const POINTER_ANGLE = -Math.PI / 2;
 
 let canvas, ctx;
 let names = [];
@@ -159,130 +158,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateVerseCount();
-  updateNames();
+  updateNames();  // 先畫一圈空盤
 });
 
+/* 更新已抽經句數量 */
 function updateVerseCount(){
   document.getElementById("verseCount").textContent =
     `已抽經句：${usedVersesAll.length} / ${verseTotal}`;
 }
 
+/* 讀取 textarea 內姓名，更新 names 陣列並重畫輪盤 */
 function updateNames(){
   names = document.getElementById("nameInput").value
             .split(",")
             .map(s => s.trim())
-            .filter(s => s.length>0);
-  drawNameWheel(0);
+            .filter(s => s.length > 0);
+
+  drawNameWheel(0);  // 角度 0，先畫靜止畫面
 }
 
-function drawNameWheel(baseRotation){
-  if(!ctx) return;
-
-  ctx.save();
-  ctx.clearRect(0,0,300,300);
-
-  ctx.translate(150,150);
-  ctx.rotate(baseRotation);
-  ctx.translate(-150,-150);
-
-  const count = names.length || 1;
-  const arc = 2 * Math.PI / count;
-
-  for(let i=0;i<count;i++){
-    const start = i * arc;
-    const end   = start + arc;
-
-    ctx.beginPath();
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,150,start,end);
-    ctx.closePath();
-
-    ctx.fillStyle = (i%2===0)? "#ffe6a1" : "#ffcc66";
-    ctx.fill();
-
-    ctx.strokeStyle="#ffffff";
-    ctx.lineWidth=2;
-    ctx.stroke();
-
-    const name = names[i];
-    if(name){
-      ctx.save();
-      ctx.translate(150,150);
-      ctx.rotate(start + arc/2);
-      ctx.textAlign="right";
-      ctx.font="bold 18px NotoSansTC";
-      ctx.fillStyle="#8a5500";
-      ctx.fillText(name,135,8);
-      ctx.restore();
-    }
-  }
-
-  ctx.restore();
-}
-
-function startNameSpin(){
-  if(isSpinning) return;
-
-  if(names.length===0){
-    alert("請先輸入姓名");
-    return;
-  }
-
-  const available = names.filter(n => !usedNamesAll.includes(n));
-  if(available.length===0){
-    alert("全部姓名已抽完！請按「全部歸零」。");
-    return;
-  }
-
-  const winner = available[Math.floor(Math.random()*available.length)];
-  currentWinner = winner;
-
-  const count = names.length;
-  const arc = 2*Math.PI / count;
-  const winnerIndex = names.indexOf(winner);
-
-  const centerAngle = winnerIndex * arc + arc/2;
-
-  /* 🎯 目標是讓該格停在「指針朝下」 → POINTER_ANGLE */
-  const finalRotation = POINTER_ANGLE - centerAngle;
-  const totalRotation = 6 * 2*Math.PI + finalRotation;
-
-  let startTime = null;
-  const duration = 10000;
-  isSpinning = true;
-
-  drumAudio.currentTime=0;
-  drumAudio.play().catch(()=>{});
-
-  function animate(ts){
-    if(!startTime) startTime = ts;
-    const t = Math.min((ts-startTime)/duration,1);
-    const ease = 1 - Math.pow(1-t,3);
-    const angle = ease * totalRotation;
-
-// 重新畫姓名輪盤：angle 代表「整個輪盤目前的旋轉角度」
+/* 畫姓名輪盤：angle = 整個輪盤目前的旋轉角度（弧度） */
 function drawNameWheel(angle){
   if(!ctx) return;
 
   ctx.save();
-  ctx.clearRect(0,0,300,300);
+  ctx.clearRect(0, 0, 300, 300);
 
-  ctx.translate(150,150);
-  // 讓 angle = 0 的時候，0 號扇區的中心在「正上方」（對齊指針）
-  ctx.rotate(angle - Math.PI / 2);
-  ctx.translate(-150,-150);
+  ctx.translate(150, 150);
+  ctx.rotate(angle);           // 只用 angle，不再額外 ±90°
+  ctx.translate(-150, -150);
 
   const count = names.length || 1;
   const arc = 2 * Math.PI / count;
 
-  for(let i=0;i<count;i++){
+  for(let i = 0; i < count; i++){
     const start = i * arc;
     const end   = start + arc;
 
-    // 扇形區塊
+    // 扇形背景
     ctx.beginPath();
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,150,start,end);
+    ctx.moveTo(150, 150);
+    ctx.arc(150, 150, 150, start, end);
     ctx.closePath();
     ctx.fillStyle = (i % 2 === 0) ? "#ffe6a1" : "#ffcc66";
     ctx.fill();
@@ -295,13 +211,15 @@ function drawNameWheel(angle){
     // 姓名文字
     const name = names[i];
     if(name){
+      const centerAngle = start + arc / 2;
+
       ctx.save();
-      ctx.translate(150,150);
-      ctx.rotate(start + arc/2);  // 扇區中心角
+      ctx.translate(150, 150);
+      ctx.rotate(centerAngle);
       ctx.textAlign = "right";
       ctx.font = "bold 18px NotoSansTC";
       ctx.fillStyle = "#8a5500";
-      ctx.fillText(name,135,8);
+      ctx.fillText(name, 135, 8);
       ctx.restore();
     }
   }
@@ -309,11 +227,11 @@ function drawNameWheel(angle){
   ctx.restore();
 }
 
-// 抽姓名
+/* 抽姓名 */
 function startNameSpin(){
   if(isSpinning) return;
 
-  // 確保使用的是最新輸入的姓名
+  // 確保使用最新的姓名內容
   updateNames();
 
   if(names.length === 0){
@@ -327,39 +245,36 @@ function startNameSpin(){
     return;
   }
 
-  // 隨機抽出一個得獎者
+  // 隨機選出一位中獎者
   const winner = available[Math.floor(Math.random() * available.length)];
   currentWinner = winner;
 
   const count = names.length;
-  const arc = 2 * Math.PI / count;
+  const arc   = 2 * Math.PI / count;
   const winnerIndex = names.indexOf(winner);
 
-  // winner 在輪盤上的「中心角度」（以 3 點鐘方向為 0 起算）
-  const winnerAngle = winnerIndex * arc + arc / 2;
+  // winner 在輪盤上的「中心角度」(以 3 點鐘方向為 0 起算)
+  const winnerCenterAngle = winnerIndex * arc + arc / 2;
 
-  // 我們希望「最後」的 angle 讓 winner 的中心剛好跑到正上方（指針位置）
-  // drawNameWheel 裡有 (angle - Math.PI/2)，所以：
-  // 畫面上的 winner 角度 = angle - Math.PI/2 + winnerAngle
-  // 要讓這個角度 = 0（正上方），所以：
-  // angleFinal = Math.PI/2 - winnerAngle
-  const angleFinal = Math.PI / 2 - winnerAngle;
-
-  // 多轉幾圈，看起來比較像抽獎
-  const totalRotation = 6 * 2 * Math.PI + angleFinal;
+  // 我們希望最後：winner 中心 = 指針方向（POINTER_ANGLE = -90°）
+  // ⇒ angleFinal + winnerCenterAngle = POINTER_ANGLE
+  // ⇒ angleFinal = POINTER_ANGLE - winnerCenterAngle
+  const spins = 6;  // 額外多轉幾圈比較有戲
+  const angleFinal =
+    spins * 2 * Math.PI + (POINTER_ANGLE - winnerCenterAngle);
 
   let startTime = null;
   const duration = 10000;  // 10 秒轉完
   isSpinning = true;
 
   drumAudio.currentTime = 0;
-  drumAudio.play().catch(()=>{});
+  drumAudio.play().catch(() => {});
 
   function animate(ts){
     if(!startTime) startTime = ts;
     const t = Math.min((ts - startTime) / duration, 1);
     const ease = 1 - Math.pow(1 - t, 3); // easeOut
-    const angle = ease * totalRotation;
+    const angle = ease * angleFinal;
 
     drawNameWheel(angle);
 
@@ -370,6 +285,7 @@ function startNameSpin(){
       drumAudio.currentTime = 0;
       isSpinning = false;
 
+      // 確認紀錄姓名
       if(!usedNamesAll.includes(winner)){
         usedNamesAll.push(winner);
         localStorage.setItem("usedNamesAll", JSON.stringify(usedNamesAll));
@@ -382,13 +298,14 @@ function startNameSpin(){
   requestAnimationFrame(animate);
 }
 
-
+/* 顯示中獎者，並提供「抽經句」按鈕 */
 function showWinner(winner){
   document.getElementById("resultArea").innerHTML =
     `抽中：<b>${winner}</b><br><br>
      <button class="btn" onclick="drawVerse()">抽紅包祝福經句</button>`;
 }
 
+/* 抽紅包祝福經句（不重複，1~128） */
 function drawVerse(){
   if(!currentWinner){
     alert("請先抽姓名");
@@ -401,38 +318,39 @@ function drawVerse(){
   }
 
   const remain = [];
-  for(let i=1;i<=verseTotal;i++){
+  for(let i = 1; i <= verseTotal; i++){
     if(!usedVersesAll.includes(i)) remain.push(i);
   }
 
-  const v = remain[Math.floor(Math.random()*remain.length)];
+  const v = remain[Math.floor(Math.random() * remain.length)];
   usedVersesAll.push(v);
   localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
   updateVerseCount();
 
-  const padded = String(v).padStart(3,"0");
+  const padded = String(v).padStart(3, "0");
   const n = encodeURIComponent(currentWinner);
 
+  // 一般抽籤，分類交給 viewer 自己判斷
   window.location = `viewer.html?no=${padded}&name=${n}`;
 }
 
-/* 🎯 全站 reset：姓名 + 經句 + PDF 紀錄 */
+/* 全站 reset：姓名 + 經句 + PDF 紀錄 */
 function resetAll(){
   if(!confirm("確定全部重置？")) return;
 
-  localStorage.setItem("usedNamesAll","[]");
-  localStorage.setItem("usedVersesAll","[]");
-  localStorage.setItem("drawLogs","[]");
+  localStorage.setItem("usedNamesAll", "[]");
+  localStorage.setItem("usedVersesAll", "[]");
+  localStorage.setItem("drawLogs", "[]");
 
-  usedNamesAll=[];
-  usedVersesAll=[];
-  currentWinner="";
+  usedNamesAll = [];
+  usedVersesAll = [];
+  currentWinner = "";
 
   updateVerseCount();
   document.getElementById("resultArea").innerHTML = "";
 }
 
-/* 分類抽籤 */
+/* 前往分類抽籤 */
 function goCategory(){
   window.location = "index_category.html";
 }
