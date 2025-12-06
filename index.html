@@ -134,7 +134,7 @@
 const verseTotal = 128;
 
 /* 🎯 指針朝下（6 點鐘方向） */
-const POINTER_ANGLE = Math.PI / 2;
+
 
 let canvas, ctx;
 let names = [];
@@ -260,14 +260,115 @@ function startNameSpin(){
     const ease = 1 - Math.pow(1-t,3);
     const angle = ease * totalRotation;
 
+// 重新畫姓名輪盤：angle 代表「整個輪盤目前的旋轉角度」
+function drawNameWheel(angle){
+  if(!ctx) return;
+
+  ctx.save();
+  ctx.clearRect(0,0,300,300);
+
+  ctx.translate(150,150);
+  // 讓 angle = 0 的時候，0 號扇區的中心在「正上方」（對齊指針）
+  ctx.rotate(angle - Math.PI / 2);
+  ctx.translate(-150,-150);
+
+  const count = names.length || 1;
+  const arc = 2 * Math.PI / count;
+
+  for(let i=0;i<count;i++){
+    const start = i * arc;
+    const end   = start + arc;
+
+    // 扇形區塊
+    ctx.beginPath();
+    ctx.moveTo(150,150);
+    ctx.arc(150,150,150,start,end);
+    ctx.closePath();
+    ctx.fillStyle = (i % 2 === 0) ? "#ffe6a1" : "#ffcc66";
+    ctx.fill();
+
+    // 白色分隔線
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 姓名文字
+    const name = names[i];
+    if(name){
+      ctx.save();
+      ctx.translate(150,150);
+      ctx.rotate(start + arc/2);  // 扇區中心角
+      ctx.textAlign = "right";
+      ctx.font = "bold 18px NotoSansTC";
+      ctx.fillStyle = "#8a5500";
+      ctx.fillText(name,135,8);
+      ctx.restore();
+    }
+  }
+
+  ctx.restore();
+}
+
+// 抽姓名
+function startNameSpin(){
+  if(isSpinning) return;
+
+  // 確保使用的是最新輸入的姓名
+  updateNames();
+
+  if(names.length === 0){
+    alert("請先輸入姓名");
+    return;
+  }
+
+  const available = names.filter(n => !usedNamesAll.includes(n));
+  if(available.length === 0){
+    alert("全部姓名都已抽完！請按「全部歸零」。");
+    return;
+  }
+
+  // 隨機抽出一個得獎者
+  const winner = available[Math.floor(Math.random() * available.length)];
+  currentWinner = winner;
+
+  const count = names.length;
+  const arc = 2 * Math.PI / count;
+  const winnerIndex = names.indexOf(winner);
+
+  // winner 在輪盤上的「中心角度」（以 3 點鐘方向為 0 起算）
+  const winnerAngle = winnerIndex * arc + arc / 2;
+
+  // 我們希望「最後」的 angle 讓 winner 的中心剛好跑到正上方（指針位置）
+  // drawNameWheel 裡有 (angle - Math.PI/2)，所以：
+  // 畫面上的 winner 角度 = angle - Math.PI/2 + winnerAngle
+  // 要讓這個角度 = 0（正上方），所以：
+  // angleFinal = Math.PI/2 - winnerAngle
+  const angleFinal = Math.PI / 2 - winnerAngle;
+
+  // 多轉幾圈，看起來比較像抽獎
+  const totalRotation = 6 * 2 * Math.PI + angleFinal;
+
+  let startTime = null;
+  const duration = 10000;  // 10 秒轉完
+  isSpinning = true;
+
+  drumAudio.currentTime = 0;
+  drumAudio.play().catch(()=>{});
+
+  function animate(ts){
+    if(!startTime) startTime = ts;
+    const t = Math.min((ts - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3); // easeOut
+    const angle = ease * totalRotation;
+
     drawNameWheel(angle);
 
-    if(t<1){
+    if(t < 1){
       requestAnimationFrame(animate);
-    } else {
+    }else{
       drumAudio.pause();
-      drumAudio.currentTime=0;
-      isSpinning=false;
+      drumAudio.currentTime = 0;
+      isSpinning = false;
 
       if(!usedNamesAll.includes(winner)){
         usedNamesAll.push(winner);
@@ -277,8 +378,10 @@ function startNameSpin(){
       showWinner(winner);
     }
   }
+
   requestAnimationFrame(animate);
 }
+
 
 function showWinner(winner){
   document.getElementById("resultArea").innerHTML =

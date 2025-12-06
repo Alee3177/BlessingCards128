@@ -131,7 +131,7 @@
 
 <script>
 /* 🎯 指針朝下（6 點鐘方向） */
-const POINTER_ANGLE = Math.PI / 2;
+
 
 /* 1~128 對應分類 */
 const categoryMap = [
@@ -216,43 +216,43 @@ function updateNames(){
   drawWheel(0);
 }
 
-function drawWheel(baseRotation){
+function drawWheel(angle){
   if(!ctx) return;
 
   ctx.save();
   ctx.clearRect(0,0,300,300);
 
   ctx.translate(150,150);
-  ctx.rotate(baseRotation);
+  // 讓 angle = 0 時，第 0 格的中心在「正上方」（對齊指針）
+  ctx.rotate(angle - Math.PI / 2);
   ctx.translate(-150,-150);
 
   const count = names.length || 1;
-  const arc = 2*Math.PI / count;
+  const arc = 2 * Math.PI / count;
 
   for(let i=0;i<count;i++){
-    const start=i*arc;
-    const end  =start+arc;
+    const start = i * arc;
+    const end   = start + arc;
 
     ctx.beginPath();
     ctx.moveTo(150,150);
     ctx.arc(150,150,150,start,end);
     ctx.closePath();
-
-    ctx.fillStyle = (i%2===0)? "#ffe6a1" : "#ffcc66";
+    ctx.fillStyle = (i % 2 === 0) ? "#ffe6a1" : "#ffcc66";
     ctx.fill();
 
-    ctx.strokeStyle="#ffffff";
-    ctx.lineWidth=2;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    const name=names[i];
+    const name = names[i];
     if(name){
       ctx.save();
       ctx.translate(150,150);
-      ctx.rotate(start+arc/2);
-      ctx.textAlign="right";
-      ctx.font="bold 18px NotoSansTC";
-      ctx.fillStyle="#8a5500";
+      ctx.rotate(start + arc/2);
+      ctx.textAlign = "right";
+      ctx.font = "bold 18px NotoSansTC";
+      ctx.fillStyle = "#8a5500";
       ctx.fillText(name,135,8);
       ctx.restore();
     }
@@ -268,49 +268,52 @@ function startNameSpin(){
     alert("請先選擇分類");
     return;
   }
-  if(names.length===0){
+
+  // 同樣先更新姓名陣列
+  updateNames();
+
+  if(names.length === 0){
     alert("請先輸入姓名");
     return;
   }
 
   const available = names.filter(n => !usedNamesAll.includes(n));
   if(!available.length){
-    alert("全部姓名抽完！");
+    alert("全部姓名都已抽完！");
     return;
   }
 
-  const winner = available[Math.floor(Math.random()*available.length)];
+  const winner = available[Math.floor(Math.random() * available.length)];
 
   const count = names.length;
-  const arc = 2*Math.PI / count;
+  const arc = 2 * Math.PI / count;
   const idx = names.indexOf(winner);
 
-  const centerAngle = idx * arc + arc/2;
+  const winnerAngle = idx * arc + arc / 2;
+  const angleFinal  = Math.PI / 2 - winnerAngle;
+  const totalRotation = 6 * 2 * Math.PI + angleFinal;
 
-  const finalRotation = POINTER_ANGLE - centerAngle;
-  const totalRotation = 6 * 2*Math.PI + finalRotation;
-
-  isSpinning=true;
-  drumAudio.currentTime=0;
+  isSpinning = true;
+  drumAudio.currentTime = 0;
   drumAudio.play().catch(()=>{});
 
-  let startTime=null;
-  const duration=10000;
+  let startTime = null;
+  const duration = 10000;
 
   function animate(ts){
-    if(!startTime) startTime=ts;
-    const t=Math.min((ts-startTime)/duration,1);
-    const ease=1-Math.pow(1-t,3);
-    const angle=ease * totalRotation;
+    if(!startTime) startTime = ts;
+    const t = Math.min((ts - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    const angle = ease * totalRotation;
 
     drawWheel(angle);
 
-    if(t<1){
+    if(t < 1){
       requestAnimationFrame(animate);
     }else{
       drumAudio.pause();
-      drumAudio.currentTime=0;
-      isSpinning=false;
+      drumAudio.currentTime = 0;
+      isSpinning = false;
 
       if(!usedNamesAll.includes(winner)){
         usedNamesAll.push(winner);
@@ -322,6 +325,7 @@ function startNameSpin(){
   }
   requestAnimationFrame(animate);
 }
+
 
 function showWinner(name){
   document.getElementById("resultArea").innerHTML =
