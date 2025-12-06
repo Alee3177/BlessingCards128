@@ -87,7 +87,7 @@
 
  #verseCount {
   margin-top: 10px;
-  margin-bottom: 50px; /* 與轉盤拉開距離 */
+  margin-bottom: 40px; /* 與轉盤拉開距離 */
   display: block;
   text-align: center;
   font-size: 14px;
@@ -369,7 +369,11 @@ AAEAAAAQAQAABAAwRFNJRwAAAAEAAA...（內容太長，在此略）...AAA==
 
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- PDFMake 主要程式 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+
+<!-- PDFMake 字型（VFS 字型檔） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
 <script>
 function exportPDF() {
