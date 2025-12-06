@@ -85,11 +85,15 @@
     color:#b37500;
   }
 
-  #verseCount {
-    margin-top:8px;
-    font-size:16px;
-    color:#9a6a00;
-  }
+ #verseCount {
+  margin-top: 10px;
+  margin-bottom: 50px; /* 與轉盤拉開距離 */
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  color: #8a5500;
+}
+
 
   .bottom-buttons {
     margin-top:20px;
@@ -115,7 +119,7 @@
     <button class="btn" onclick="goCategory()">分類抽籤</button>
   </div>
 
-  <div id="verseCount"></div>
+  <div id="verseCount" style="margin-bottom:50px;"></div>
 
   <div class="wheel-wrapper">
     <div class="pointer"></div>
@@ -368,51 +372,52 @@ AAEAAAAQAQAABAAwRFNJRwAAAAEAAA...（內容太長，在此略）...AAA==
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-function exportPDF(){
-  let logs=[];
-  try{ logs = JSON.parse(localStorage.getItem("drawLogs") || "[]"); }
-  catch(e){ logs=[]; }
+function exportPDF() {
+  let logs = [];
+  try {
+    logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
+  } catch (e) {
+    logs = [];
+  }
 
-  if(!logs.length){
-    alert("目前沒有抽籤紀錄。");
+  if (logs.length === 0) {
+    alert("目前沒有抽籤紀錄！");
     return;
   }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:"pt",format:"a4"});
+  // PDFMake 要求 table 必須提供 widths 與 body
+  const tableBody = [
+    ["時間", "姓名", "分類", "經句編號", "經句位置"]
+  ];
 
-  /* 加入中文字型 */
-  doc.addFileToVFS("NotoSansTC.ttf", notoFontBase64);
-  doc.addFont("NotoSansTC.ttf","NotoSansTC","normal");
-  doc.setFont("NotoSansTC");
-
-  doc.setFontSize(20);
-  doc.text("BlessingCards128 抽籤紀錄",40,40);
-
-  doc.setFontSize(12);
-  doc.text("（自動產生）",40,60);
-  doc.line(40,70,555,70);
-
-  let y = 90;
-  const lineHeight=18;
-
-  logs.forEach(log=>{
-    const t = `[${log.time}] 「${log.name}」 在「${log.category}」抽到 → ${log.verseRef}（${String(log.verseNo).padStart(3,"0")}.png）`;
-    const parts = doc.splitTextToSize(t,515);
-
-    parts.forEach(p=>{
-      if(y>780){
-        doc.addPage();
-        doc.setFont("NotoSansTC");
-        y=40;
-      }
-      doc.text(p,40,y);
-      y+=lineHeight;
-    });
+  logs.forEach(log => {
+    tableBody.push([
+      log.time || "",
+      log.name || "",
+      log.category || "",
+      log.verseNo || "",
+      log.verseRef || ""
+    ]);
   });
 
-  doc.save("抽籤紀錄.pdf");
+  const docDef = {
+    content: [
+      { text: "抽籤紀錄", fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+      {
+        table: {
+          widths: ["auto", "*", "*", "auto", "*"],
+          body: tableBody
+        }
+      }
+    ],
+    defaultStyle: {
+      font: "NotoSansTC"
+    }
+  };
+
+  pdfMake.createPdf(docDef).download("抽籤紀錄.pdf");
 }
+
 </script>
 
 </body>
