@@ -52,13 +52,13 @@ h1 {
 }
 
 .btn {
-  min-width: 180px;
+  min-width: 160px;
   padding: 12px 20px;
   margin: 10px;
   border: none;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--gold-light), var(--gold-mid));
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--brown-text);
   box-shadow: 0 3px 6px rgba(0,0,0,0.18);
@@ -69,7 +69,6 @@ h1 {
   background: linear-gradient(180deg, var(--gold-mid), var(--gold-dark));
 }
 </style>
-
 </head>
 <body>
 
@@ -86,45 +85,34 @@ h1 {
     <button class="btn" onclick="goBack()">返回</button>
     <button class="btn" onclick="goHome()">首頁</button>
     <button class="btn" onclick="downloadImage()">下載圖片</button>
-
   </div>
 
 </div>
 
 <script>
-/* ===========================
-      取得 URL 參數
-=========================== */
-const params = new URLSearchParams(window.location.search);
-const verseNo = params.get("no") || "";
+/* 取得 URL 參數 */
+const params   = new URLSearchParams(window.location.search);
+const verseNo  = params.get("no")   || "";
 const userName = params.get("name") || "";
-const category = params.get("cat") || "";
+const category = params.get("cat")  || "";
 
-/* ===========================
-      顯示姓名／編號／分類
-=========================== */
+/* 顯示基本資訊 */
 document.getElementById("infoArea").innerHTML = `
   姓名：<b>${decodeURIComponent(userName)}</b><br>
   經句編號：<b>${verseNo}</b>
   ${category ? `<br>分類：<b>${decodeURIComponent(category)}</b>` : ""}
 `;
 
-/* ===========================
-      顯示經句圖片（cards 資料夾）
-=========================== */
+/* 顯示經句圖片（cards 資料夾） */
 document.getElementById("verseImg").src =
   `./cards/${verseNo}.png`;
 
-/* ===========================
-      下一位：回首頁抽姓名
-=========================== */
+/* 下一位：回首頁重新抽姓名 */
 function nextPerson(){
   window.location = "index.html";
 }
 
-/* ===========================
-      返回上一頁（有分類 → 回分類）
-=========================== */
+/* 返回：若有分類 → 回分類頁，否則回首頁 */
 function goBack(){
   if(category){
     window.location = "index_category.html";
@@ -133,17 +121,17 @@ function goBack(){
   }
 }
 
-/* ===========================
-      回首頁
-=========================== */
+/* 回首頁 */
 function goHome(){
   window.location = "index.html";
 }
 
-/* =============================
-      下載經句圖片（cards）
-============================= */
+/* 下載圖片（cards/XXX.png） */
 function downloadImage(){
+  if(!verseNo){
+    alert("沒有可下載的經句圖片。");
+    return;
+  }
   const imgPath = `./cards/${verseNo}.png`;
   const a = document.createElement("a");
   a.href = imgPath;
@@ -152,7 +140,6 @@ function downloadImage(){
   a.click();
   a.remove();
 }
-
 </script>
 
 </body>
