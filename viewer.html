@@ -85,6 +85,8 @@ h1 {
     <button class="btn" onclick="nextPerson()">下一位</button>
     <button class="btn" onclick="goBack()">返回</button>
     <button class="btn" onclick="goHome()">首頁</button>
+    <button class="btn" onclick="downloadImage()">下載圖片</button>
+
   </div>
 
 </div>
@@ -99,7 +101,7 @@ const userName = params.get("name") || "";
 const category = params.get("cat") || "";
 
 /* ===========================
-      顯示姓名 / 編號 / 分類
+      顯示姓名／編號／分類
 =========================== */
 document.getElementById("infoArea").innerHTML = `
   姓名：<b>${decodeURIComponent(userName)}</b><br>
@@ -108,20 +110,20 @@ document.getElementById("infoArea").innerHTML = `
 `;
 
 /* ===========================
-      API：經句圖片路徑（你的 cards 資料夾）
+      顯示經句圖片（cards 資料夾）
 =========================== */
 document.getElementById("verseImg").src =
   `./cards/${verseNo}.png`;
 
 /* ===========================
-      下一位（回首頁抽姓名）
+      下一位：回首頁抽姓名
 =========================== */
 function nextPerson(){
   window.location = "index.html";
 }
 
 /* ===========================
-      返回
+      返回上一頁（有分類 → 回分類）
 =========================== */
 function goBack(){
   if(category){
@@ -137,6 +139,20 @@ function goBack(){
 function goHome(){
   window.location = "index.html";
 }
+
+/* =============================
+      下載經句圖片（cards）
+============================= */
+function downloadImage(){
+  const imgPath = `./cards/${verseNo}.png`;
+  const a = document.createElement("a");
+  a.href = imgPath;
+  a.download = `verse_${verseNo}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 </script>
 
 </body>
