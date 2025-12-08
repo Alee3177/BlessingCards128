@@ -1,54 +1,65 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-
-<title>抽中的經句紅包</title>
+<meta charset="UTF-8">
+<title>抽中的祝福經句紅包</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body {
-    font-family: "Noto Sans TC", sans-serif;
     background: #fffdf7;
+    font-family: "Noto Sans TC", sans-serif;
     text-align: center;
-    margin: 0;
-    padding: 0;
+    padding: 20px;
     color: #5a4635;
 }
 
-#resultText {
-    margin-top: 30px;
-    font-size: 22px;
+/* 上方完整紀錄顯示 */
+#fullRecord {
+    font-size: 18px;
+    margin-top: 10px;
+    margin-bottom: 18px;
     white-space: pre-line;
+    line-height: 1.6;
     font-weight: bold;
 }
 
+/* 圖片中央資訊（原本保留的兩行） */
+#titleName {
+    font-size: 22px;
+    font-weight: bold;
+    margin-top: 16px;
+}
+#titleVerse {
+    font-size: 20px;
+    margin-top: 6px;
+}
+
+/* PNG 圖片 */
 #verseImage {
-    margin-top: 22px;
     width: 320px;
     border-radius: 12px;
+    margin-top: 20px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.18);
 }
 
 /* 按鈕 */
-button {
-    width: 240px;
-    padding: 14px;
-    margin: 12px;
-    font-size: 20px;
-    border-radius: 10px;
-    border: none;
+.btn {
+    background: #f7c86c;
+    padding: 14px 24px;
+    border-radius: 25px;
+    font-size: 18px;
+    color: #5a3d00;
     cursor: pointer;
-    background: linear-gradient(135deg, #fceabb, #f8b500);
-    color: #5a4635;
-    font-weight: bold;
-    transition: 0.25s;
+    border: none;
+    margin-top: 18px;
 }
-button:hover {
-    transform: scale(1.05);
+.btn:hover {
+    background: #f5b953;
 }
 </style>
 
-<!-- Confetti 特效 -->
+<!-- Confetti -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
 
 <!-- 經句對照表 -->
@@ -58,75 +69,101 @@ button:hover {
 
 <body>
 
-<div id="resultText">載入中…</div>
+<!-- 上方完整紀錄 -->
+<div id="fullRecord"></div>
 
-<img id="verseImage" src="" alt="verse image">
+<!-- 圖片中央資訊 -->
+<div id="titleName"></div>
+<div id="titleVerse"></div>
 
+<!-- 經句圖片 -->
+<img id="verseImage" src="" alt="verse">
+
+<!-- 按鈕 -->
 <br>
-
-<button onclick="downloadImage()">⬇ 下載經句圖片</button><br>
-<button onclick="nextPerson()">下一位</button><br>
-<button onclick="goHome()">回首頁</button>
+<button class="btn" onclick="downloadImage()">⬇ 下載經句圖片</button><br>
+<button class="btn" onclick="nextPerson()">下一位</button><br>
+<button class="btn" onclick="goHome()">回首頁</button>
 
 <script>
-// ====================== 工具 ======================
+// 取得 URL 參數
 function getParam(key){
-    const url = new URL(window.location.href);
+    let url = new URL(window.location.href);
     return url.searchParams.get(key);
 }
 
-// ====================== 主程式 ======================
 window.onload = function(){
     const name  = getParam("name")  || "???";
     const verse = getParam("verse") || "001";
 
-    // ====================== 時間格式 ======================
-    const now = new Date();
-    const timeString =
+    // 生成時間戳（index.html 當下時間）
+    let now = new Date();
+    let ts  =
         `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,"0")}/${now.getDate().toString().padStart(2,"0")} ` +
         `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
 
-    // ====================== 書卷章節 ======================
     const ref = window.VERSE_REF_MAP[verse] || "";
 
-    // ====================== 顯示兩行置中文字 ======================
-    const line1 = `[${timeString}] ${name}｜抽中的經句紅包`;
-    const line2 = `編號「${verse}」${ref ? `（${ref}）` : ""}`;
+    /* -----------------------------
+       第一段：新增在下載按鈕上方
+    ----------------------------- */
+    const fullText =
+        `[${ts}] ${name}｜抽中的經句紅包\n` +
+        `編號「${verse}」${ref ? `（${ref}）` : ""}`;
 
-    document.getElementById("resultText").innerText = line1 + "\n" + line2;
+    document.getElementById("fullRecord").innerText = fullText;
 
-    // ====================== 顯示經句圖片 ======================
+    /* -----------------------------
+       原本圖片中央的兩行仍需保留
+    ----------------------------- */
+    document.getElementById("titleName").innerText =
+        `${name}｜抽中的經句紅包`;
+
+    document.getElementById("titleVerse").innerText =
+        `編號「${verse}」${ref ? `（${ref}）` : ""}`;
+
+    /* -----------------------------
+       顯示 PNG
+    ----------------------------- */
     document.getElementById("verseImage").src = `cards/${verse}.png`;
 
-    // ====================== 播放獎勵音效 ======================
+    /* -----------------------------
+       播放中獎音效
+    ----------------------------- */
     const win = new Audio("audio/win.mp3");
     win.play().catch(()=>{});
 
-    // ====================== Confetti ======================
+    /* -----------------------------
+       Confetti 特效
+    ----------------------------- */
     confetti({
-        particleCount: 180,
-        spread: 80,
+        particleCount: 200,
+        spread: 90,
         origin: { y: 0.3 }
     });
 };
 
-// ====================== 下載經句圖 ======================
+/* -----------------------------
+   下載 PNG
+----------------------------- */
 function downloadImage(){
     const verse = getParam("verse");
-    const url = `cards/${verse}.png`;
-
     const a = document.createElement("a");
-    a.href = url;
+    a.href = `cards/${verse}.png`;
     a.download = `BlessingCard_${verse}.png`;
     a.click();
 }
 
-// ====================== 下一位 ======================
+/* -----------------------------
+   下一位
+----------------------------- */
 function nextPerson(){
     window.location = "index.html";
 }
 
-// ====================== 回首頁 ======================
+/* -----------------------------
+   回首頁
+----------------------------- */
 function goHome(){
     window.location = "index.html";
 }
