@@ -60,17 +60,10 @@ button:hover {
     background: linear-gradient(135deg, #ffd57e, #f2a600);
 }
 
-/* 名單顯示區（含分隔線） */
+/* 鎖定名單後不顯示姓名清單 */
 #nameListDisplay {
-    width: 300px;
-    margin: 10px auto;
-    padding: 8px 0 0;
-    font-size: 18px;
-    line-height: 1.6;
-    color: #5a4635;
-    text-align: center;
+    display: none !important;
 }
-
 .name-item {
     padding: 4px 0;
     font-weight: bold;
@@ -168,8 +161,13 @@ let currentName  = null;
 let currentVerse = null;
 let isSpinning   = false;
 
+// 頁面載入時：顯示名單 + 畫輪盤或占位盤
 updateNameListDisplay();
-drawWheelPlaceholder();
+if (fixedNameList.length) {
+    drawWheel(fixedNameList, 0);  // ✅ 一進來就顯示姓名輪盤
+} else {
+    drawWheelPlaceholder();
+}
 
 // ================== 名單鎖定 ==================
 function lockNames(){
@@ -190,10 +188,11 @@ function lockNames(){
     fixedNameList = list;
     localStorage.setItem("fixedNameList", JSON.stringify(list));
     updateNameListDisplay();
+    drawWheel(fixedNameList, 0);  // ✅ 鎖定後立即畫出姓名輪盤
     alert("名單已鎖定！");
 }
 
-function updateNameListDisplay(){
+function updateNameListDisplay(){// 不再顯示姓名清單
     const el = document.getElementById("nameListDisplay");
     el.innerHTML = "";
 
@@ -395,6 +394,7 @@ function drawWheel(items, rotation=0){
         const start = i*arc + rotation;
         const end   = start + arc;
 
+        // 扇形底色
         ctx.beginPath();
         ctx.moveTo(center,center);
         ctx.arc(center,center,radius,start,end);
@@ -402,6 +402,12 @@ function drawWheel(items, rotation=0){
         ctx.fillStyle = "#fff6d6";
         ctx.fill();
 
+        // ✅ 分隔線（白色細線）
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 文字
         ctx.save();
         ctx.translate(center,center);
         ctx.rotate(start + arc/2);
