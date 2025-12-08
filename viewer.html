@@ -14,9 +14,9 @@ body {
     color: #5a4635;
 }
 
-/* 上方完整紀錄顯示 */
+/* 上方兩行紀錄顯示 */
 #fullRecord {
-    font-size: 18px;
+    font-size: 19px;
     margin-top: 10px;
     margin-bottom: 18px;
     white-space: pre-line;
@@ -24,7 +24,7 @@ body {
     font-weight: bold;
 }
 
-/* 圖片中央資訊（原本保留的兩行） */
+/* 圖片中央資訊（舊版兩行保留） */
 #titleName {
     font-size: 22px;
     font-weight: bold;
@@ -35,7 +35,7 @@ body {
     margin-top: 6px;
 }
 
-/* PNG 圖片 */
+/* 經句圖片 */
 #verseImage {
     width: 320px;
     border-radius: 12px;
@@ -69,14 +69,14 @@ body {
 
 <body>
 
-<!-- 上方完整紀錄 -->
+<!-- 上方完整紀錄（置中） -->
 <div id="fullRecord"></div>
 
-<!-- 圖片中央資訊 -->
+<!-- 圖片中央的兩行原始資訊 -->
 <div id="titleName"></div>
 <div id="titleVerse"></div>
 
-<!-- 經句圖片 -->
+<!-- 經句 PNG -->
 <img id="verseImage" src="" alt="verse">
 
 <!-- 按鈕 -->
@@ -86,26 +86,27 @@ body {
 <button class="btn" onclick="goHome()">回首頁</button>
 
 <script>
-// 取得 URL 參數
+/* 取得 URL 參數 */
 function getParam(key){
     let url = new URL(window.location.href);
     return url.searchParams.get(key);
 }
 
 window.onload = function(){
+
     const name  = getParam("name")  || "???";
     const verse = getParam("verse") || "001";
 
-    // 生成時間戳（index.html 當下時間）
-    let now = new Date();
-    let ts  =
-        `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,"0")}/${now.getDate().toString().padStart(2,"0")} ` +
-        `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
+    /* timestamp（由 viewer.js 自動生成） */
+    const now = new Date();
+    const ts =
+        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} ` +
+        `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
 
     const ref = window.VERSE_REF_MAP[verse] || "";
 
     /* -----------------------------
-       第一段：新增在下載按鈕上方
+       第一段（在下載按鈕上方）
     ----------------------------- */
     const fullText =
         `[${ts}] ${name}｜抽中的經句紅包\n` +
@@ -114,7 +115,7 @@ window.onload = function(){
     document.getElementById("fullRecord").innerText = fullText;
 
     /* -----------------------------
-       原本圖片中央的兩行仍需保留
+       圖片中央的兩行顯示（舊版保留）
     ----------------------------- */
     document.getElementById("titleName").innerText =
         `${name}｜抽中的經句紅包`;
@@ -123,7 +124,7 @@ window.onload = function(){
         `編號「${verse}」${ref ? `（${ref}）` : ""}`;
 
     /* -----------------------------
-       顯示 PNG
+       經句 PNG 顯示
     ----------------------------- */
     document.getElementById("verseImage").src = `cards/${verse}.png`;
 
@@ -141,10 +142,10 @@ window.onload = function(){
         spread: 90,
         origin: { y: 0.3 }
     });
-};
+}
 
 /* -----------------------------
-   下載 PNG
+   PNG 下載
 ----------------------------- */
 function downloadImage(){
     const verse = getParam("verse");
@@ -155,7 +156,7 @@ function downloadImage(){
 }
 
 /* -----------------------------
-   下一位
+   下一位 ＝ 回到 index.html 等待下一位
 ----------------------------- */
 function nextPerson(){
     window.location = "index.html";
