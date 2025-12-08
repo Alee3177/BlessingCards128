@@ -14,8 +14,8 @@ body {
     color: #5a4635;
 }
 
-/* 上方兩行紀錄顯示 */
-#fullRecord {
+/* 頂部兩行資訊 */
+#recordBlock {
     font-size: 19px;
     margin-top: 10px;
     margin-bottom: 18px;
@@ -24,7 +24,7 @@ body {
     font-weight: bold;
 }
 
-/* 圖片中央資訊（舊版兩行保留） */
+/* 圖片中間顯示的兩行（舊層級） */
 #titleName {
     font-size: 22px;
     font-weight: bold;
@@ -35,7 +35,7 @@ body {
     margin-top: 6px;
 }
 
-/* 經句圖片 */
+/* 經句 PNG */
 #verseImage {
     width: 320px;
     border-radius: 12px;
@@ -54,29 +54,24 @@ body {
     border: none;
     margin-top: 18px;
 }
-.btn:hover {
-    background: #f5b953;
-}
+.btn:hover { background: #f5b953; }
 </style>
 
-<!-- Confetti -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-
-<!-- 經句對照表 -->
 <script src="verseRefMap.js"></script>
 
 </head>
 
 <body>
 
-<!-- 上方完整紀錄（置中） -->
-<div id="fullRecord"></div>
+<!-- 頂部兩行 -->
+<div id="recordBlock"></div>
 
-<!-- 圖片中央的兩行原始資訊 -->
+<!-- 舊版置中兩行（仍保留） -->
 <div id="titleName"></div>
 <div id="titleVerse"></div>
 
-<!-- 經句 PNG -->
+<!-- 經句圖片 -->
 <img id="verseImage" src="" alt="verse">
 
 <!-- 按鈕 -->
@@ -85,68 +80,75 @@ body {
 <button class="btn" onclick="nextPerson()">下一位</button><br>
 <button class="btn" onclick="goHome()">回首頁</button>
 
+
 <script>
-/* 取得 URL 參數 */
+/* -------------------------------
+   取得 URL 參數
+------------------------------- */
 function getParam(key){
     let url = new URL(window.location.href);
     return url.searchParams.get(key);
 }
 
+/* -------------------------------
+   頁面初始化
+------------------------------- */
 window.onload = function(){
 
     const name  = getParam("name")  || "???";
     const verse = getParam("verse") || "001";
 
-    /* timestamp（由 viewer.js 自動生成） */
+    /* timestamp（由 viewer 端自動生成，不依賴 index.html） */
     const now = new Date();
     const ts =
-        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} ` +
+        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} `+
         `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
 
-    const ref = window.VERSE_REF_MAP[verse] || "";
+    const ref = VERSE_REF_MAP[verse] || "";
 
-    /* -----------------------------
-       第一段（在下載按鈕上方）
-    ----------------------------- */
-    const fullText =
+    /* -------------------------------
+       頂部兩行（置中資訊）
+    ------------------------------- */
+    const line =
         `[${ts}] ${name}｜抽中的經句紅包\n` +
         `編號「${verse}」${ref ? `（${ref}）` : ""}`;
 
-    document.getElementById("fullRecord").innerText = fullText;
+    document.getElementById("recordBlock").innerText = line;
 
-    /* -----------------------------
-       圖片中央的兩行顯示（舊版保留）
-    ----------------------------- */
+    /* -------------------------------
+       舊版中央兩行資訊（仍保留）
+    ------------------------------- */
     document.getElementById("titleName").innerText =
         `${name}｜抽中的經句紅包`;
 
     document.getElementById("titleVerse").innerText =
         `編號「${verse}」${ref ? `（${ref}）` : ""}`;
 
-    /* -----------------------------
-       經句 PNG 顯示
-    ----------------------------- */
+    /* -------------------------------
+       顯示 PNG
+    ------------------------------- */
     document.getElementById("verseImage").src = `cards/${verse}.png`;
 
-    /* -----------------------------
-       播放中獎音效
-    ----------------------------- */
+    /* -------------------------------
+       中獎音效
+    ------------------------------- */
     const win = new Audio("audio/win.mp3");
     win.play().catch(()=>{});
 
-    /* -----------------------------
+    /* -------------------------------
        Confetti 特效
-    ----------------------------- */
+    ------------------------------- */
     confetti({
-        particleCount: 200,
-        spread: 90,
-        origin: { y: 0.3 }
+        particleCount: 230,
+        spread: 88,
+        origin: { y: 0.32 }
     });
-}
+};
 
-/* -----------------------------
-   PNG 下載
------------------------------ */
+
+/* -------------------------------
+   下載經句 PNG
+------------------------------- */
 function downloadImage(){
     const verse = getParam("verse");
     const a = document.createElement("a");
@@ -155,16 +157,17 @@ function downloadImage(){
     a.click();
 }
 
-/* -----------------------------
-   下一位 ＝ 回到 index.html 等待下一位
------------------------------ */
+/* -------------------------------
+   下一位（回 index.html）
+   名單不清除 → v4.5 核心功能
+------------------------------- */
 function nextPerson(){
     window.location = "index.html";
 }
 
-/* -----------------------------
-   回首頁
------------------------------ */
+/* -------------------------------
+   回首頁（仍保留名單）
+------------------------------- */
 function goHome(){
     window.location = "index.html";
 }
