@@ -85,6 +85,8 @@ button:hover {
 /* Canvas 區 */
 #canvasBox {
     margin-top: 25px;
+    position: relative;
+    display: inline-block;
 }
 #wheelCanvas {
     background: transparent;
@@ -93,10 +95,10 @@ button:hover {
 /* 指針（固定） */
 .pointer {
     position: absolute;
+    top: -18px;      /* 精準貼住輪盤外緣 */
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 38px; /* 讓指針尖端靠近輪盤外圈 */
-    font-size: 40px;
+    font-size: 42px;
     color: red;
     user-select: none;
 }
@@ -116,8 +118,9 @@ button:hover {
 
 <!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- 經句對照表（001→書卷 章節） -->
+<!-- VERSE REF MAP -->
 <script src="verseRefMap.js"></script>
+
 </head>
 
 <body>
@@ -161,8 +164,8 @@ let drawLogs        = JSON.parse(localStorage.getItem("drawLogs")        || "[]"
 const canvas = document.getElementById("wheelCanvas");
 const ctx = canvas.getContext("2d");
 
-let currentName  = null; // 第一輪抽到的姓名
-let currentVerse = null; // 第二輪抽到的經句
+let currentName  = null;
+let currentVerse = null;
 let isSpinning   = false;
 
 updateNameListDisplay();
@@ -213,7 +216,6 @@ function updateNameListDisplay(){
     });
 }
 
-// ================== 重置 ==================
 function resetAll(){
     if(!confirm("確定要全部歸零？")) return;
 
@@ -231,7 +233,6 @@ function resetAll(){
     location.reload();
 }
 
-// ================== 前往分類 ==================
 function goCategory(){
     window.location = "index_category.html";
 }
@@ -241,10 +242,9 @@ function wait(ms){
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Promise 版輪盤
-function spinWheelPromise(items){
+function spinWheelPromise(items, isSecondWheel){
     return new Promise(resolve => {
-        spinWheel(items, resolve);
+        spinWheel(items, resolve, isSecondWheel);
     });
 }
 
@@ -266,8 +266,8 @@ async function startDrawSequence(){
     document.getElementById("statusText").innerText = "第 1 輪：抽姓名中…";
     document.getElementById("resultName").innerText = "";
 
-    // 第 1 輪 → 抽姓名
-    const selectedName = await spinWheelPromise(remaining);
+    // 第一輪（姓名輪盤 → 逆時針）
+    const selectedName = await spinWheelPromise(remaining, false);
     currentName = selectedName;
 
     if(!usedNamesAll.includes(selectedName)){
@@ -280,25 +280,20 @@ async function startDrawSequence(){
     document.getElementById("resultName").innerText =
         `抽中姓名：「${selectedName}」`;
 
-    // ★ 停 5 秒
     await wait(5000);
 
-    // 第 2 輪 → 抽經句
+    // 第二輪（經句輪盤 → 順時針）
     await startVerseWheel();
 
     isSpinning = false;
 }
 
-// ================== 抽籤紀錄寫入 =======================
+// ================== 抽籤紀錄 ==================
 function addLogEntry(name, verseNo){
     const now = new Date();
     const timeString =
-        `${now.getFullYear()}/${(now.getMonth()+1)
-        .toString().padStart(2,"0")}/${now.getDate()
-        .toString().padStart(2,"0")} ` +
-        `${now.getHours().toString().padStart(2,"0")}:` +
-        `${now.getMinutes().toString().padStart(2,"0")}:` +
-        `${now.getSeconds().toString().padStart(2,"0")}`;
+        `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,"0")}/${now.getDate().toString().padStart(2,"0")} ` +
+        `${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")}:${now.getSeconds().toString().padStart(2,"0")}`;
 
     const record = {
         time: timeString,
@@ -310,50 +305,45 @@ function addLogEntry(name, verseNo){
     localStorage.setItem("drawLogs", JSON.stringify(drawLogs));
 }
 
-// ================== 第 2 輪：抽經句 ==================
+// ================== 第二輪經句輪盤 ==================
 async function startVerseWheel(){
+    // 用姓名輪盤外觀（依姓名數量切片）
+    const wheelItems = fixedNameList;
+
+    document.getElementById("statusText").innerText =
+        "第 2 輪：祝福經句抽籤中…";
+    document.getElementById("resultName").innerText = "";
+
+    const dummyResult = await spinWheelPromise(wheelItems, true);
+
+    // 真正抽取未抽過的經句（1~128）
     const allVerses = [];
     for(let i=1;i<=128;i++){
         allVerses.push(i.toString().padStart(3,"0"));
     }
     const available = allVerses.filter(v => !usedVersesAll.includes(v));
 
-    if(!available.length){
-        alert("128 篇經句已全部抽完！");
-        return;
-    }
-
-    document.getElementById("statusText").innerText =
-        "第 2 輪：祝福經句輪盤（001~128）抽籤中…";
-    document.getElementById("resultName").innerText = "";
-
-    const selectedVerse = await spinWheelPromise(available);
+    const selectedVerse = available[Math.floor(Math.random()*available.length)];
     currentVerse = selectedVerse;
 
-    if(!usedVersesAll.includes(selectedVerse)){
-        usedVersesAll.push(selectedVerse);
-        localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
-    }
+    usedVersesAll.push(selectedVerse);
+    localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
 
-    const ref = window.VERSE_REF_MAP ? (window.VERSE_REF_MAP[selectedVerse] || "") : "";
+    const ref = window.VERSE_REF_MAP[selectedVerse] || "";
 
     document.getElementById("statusText").innerText =
-        `第 2 輪完成：抽中經句編號「${selectedVerse}」` +
-        (ref ? `（${ref}）` : "");
+        `第 2 輪完成：抽中經句編號「${selectedVerse}」（${ref}）`;
     document.getElementById("resultName").innerText =
         `抽中姓名：「${currentName}」`;
 
-    // ⭐ 記錄到抽籤紀錄
     addLogEntry(currentName, selectedVerse);
 
-    // ★ 停 5 秒
     await wait(5000);
 
-    // ★ 顯示「看紅包內容」按鈕
     showGoViewerButton();
 }
 
-// ================== 顯示「看紅包內容」按鈕 ==================
+// ================== 顯示 viewer 按鈕 ==================
 function showGoViewerButton(){
     let btn = document.getElementById("viewButton");
     if(!btn){
@@ -368,13 +358,8 @@ function showGoViewerButton(){
 
 // ================== 跳 viewer.html ==================
 function goViewer(){
-    if(!currentName || !currentVerse){
-        alert("目前沒有可顯示的抽籤結果。");
-        return;
-    }
     const url =
-        "viewer.html?mode=name" +
-        "&name="  + encodeURIComponent(currentName) +
+        "viewer.html?name="  + encodeURIComponent(currentName) +
         "&verse=" + encodeURIComponent(currentVerse);
     window.location = url;
 }
@@ -428,20 +413,25 @@ function drawWheel(items, rotation=0){
     }
 }
 
-// 真正做動畫
-function spinWheel(items, onDone){
+// 真正旋轉動畫
+function spinWheel(items, onDone, isSecondWheel){
     const total = items.length;
     const arc   = (2*Math.PI) / total;
 
     const selectedIndex = Math.floor(Math.random()*total);
-    const pointerAngle  = -Math.PI/2;        // 指針固定在正上方
+    const pointerAngle  = -Math.PI/2;
+
     const sliceCenter   = selectedIndex*arc + arc/2;
     const baseAngle     = pointerAngle - sliceCenter;
 
-    const extra      = 4;                    // 多轉幾圈
-    const finalAngle = baseAngle - extra * 2*Math.PI;
+    const extra = 4;
 
-    const duration  = 3000;
+    let finalAngle =
+        isSecondWheel
+        ? baseAngle + extra * 2*Math.PI   // 第二輪順時針
+        : baseAngle - extra * 2*Math.PI;  // 第一輪逆時針
+
+    const duration  = 5000; // ★ 5 秒
     const startTime = performance.now();
 
     const drum = new Audio("audio/drum.mp3");
@@ -450,7 +440,7 @@ function spinWheel(items, onDone){
 
     function animate(now){
         const t     = Math.min((now - startTime)/duration, 1);
-        const eased = 1 - Math.pow(1-t, 3); // ease-out
+        const eased = 1 - Math.pow(1-t, 3);
         const angle = finalAngle * eased;
 
         drawWheel(items, angle);
@@ -464,7 +454,7 @@ function spinWheel(items, onDone){
     requestAnimationFrame(animate);
 }
 
-// ================== Uint8Array → Base64 ==================
+// ================== Uint8 → Base64 ==================
 function uint8ToBase64(uint8){
     let binary = "";
     for(let i=0;i<uint8.byteLength;i++){
@@ -497,8 +487,7 @@ async function exportPDF(){
         doc.setFont("NotoSansTC", "normal");
 
     }catch(e){
-        console.error("字型載入失敗：", e);
-        alert("PDF 字型載入失敗，請確認 fonts/NotoSansTC-Regular.ttf 是否存在");
+        alert("PDF 字型載入失敗！");
         return;
     }
 
@@ -510,7 +499,7 @@ async function exportPDF(){
     doc.setFontSize(13);
 
     drawLogs.forEach(log => {
-        const ref = window.VERSE_REF_MAP ? (window.VERSE_REF_MAP[log.verseNo] || "") : "";
+        const ref = window.VERSE_REF_MAP[log.verseNo] || "";
         const line =
             `[${log.time}] ${log.name}｜經句：${log.verseNo}` +
             (ref ? `（${ref}）` : "");
