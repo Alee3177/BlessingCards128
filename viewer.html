@@ -69,7 +69,7 @@ h1 {
 }
 
 .btn {
-  min-width: 200px;
+  min-width: 220px;
   padding: 12px 20px;
   margin: 10px auto;
   border: none;
@@ -90,7 +90,7 @@ h1 {
 <script src="font_base64.js"></script>
 <script src="verseRefMap.js"></script>
 
-<!-- 亮片特效 -->
+<!-- confetti -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
 </head>
@@ -101,7 +101,7 @@ h1 {
   <img src="logo3524.png" class="logo" alt="logo">
 </div>
 
-<!-- 開場音效（觀看時播放 win.mp3） -->
+<!-- 音效 -->
 <audio id="winSound" src="audio/win.mp3" preload="auto"></audio>
 
 <div class="container">
@@ -114,20 +114,21 @@ h1 {
   <img id="verseImg" class="cardImg" src="" alt="經句圖片">
 
   <button class="btn" onclick="downloadImage()">下載經句圖片</button>
+  <button class="btn" onclick="goNext()">下一位</button>
+  <button class="btn" onclick="goHome()">回首頁</button>
 
 </div>
 
 <script>
-/* ============ 取得 URL 參數 ============ */
+/* ============ 解析 URL ============ */
 function getQuery(key){
   return new URLSearchParams(window.location.search).get(key);
 }
 
-const verseNo  = getQuery("no");   // 001~128
-const name     = getQuery("name") ? decodeURIComponent(getQuery("name")) : "";
+const verseNo = getQuery("no");
+const name    = getQuery("name") ? decodeURIComponent(getQuery("name")) : "";
 
-/* ============ 顯示姓名 / 顯示經文章節 ============ */
-
+/* ============ 顯示姓名 + 經文 ============ */
 document.getElementById("nameField").textContent =
   name ? `抽中： ${name}` : "";
 
@@ -135,21 +136,36 @@ let verseRef = "";
 if(window.VERSE_REF_MAP){
   verseRef = window.VERSE_REF_MAP[verseNo] || "";
 }
+
 document.getElementById("verseRef").textContent =
   verseRef ? `（${verseRef}）` : "";
 
-/* ============ 顯示對應圖片 ============ */
-
+/* ============ 顯示圖片 ============ */
 const img = document.getElementById("verseImg");
 img.src = `cards/${verseNo}.png`;
 
-/* ============ 播放中獎音效 ============ */
+/* ============ 取得抽籤紀錄中屬於本次的完整資訊 ============ */
+function getLatestLog(){
+  const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
+  if(!logs.length) return "";
+  
+  // 依照 time 最新排序（保險）
+  logs.sort((a,b)=> new Date(b.time) - new Date(a.time));
+
+  const log = logs[0];  // 最新的一筆
+  const ref = window.VERSE_REF_MAP[log.verseNo] || "";
+
+  return `[${log.time}] ${log.name}｜經句：${log.verseNo}（${ref}）`;
+}
+
+const fullLogLine = getLatestLog();
+
+/* ============ 播放 win ============ */
 const winSound = document.getElementById("winSound");
 winSound.currentTime = 0;
 winSound.play().catch(()=>{});
 
-/* ============ 亮片特效 ============ */
-
+/* ============ confetti ============ */
 setTimeout(()=>{
   confetti({
     particleCount: 140,
@@ -158,12 +174,47 @@ setTimeout(()=>{
   });
 }, 300);
 
-/* ============ 下載圖片 ============ */
+/* ============ 下載 PNG（含文字） ============ */
 function downloadImage(){
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const w = img.naturalWidth;
+  const h = img.naturalHeight + 160; // 預留上方文字區域
+  canvas.width  = w;
+  canvas.height = h;
+
+  // 背景白色
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,w,h);
+
+  // 字體樣式（與底部分類字體一致）
+  ctx.font = "28px NotoSansTC";
+  ctx.fillStyle = "#333";
+  ctx.textAlign = "center";
+
+  // 第一行：完整紀錄（置中）
+  ctx.fillText(fullLogLine, w/2, 50);
+
+  // 第二行：標題
+  ctx.fillText("抽中的祝福經句紅包", w/2, 100);
+
+  // 原 PNG 圖片
+  ctx.drawImage(img, 0, 160, w, img.naturalHeight);
+
+  // 下載
   const link = document.createElement("a");
-  link.href = img.src;
+  link.href = canvas.toDataURL("image/png");
   link.download = `blessing_${verseNo}.png`;
   link.click();
+}
+
+/* ============ 下一位、回首頁 ============ */
+function goNext(){
+  window.location = "index.html";
+}
+function goHome(){
+  window.location = "index.html";
 }
 </script>
 
