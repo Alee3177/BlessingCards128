@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>祝福經句紅包（BlessingCards128 v4.5）</title>
+<title>祝福經句紅包（BlessingCards128 v4.6）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -43,6 +43,16 @@ h1 {
 }
 .btn:hover { background: #f5b953; }
 
+/* 抽紅包按鈕閃爍效果 */
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+.blinking {
+    animation: blink 0.9s infinite;
+}
+
 /* 轉盤容器 */
 #wheelContainer {
     position: relative;
@@ -56,7 +66,7 @@ h1 {
     height: 380px;
 }
 
-/* 指針 ▼ */
+/* 指針 ▼ （貼齊上方外緣） */
 #wheelPointer {
     position: absolute;
     top: -22px;
@@ -74,11 +84,7 @@ h1 {
 }
 
 /* 第二階段按鈕（抽紅包 / 看紅包內容） */
-#stage2Btn {
-    display: none;
-    margin-top: 15px;
-}
-#stage3Btn {
+#stage2Btn, #stage3Btn {
     display: none;
     margin-top: 15px;
 }
@@ -90,20 +96,17 @@ h1 {
 <h1>祝福經句紅包（BlessingCards128）</h1>
 <img src="logo3524.png" width="120" style="margin-bottom:12px;">
 
-
 <!-- 姓名輸入（以 、 或 , 或空白 分隔多人） -->
-<input id="nameInput" placeholder="請輸入姓名，以「、」隔開多人">
+<input id="nameInput" placeholder="請輸入姓名，以「、」隔開多人"><br>
 
-<br>
 <button class="btn" onclick="lockList()">鎖定名單</button>
 <button class="btn" onclick="startFirstRound()">開始抽姓名 + 經句</button>
 <button class="btn" onclick="resetAll()">全部歸零</button>
 <button class="btn" onclick="exportPDF()">抽籤紀錄 PDF</button>
 
-<!-- 階段按鈕 -->
+<!-- 第二階段按鈕 -->
 <button id="stage2Btn" class="btn" onclick="startSecondRound()">抽紅包（第二輪）</button>
 <button id="stage3Btn" class="btn" onclick="gotoViewer()">看紅包內容</button>
-
 
 <div id="wheelContainer">
     <div id="wheelPointer">▼</div>
@@ -112,47 +115,59 @@ h1 {
 
 <div id="statusText">請輸入姓名並鎖定名單</div>
 
-
 <script src="verseRefMap.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-
 <script>
-/* -------------------------------
+/* ===============================
    0. 名單初始化（localStorage）
-------------------------------- */
+   =============================== */
 let nameList = [];
 let locked = false;
+let selectedName = null;
+let selectedVerse = null;
 
-/* 若上一輪還沒結束（viewer 回首頁），自動載入名單 */
-if(localStorage.getItem("nameList")){
-    nameList = JSON.parse(localStorage.getItem("nameList"));
-    locked = true;
-    document.getElementById("statusText").innerText =
-        "名單已載入，共 " + nameList.length + " 位。";
-    drawWheel(nameList);
-}
+const CENTER = 190;
+const RADIUS = 180;
+const canvas = document.getElementById("wheelCanvas");
+const ctx = canvas.getContext("2d");
 
+/* 如果 localStorage 內已有鎖定名單，載入之 */
+(function initFromStorage(){
+    const saved = localStorage.getItem("nameList");
+    if(saved){
+        try{
+            const arr = JSON.parse(saved);
+            if(Array.isArray(arr) && arr.length >= 2){
+                nameList = arr;
+                locked = true;
+                document.getElementById("statusText").innerText =
+                    "名單已載入，共 " + nameList.length + " 位。可直接按「開始抽姓名 + 經句」。";
+                drawWheel(nameList);
+            }
+        }catch(e){
+            console.warn("nameList parse error", e);
+        }
+    }
+})();
 
-/* -------------------------------
-   1. 鎖定名單（不需要新增按鈕）
-------------------------------- */
+/* ===============================
+   1. 鎖定名單
+   =============================== */
 function lockList(){
-    const input = document.getElementById("nameInput").value.trim();
-
-    if(input === ""){
+    const raw = document.getElementById("nameInput").value.trim();
+    if(raw === ""){
         alert("請輸入至少 2 位姓名！");
         return;
     }
-
-    nameList = input.split(/[,、\s]+/).filter(x => x.trim() !== "");
-
-    if(nameList.length < 2){
+    const arr = raw.split(/[,、\s]+/).filter(x => x.trim() !== "");
+    if(arr.length < 2){
         alert("至少需要 2 位姓名！");
         return;
     }
-
+    nameList = arr;
     locked = true;
+
     localStorage.setItem("nameList", JSON.stringify(nameList));
 
     document.getElementById("statusText").innerText =
@@ -161,36 +176,37 @@ function lockList(){
     drawWheel(nameList);
 }
 
-
-/* -------------------------------
-   2. 畫輪盤
-------------------------------- */
-const CENTER = 190;
-const RADIUS = 180;
-let canvas = document.getElementById("wheelCanvas");
-let ctx = canvas.getContext("2d");
-
+/* ===============================
+   2. 畫輪盤（姓名切片）
+   =============================== */
 function drawWheel(items){
     ctx.clearRect(0,0,380,380);
-    if(items.length === 0) return;
+    if(!items || items.length === 0) return;
 
-    let count = items.length;
-    let arc = Math.PI * 2 / count;
+    const count = items.length;
+    const arc = Math.PI * 2 / count;
 
     for(let i=0;i<count;i++){
+        const start = arc * i;
+        const end   = arc * (i+1);
+
         ctx.beginPath();
-        ctx.fillStyle = (i%2===0 ? "#fde7b5" : "#fcdca0");
-        ctx.moveTo(CENTER,CENTER);
-        ctx.arc(CENTER,CENTER,RADIUS, arc*i - Math.PI/2, arc*(i+1) - Math.PI/2);
+        ctx.fillStyle = (i % 2 === 0) ? "#fde7b5" : "#fcdca0";
+        ctx.moveTo(CENTER, CENTER);
+        ctx.arc(CENTER, CENTER, RADIUS, start, end);
+        ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = "#fff";
+        /* 分隔線 */
+        ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2;
         ctx.stroke();
 
+        /* 姓名文字 */
         ctx.save();
-        ctx.translate(CENTER,CENTER);
-        ctx.rotate(arc*i + arc/2 - Math.PI/2);
+        ctx.translate(CENTER, CENTER);
+        const mid = start + (end - start)/2;
+        ctx.rotate(mid);
         ctx.textAlign = "right";
         ctx.font = "22px Noto Sans TC";
         ctx.fillStyle = "#5a3d00";
@@ -199,134 +215,143 @@ function drawWheel(items){
     }
 }
 
+/* easeOut 動畫 */
+function easeOut(t){ return 1 - Math.pow(1 - t, 3); }
 
-/* -------------------------------
-   Drum 音效（v4.5 新增）
-------------------------------- */
+/* Drum 音效：每輪轉動播放一次 */
 function playDrum(){
     const s = new Audio("audio/drum.mp3");
     s.play().catch(()=>{});
 }
 
-
-/* -------------------------------
-   3. 輪盤動畫（加入指針校正）
-------------------------------- */
-function easeOut(t){ return 1 - Math.pow(1 - t, 3); }
-
+/* ===============================
+   3. 輪盤動畫（預先決定 index，保證指針對準）
+   =============================== */
 function spinWheel(items, clockwise){
     return new Promise(resolve => {
 
-        playDrum();  // 每輪開始播放 drum.mp3
+        if(!items || items.length === 0){
+            resolve(null);
+            return;
+        }
 
-        let count = items.length;
-        let arc = Math.PI * 2 / count;
+        playDrum();
 
-        let base = Math.PI * 8;
-        let rand = Math.random()*Math.PI*4;
-        let rot = base + rand;
+        const count = items.length;
+        const arc = Math.PI * 2 / count;
+        const pointerAngle = -Math.PI / 2; // 上方指針方向
+        const spins = 5 + Math.random() * 1.5; // 5~6.5 圈
+        const dir = clockwise ? -1 : 1;
 
-        if(!clockwise) rot = -rot;
+        // 預先決定中獎 index，讓它最後停在指針下方
+        const selectedIndex = Math.floor(Math.random() * count);
 
-        let start = performance.now();
+        // 最終角度：slice 中心對準 pointerAngle，再加上多圈
+        const finalAngle =
+            pointerAngle - (arc * selectedIndex + arc / 2) + dir * spins * 2 * Math.PI;
+
+        const start = performance.now();
+        const duration = 5000; // 5 秒
 
         function animate(now){
-            let p = (now - start)/5000;
-            if(p>1) p=1;
-
-            let angle = rot * easeOut(p);
+            let t = (now - start) / duration;
+            if(t > 1) t = 1;
+            const eased = easeOut(t);
+            const angle = finalAngle * eased;
 
             ctx.save();
             ctx.clearRect(0,0,380,380);
-            ctx.translate(CENTER,CENTER);
+            ctx.translate(CENTER, CENTER);
             ctx.rotate(angle);
-            ctx.translate(-CENTER,-CENTER);
+            ctx.translate(-CENTER, -CENTER);
             drawWheel(items);
             ctx.restore();
 
-            if(p < 1){
+            if(t < 1){
                 requestAnimationFrame(animate);
-            } else {
-
-                // 🔥 修正指針角度（與顯示一致）
-                let raw = angle % (2*Math.PI);
-                if(raw < 0) raw += 2*Math.PI;
-
-                // 將「上方指針」視為 index 0
-                raw = (raw + Math.PI/2) % (2*Math.PI);
-
-                let idx = Math.floor(raw / arc);
-                resolve(items[idx]);
+            }else{
+                resolve(items[selectedIndex]);
             }
         }
+
         requestAnimationFrame(animate);
     });
 }
 
-
-/* -------------------------------
+/* ===============================
    4. 第一輪：姓名輪盤
-------------------------------- */
-let selectedName = null;
-let selectedVerse = null;
-
+   =============================== */
 async function startFirstRound(){
 
     if(!locked){
         alert("請先鎖定名單！");
         return;
     }
+    if(!nameList || nameList.length < 2){
+        alert("名單不足，請重新鎖定。");
+        return;
+    }
 
+    selectedName = null;
+    selectedVerse = null;
     document.getElementById("stage2Btn").style.display = "none";
+    document.getElementById("stage2Btn").classList.remove("blinking");
     document.getElementById("stage3Btn").style.display = "none";
 
     document.getElementById("statusText").innerText =
         "第 1 輪：姓名輪盤抽籤中…";
 
     drawWheel(nameList);
-
-    selectedName = await spinWheel(nameList, false);
+    selectedName = await spinWheel(nameList, false); // 逆時針
 
     document.getElementById("statusText").innerText =
         "第 1 輪完成：抽中「" + selectedName + "」";
 
     setTimeout(()=>{
-        document.getElementById("stage2Btn").style.display = "inline-block";
+        const btn2 = document.getElementById("stage2Btn");
+        btn2.style.display = "inline-block";
+        btn2.classList.add("blinking");  // 開始閃爍
     }, 1200);
 }
 
-
-/* -------------------------------
+/* ===============================
    5. 第二輪：經句輪盤（外觀同姓名輪盤）
-------------------------------- */
+   =============================== */
 async function startSecondRound(){
 
-    document.getElementById("stage2Btn").style.display = "none";
+    const btn2 = document.getElementById("stage2Btn");
+    btn2.classList.remove("blinking");
+    btn2.style.display = "none";
 
-    let verseList = Object.keys(VERSE_REF_MAP);
-    let used = JSON.parse(localStorage.getItem("usedVersesAll") || "[]");
-    let available = verseList.filter(v => !used.includes(v));
-
-    if(available.length === 0){
-        alert("128 篇已全部抽完！");
+    if(!selectedName){
+        alert("請先完成第一輪姓名抽籤！");
         return;
     }
 
-    // 外觀仍使用姓名輪盤，但內容無關
-    let wheelItems = nameList.map((_,i)=>String(i+1).padStart(3,"0"));
+    // 取得可用的經句編號
+    const verseList = Object.keys(VERSE_REF_MAP);
+    const used = JSON.parse(localStorage.getItem("usedVersesAll") || "[]");
+    const available = verseList.filter(v => !used.includes(v));
 
+    if(available.length === 0){
+        alert("128 篇經文已全部抽完！");
+        return;
+    }
+
+    // 第二輪外觀：仍用姓名輪盤，但方向改為「順時針」
     document.getElementById("statusText").innerText =
         "第 2 輪：祝福經句輪盤抽籤中…";
 
-    drawWheel(wheelItems);
-    await spinWheel(wheelItems, true);
+    drawWheel(nameList);
+    await spinWheel(nameList, true);  // 順時針
 
-    selectedVerse = available[Math.floor(Math.random()*available.length)];
+    // 真正的經句結果：從 available 中抽一個
+    selectedVerse = available[Math.floor(Math.random() * available.length)];
 
     document.getElementById("statusText").innerText =
         "第 2 輪完成：抽中經句「" + selectedVerse + "」";
 
-    // 寫入紀錄
+    // 寫入抽籤紀錄（姓名模式）
     saveRecord(selectedName, selectedVerse);
 
     setTimeout(()=>{
@@ -334,48 +359,45 @@ async function startSecondRound(){
     }, 1200);
 }
 
-
-/* -------------------------------
-   6. 跳 viewer.html
-------------------------------- */
+/* ===============================
+   6. 前往 viewer.html 看紅包內容
+   =============================== */
 function gotoViewer(){
+    if(!selectedName || !selectedVerse){
+        alert("請先完成姓名與經句抽籤！");
+        return;
+    }
     window.location =
         `viewer.html?name=${encodeURIComponent(selectedName)}&verse=${selectedVerse}`;
 }
 
-
-/* -------------------------------
-   7. 儲存紀錄（姓名模式）
-------------------------------- */
+/* ===============================
+   7. 儲存抽籤紀錄（姓名模式）
+   =============================== */
 function saveRecord(name, verse){
 
-    let now = new Date();
-    let ts =
-        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/`+
-        `${String(now.getDate()).padStart(2,"0")} `+
+    const now = new Date();
+    const ts =
+        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} `+
         `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
 
-    let logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-
+    const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
     logs.push({
         time: ts,
         name: name,
         verseNo: verse,
         mode: "姓名模式"
     });
-
     localStorage.setItem("drawLogs", JSON.stringify(logs));
 
-    // 避免經句重複
-    let used = JSON.parse(localStorage.getItem("usedVersesAll") || "[]");
+    const used = JSON.parse(localStorage.getItem("usedVersesAll") || "[]");
     used.push(verse);
     localStorage.setItem("usedVersesAll", JSON.stringify(used));
 }
 
-
-/* -------------------------------
-   8. 重置（強制清空名單 + 紀錄）
-------------------------------- */
+/* ===============================
+   8. 全部歸零
+   =============================== */
 function resetAll(){
     localStorage.removeItem("usedVersesAll");
     localStorage.removeItem("drawLogs");
@@ -384,10 +406,9 @@ function resetAll(){
     location.reload();
 }
 
-
-/* -------------------------------
-   9. PDF 匯出（外部字型）
-------------------------------- */
+/* ===============================
+   9. PDF 匯出（外部字型 NotoSansTC）
+   =============================== */
 async function loadFont(){
     const res = await fetch("fonts/NotoSansTC-Regular.ttf");
     const buf = await res.arrayBuffer();
@@ -396,7 +417,7 @@ async function loadFont(){
 
 async function exportPDF(){
 
-    let logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
+    const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
     if(logs.length === 0){
         alert("目前沒有抽籤紀錄！");
         return;
@@ -407,7 +428,7 @@ async function exportPDF(){
 
     const fontData = await loadFont();
     doc.addFileToVFS("NotoSansTC.ttf", fontData);
-    doc.addFont("NotoSansTC.ttf","NotoSansTC","normal");
+    doc.addFont("NotoSansTC.ttf", "NotoSansTC", "normal");
     doc.setFont("NotoSansTC");
 
     let y = 40;
@@ -418,9 +439,8 @@ async function exportPDF(){
     doc.setFontSize(14);
 
     logs.forEach(log =>{
-        let ref = VERSE_REF_MAP[log.verseNo] || "";
-
-        let line =
+        const ref = VERSE_REF_MAP[log.verseNo] || "";
+        const line =
             `[${log.time}] ${log.name}｜${log.mode}｜抽中經句：${log.verseNo}` +
             (ref ? `（${ref}）` : "");
 
