@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>BlessingCards128｜祝福經句紅包（v4.8 Final）</title>
+<title>BlessingCards128｜祝福經句紅包（v4.8.1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -79,7 +79,7 @@ h1 {
     height: 380px;
 }
 
-/* 指針 ▼ */
+/* 指針 ▼（固定在上方，尖端朝下貼齊輪盤外緣） */
 #wheelPointer {
     position: absolute;
     top: -26px;
@@ -259,7 +259,7 @@ function drawWheel(items){
     const arc = Math.PI * 2 / count;
 
     for(let i=0;i<count;i++){
-        const start = arc * i - Math.PI/2; // 從上方開始
+        const start = arc * i - Math.PI/2; // 從正上方開始切
         const end   = start + arc;
 
         // 背景色
@@ -296,9 +296,9 @@ function easeOut(t){
 }
 
 /* ------------------------------------
-   核心：精準命中角度計算（v4.8 Final）
+   核心：精準命中角度計算（v4.8.1）
    - 第一輪／第二輪都用這一套
-   - 保證指針永遠停在 selIndex 那一格的正中心
+   - 指針視覺方向：向下（▼）= +90°
 -------------------------------------*/
 function spinWheel(items, clockwise, forcedIndex){
     return new Promise(resolve => {
@@ -323,7 +323,9 @@ function spinWheel(items, clockwise, forcedIndex){
 
         // drawWheel 以「上方 -90°」為第 0 格起點
         const sliceCenter = arc * (selIndex + 0.5) - Math.PI/2;
-        const pointerAngle = -Math.PI/2; // 指針在正上方
+
+        // 指針實際方向：向下（▼），在 canvas 座標是 +90°
+        const pointerAngle = Math.PI/2;
 
         // 要求：sliceCenter + finalAngle ≡ pointerAngle (mod 2π)
         const finalAngle = (pointerAngle - sliceCenter) + direction * spins * 2 * Math.PI;
@@ -505,7 +507,7 @@ function saveRecord(name, verse){
     if(nameList.length > 0 && usedNames.length >= nameList.length){
         roundFinished = true;
         localStorage.setItem("roundFinished", "1");
-        alert("全部姓名皆已完成紅包抽籤！");
+        // 不立刻 alert，只在下一次嘗試再抽時提醒
         statusText.classList.add("error");
         statusText.innerText = "⚠ 本輪已完成全部抽籤，請按「全部歸零」。";
         startBtn.disabled = true;
