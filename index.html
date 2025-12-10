@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>BlessingCards128｜祝福經句紅包（v5.0）</title>
+<title>BlessingCards128｜祝福經句紅包（v5.1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -317,10 +317,10 @@ function easeOut(t){
 }
 
 /* ------------------------------------
-   核心：精準命中角度計算（v5.0）
+   核心：旋轉動畫 + 最後 Snap 到精準位置（v5.1）
    - 第一輪／第二輪都用這一套
-   - 指針「命中位置」固定在輪盤正上方（▼ 尖端貼齊上緣）
-   - 我們只改 rotation 值，不旋轉文字座標系
+   - 動畫只是好看，不負責「決定落點」
+   - 最後用一個「離分隔線有明顯距離」的角度重畫一次
 -------------------------------------*/
 function spinWheel(items, clockwise, forcedIndex, optionsForDraw){
     return new Promise(resolve => {
@@ -339,37 +339,46 @@ function spinWheel(items, clockwise, forcedIndex, optionsForDraw){
             ? forcedIndex
             : Math.floor(Math.random() * count);
 
-        // 逆時針 = 正向轉；順時針 = 反向轉
+        // 方向：逆時針 / 順時針（只影響動畫方向）
         const direction = clockwise ? -1 : 1;
         const spins = 5 + Math.random() * 2; // 5~7 圈
 
-        // sliceCenterBase：此格的中心角度（在 rotation = 0 時）
-        const sliceCenterBase = arc * (selIndex + 0.5) - Math.PI/2;
+        // 自由旋轉的最終角度（不保證落點對齊）
+        const freeSpinFinal = direction * spins * 2 * Math.PI;
 
-        // 我們希望「此格中心」轉到「正上方 -90°」（也就是指針所在的接觸點）
-        // => sliceCenterBase + rotationFinal ≡ -PI/2 (mod 2PI)
-        // => rotationFinal = -PI/2 - sliceCenterBase + 2PIk
-        // 但因為 sliceCenterBase 已經是 (something - PI/2)，整理後其實等價於：
-        // rotationFinalBase = -arc * (selIndex + 0.5)
-        const rotationBase = -arc * (selIndex + 0.5);
-        const finalRotation = rotationBase + direction * spins * 2 * Math.PI;
-
-        const start = performance.now();
+        const startTime = performance.now();
         const duration = 5000; // 5 秒
 
         function animate(now){
-            let t = (now - start) / duration;
+            let t = (now - startTime) / duration;
             if(t > 1) t = 1;
 
             const eased = easeOut(t);
-            const angle = finalRotation * eased;
+            const angle = freeSpinFinal * eased;
 
             drawWheel(items, angle, optionsForDraw || {});
 
             if(t < 1){
                 requestAnimationFrame(animate);
             } else {
-                resolve({ winner: items[selIndex], finalRotation: angle });
+                // 動畫結束後，做一次「精準對齊」重畫（Snap）
+                // slice 中心在 rotation=0 時的角度：arc*(i+0.5) - PI/2
+                // 我們希望中心在正上方 -PI/2，所以：
+                // sliceCenterBase + rotationSnap = -PI/2
+                // => rotationSnap = -arc*(selIndex+0.5)
+                const rotationSnap = -arc * (selIndex + 0.5);
+
+                // 為了安全起見，加上一點點微調（避免太靠近分隔線）
+                // 例如：往扇形內縮 5% 的弧度
+                const safeOffset = arc * 0.05; // 約等於你說的不要貼線 10px 的概念
+                const finalRotation = rotationSnap + safeOffset;
+
+                drawWheel(items, finalRotation, optionsForDraw || {});
+
+                resolve({
+                    winner: items[selIndex],
+                    finalRotation: finalRotation
+                });
             }
         }
 
@@ -575,69 +584,4 @@ async function exportPDF(){
 
     if(logs.length === 0){
         alert("目前沒有抽籤紀錄，無法產生 PDF！");
-        statusText.classList.add("error");
-        statusText.innerText = "目前沒有抽籤紀錄，請先完成至少一次抽籤後再產生 PDF。";
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit:"pt", format:"a4" });
-
-    let fontData;
-    try{
-        const res = await fetch("fonts/SourceHanSansTC-Regular.ttf");
-        if(!res.ok) throw new Error("HTTP " + res.status);
-        const buf = await res.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = "";
-        for(let i=0;i<bytes.length;i++){
-            binary += String.fromCharCode(bytes[i]);
-        }
-        fontData = btoa(binary);
-    }catch(e){
-        console.error("載入字型失敗：", e);
-        alert("PDF 字型載入失敗，請確認 fonts/SourceHanSansTC-Regular.ttf 是否存在。");
-        statusText.classList.add("error");
-        statusText.innerText = "PDF 字型載入失敗，請確認 fonts/SourceHanSansTC-Regular.ttf 檔案是否放在 fonts/ 資料夾中。";
-        return;
-    }
-
-    try{
-        doc.addFileToVFS("SourceHanSansTC-Regular.ttf", fontData);
-        doc.addFont("SourceHanSansTC-Regular.ttf","SourceHan","normal");
-        doc.setFont("SourceHan","normal");
-    }catch(e){
-        console.error("註冊字型失敗：", e);
-        alert("PDF 字型註冊失敗，請稍後再試。");
-        statusText.classList.add("error");
-        statusText.innerText = "PDF 字型註冊失敗，請檢查 jsPDF 版本或字型檔。";
-        return;
-    }
-
-    doc.setFontSize(16);
-    doc.text(`BlessingCards128 抽籤紀錄（共 ${logs.length} 筆）`, 40, 40);
-
-    let y = 70;
-    doc.setFontSize(14);
-
-    logs.forEach(log => {
-        const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[log.verseNo]) || "";
-        const mode = log.mode || "姓名模式";
-        const line =
-            `[${log.time}] ${log.name}｜${mode}｜抽中經句：${log.verseNo}` +
-            (ref ? `（${ref}）` : "");
-
-        if(y > 780){
-            doc.addPage();
-            y = 60;
-        }
-        doc.text(line, 40, y);
-        y += 22;
-    });
-
-    doc.save("BlessingCards128_抽籤紀錄.pdf");
-}
-</script>
-
-</body>
-</html>
+    ...

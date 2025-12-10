@@ -2,175 +2,162 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>抽中的祝福經句紅包</title>
+<title>BlessingCards128｜紅包內容（v5.1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body {
-    background: #fffdf7;
+    background: #fff8e7;
     font-family: "Noto Sans TC", sans-serif;
     text-align: center;
-    padding: 20px;
-    color: #5a4635;
+    padding: 22px;
+    color: #5b3a00;
 }
 
-/* 頂部兩行資訊 */
-#recordBlock {
-    font-size: 19px;
-    margin-top: 10px;
-    margin-bottom: 18px;
-    white-space: pre-line;
-    line-height: 1.6;
-    font-weight: bold;
+h1 {
+    font-size: 26px;
+    color: #b07500;
+    margin-bottom: 10px;
 }
 
-/* 圖片中間顯示的兩行（舊層級） */
-#titleName {
+.info-line {
     font-size: 22px;
-    font-weight: bold;
-    margin-top: 16px;
-}
-#titleVerse {
-    font-size: 20px;
-    margin-top: 6px;
+    margin: 6px 0;
 }
 
-/* 經句 PNG */
-#verseImage {
-    width: 320px;
-    border-radius: 12px;
+#verseImg {
+    width: 88%;
+    max-width: 450px;
     margin-top: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
 }
 
 /* 按鈕 */
 .btn {
-    background: #f7c86c;
-    padding: 14px 24px;
-    border-radius: 25px;
-    font-size: 18px;
-    color: #5a3d00;
-    cursor: pointer;
+    background: #f7c76c;
     border: none;
-    margin-top: 18px;
+    padding: 10px 22px;
+    border-radius: 22px;
+    font-size: 18px;
+    color: #5b3a00;
+    cursor: pointer;
+    margin: 8px;
 }
-.btn:hover { background: #f5b953; }
+.btn:hover {
+    background: #f3b84f;
+}
+
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-<script src="verseRefMap.js"></script>
-
 </head>
 
 <body>
 
-<!-- 頂部兩行 -->
-<div id="recordBlock"></div>
+<h1>抽中紅包內容</h1>
 
-<!-- 舊版置中兩行（仍保留） -->
-<div id="titleName"></div>
-<div id="titleVerse"></div>
+<div id="displayName" class="info-line"></div>
+<div id="displayVerse" class="info-line"></div>
+<div id="displayRef" class="info-line"></div>
 
-<!-- 經句圖片 -->
-<img id="verseImage" src="" alt="verse">
+<img id="verseImg" src="" alt="verse image">
 
-<!-- 按鈕 -->
 <br>
-<button class="btn" onclick="downloadImage()">⬇ 下載經句圖片</button><br>
-<button class="btn" onclick="nextPerson()">下一位</button><br>
-<button class="btn" onclick="goHome()">回首頁</button>
 
+<button class="btn" onclick="downloadPNG()">下載經句圖片</button>
+<button class="btn" onclick="nextOrHome()">下一位／回首頁</button>
+
+<script src="verseRefMap.js"></script>
 
 <script>
-/* -------------------------------
-   取得 URL 參數
-------------------------------- */
-function getParam(key){
-    let url = new URL(window.location.href);
-    return url.searchParams.get(key);
+/* -------------------------------------------------------
+   取得網址參數：name（抽到的人），verse（經句編號），time（抽籤時間）
+--------------------------------------------------------*/
+const url = new URL(window.location.href);
+const name = url.searchParams.get("name") || "（無資料）";
+const verse = url.searchParams.get("verse") || "";
+const time = url.searchParams.get("time") || "";  // v5.1 新增：從 index.html 帶入
+
+
+
+/* -------------------------------------------------------
+   顯示內容
+--------------------------------------------------------*/
+const ref = VERSE_REF_MAP[verse] || "";
+document.getElementById("displayName").innerText = `抽中者：${name}`;
+document.getElementById("displayVerse").innerText = `經句編號：${verse}`;
+document.getElementById("displayRef").innerText = `${ref}`;
+
+document.getElementById("verseImg").src = `cards/${verse}.png`;
+
+
+/* -------------------------------------------------------
+   下載 PNG：包含兩行文字 + 原經句圖
+--------------------------------------------------------*/
+async function downloadPNG(){
+
+    const img = document.getElementById("verseImg");
+
+    // 等待圖片載入完成
+    await img.decode().catch(()=>{});
+
+    // 建立 Canvas
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const w = img.naturalWidth;
+    const h = img.naturalHeight + 160;   // 上方加 2 行空間
+
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = "#fff8e7";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#5b3a00";
+
+    ctx.font = "28px Noto Sans TC";
+    ctx.fillText(`[${time}] ${name}｜抽中的經句紅包`, w/2, 45);
+
+    ctx.font = "26px Noto Sans TC";
+    ctx.fillText(`編號「${verse}」（${ref}）`, w/2, 95);
+
+    // 畫原本經句圖片
+    ctx.drawImage(img, 0, 160, w, img.naturalHeight);
+
+    // 產生下載
+    const link = document.createElement("a");
+    link.download = `Blessing_${name}_${verse}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
 }
 
-/* -------------------------------
-   頁面初始化
-------------------------------- */
-window.onload = function(){
 
-    const name  = getParam("name")  || "???";
-    const verse = getParam("verse") || "001";
+/* -------------------------------------------------------
+   下一位／回首頁
+   - 若姓名模式未抽完下一位 → 回 index.html
+   - 若姓名全部抽完 → 顯示警告後回首頁
+--------------------------------------------------------*/
+function nextOrHome(){
 
-    /* timestamp（由 viewer 端自動生成，不依賴 index.html） */
-    const now = new Date();
-    const ts =
-        `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} `+
-        `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+    const usedNames = JSON.parse(localStorage.getItem("usedNames") || "[]");
+    const nameList = JSON.parse(localStorage.getItem("nameList") || "[]");
 
-    const ref = VERSE_REF_MAP[verse] || "";
+    if(!nameList || nameList.length === 0){
+        location.href = "index.html";
+        return;
+    }
 
-    /* -------------------------------
-       頂部兩行（置中資訊）
-    ------------------------------- */
-    const line =
-        `[${ts}] ${name}｜抽中的經句紅包\n` +
-        `編號「${verse}」${ref ? `（${ref}）` : ""}`;
+    if(usedNames.length >= nameList.length){
+        alert("本輪全部姓名已完成抽籤，將返回首頁！");
+        location.href = "index.html";
+        return;
+    }
 
-    document.getElementById("recordBlock").innerText = line;
-
-    /* -------------------------------
-       舊版中央兩行資訊（仍保留）
-    ------------------------------- */
-    document.getElementById("titleName").innerText =
-        `${name}｜抽中的經句紅包`;
-
-    document.getElementById("titleVerse").innerText =
-        `編號「${verse}」${ref ? `（${ref}）` : ""}`;
-
-    /* -------------------------------
-       顯示 PNG
-    ------------------------------- */
-    document.getElementById("verseImage").src = `cards/${verse}.png`;
-
-    /* -------------------------------
-       中獎音效
-    ------------------------------- */
-    const win = new Audio("audio/win.mp3");
-    win.play().catch(()=>{});
-
-    /* -------------------------------
-       Confetti 特效
-    ------------------------------- */
-    confetti({
-        particleCount: 230,
-        spread: 88,
-        origin: { y: 0.32 }
-    });
-};
-
-
-/* -------------------------------
-   下載經句 PNG
-------------------------------- */
-function downloadImage(){
-    const verse = getParam("verse");
-    const a = document.createElement("a");
-    a.href = `cards/${verse}.png`;
-    a.download = `BlessingCard_${verse}.png`;
-    a.click();
+    // 尚未抽完 → 回首頁繼續下一位
+    location.href = "index.html";
 }
 
-/* -------------------------------
-   下一位（回 index.html）
-   名單不清除 → v4.5 核心功能
-------------------------------- */
-function nextPerson(){
-    window.location = "index.html";
-}
-
-/* -------------------------------
-   回首頁（仍保留名單）
-------------------------------- */
-function goHome(){
-    window.location = "index.html";
-}
 </script>
 
 </body>
