@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>BlessingCards128｜祝福經句紅包（v4.9）</title>
+<title>BlessingCards128｜祝福經句紅包（v5.0）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -144,7 +144,7 @@ let locked = false;
 let selectedName = null;   // 第一輪選到的姓名
 let selectedVerse = null;  // 第二輪抽到的經文編號
 
-let usedNames = [];        // 已經抽過的人
+let usedNames = [];        // 已經抽過的人（姓名模式）
 let usedVersesAll = [];    // 已抽過的經句（跨姓名 / 分類模式共用）
 
 let roundFinished = false; // 是否全部抽完
@@ -181,7 +181,7 @@ function playDrum(){
                 locked = true;
                 document.getElementById("nameInput").value = nameList.join("、");
                 statusText.innerText = `名單已載入，共 ${nameList.length} 位`;
-                drawWheel(nameList, 0);
+                drawWheel(nameList, 0, { showLabels:true });
             }
         }
 
@@ -245,19 +245,26 @@ function lockList(){
     statusText.innerText = `名單已鎖定，共 ${nameList.length} 位`;
     startBtn.disabled = false;
 
-    drawWheel(nameList, 0);
+    drawWheel(nameList, 0, { showLabels:true });
 }
 
 /* ------------------------------------
-   畫輪盤（只用 rotation 旋轉扇形，文字不旋轉）
-   rotation 以「弧度」為單位
+   畫輪盤
+   - rotation：弧度
+   - showLabels：是否顯示姓名
+   - centerText：在輪盤正中央顯示的文字（第二輪顯示經句編號）
+   - centerFontSize：中央文字大小（你選 B → 約 40px）
 -------------------------------------*/
-function drawWheel(items, rotation = 0){
+function drawWheel(items, rotation = 0, options = {}){
     ctx.clearRect(0,0,380,380);
     if(!items || items.length === 0) return;
 
     const count = items.length;
     const arc = Math.PI * 2 / count;
+
+    const showLabels = options.showLabels !== false;
+    const centerText = options.centerText || null;
+    const centerFontSize = options.centerFontSize || 40;
 
     for(let i=0;i<count;i++){
         // 以正上方為第 0 格起點，再加上 rotation
@@ -277,17 +284,28 @@ function drawWheel(items, rotation = 0){
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 文字：不旋轉，只根據扇形中心角度決定位置
-        const mid = (start + end) / 2;
-        const textRadius = RADIUS - 24;
-        const textX = CENTER + Math.cos(mid) * textRadius;
-        const textY = CENTER + Math.sin(mid) * textRadius;
+        if(showLabels){
+            // 姓名文字
+            const mid = (start + end) / 2;
+            const textRadius = RADIUS - 24;
+            const textX = CENTER + Math.cos(mid) * textRadius;
+            const textY = CENTER + Math.sin(mid) * textRadius;
 
-        ctx.font = "22px Noto Sans TC";
-        ctx.fillStyle = "#5b3a00";
+            ctx.font = "22px Noto Sans TC";
+            ctx.fillStyle = "#5b3a00";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(items[i], textX, textY);
+        }
+    }
+
+    // 第二輪：中央顯示經句編號
+    if(centerText){
+        ctx.font = `${centerFontSize}px Noto Sans TC`;
+        ctx.fillStyle = "#b07500";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(items[i], textX, textY);
+        ctx.fillText(centerText, CENTER, CENTER);
     }
 }
 
@@ -299,15 +317,15 @@ function easeOut(t){
 }
 
 /* ------------------------------------
-   核心：精準命中角度計算（v4.9）
+   核心：精準命中角度計算（v5.0）
    - 第一輪／第二輪都用這一套
-   - 指針視覺方向：向下（▼）= +90°
+   - 指針「命中位置」固定在輪盤正上方（▼ 尖端貼齊上緣）
    - 我們只改 rotation 值，不旋轉文字座標系
 -------------------------------------*/
-function spinWheel(items, clockwise, forcedIndex){
+function spinWheel(items, clockwise, forcedIndex, optionsForDraw){
     return new Promise(resolve => {
         if(!items || items.length === 0){
-            resolve(null);
+            resolve({ winner:null, finalRotation:0 });
             return;
         }
 
@@ -316,24 +334,25 @@ function spinWheel(items, clockwise, forcedIndex){
         const count = items.length;
         const arc = Math.PI * 2 / count;
 
-        // 強制定義第幾格（例如第二輪固定停在 selectedName）
         const selIndex =
             (typeof forcedIndex === "number" && forcedIndex >= 0 && forcedIndex < count)
             ? forcedIndex
             : Math.floor(Math.random() * count);
 
-        const direction = clockwise ? 1 : -1;
+        // 逆時針 = 正向轉；順時針 = 反向轉
+        const direction = clockwise ? -1 : 1;
         const spins = 5 + Math.random() * 2; // 5~7 圈
 
-        // 扇形中心角度（未旋轉前，以正上方 -90° 為起點）
+        // sliceCenterBase：此格的中心角度（在 rotation = 0 時）
         const sliceCenterBase = arc * (selIndex + 0.5) - Math.PI/2;
 
-        // 指針朝下（▼）：+90°
-        const pointerAngle = Math.PI / 2;
-
-        // 要求：sliceCenterBase + rotationFinal ≡ pointerAngle (mod 2π)
-        const baseRotation = pointerAngle - sliceCenterBase;  // 對齊此人到指針下方
-        const finalRotation = baseRotation + direction * spins * 2 * Math.PI;
+        // 我們希望「此格中心」轉到「正上方 -90°」（也就是指針所在的接觸點）
+        // => sliceCenterBase + rotationFinal ≡ -PI/2 (mod 2PI)
+        // => rotationFinal = -PI/2 - sliceCenterBase + 2PIk
+        // 但因為 sliceCenterBase 已經是 (something - PI/2)，整理後其實等價於：
+        // rotationFinalBase = -arc * (selIndex + 0.5)
+        const rotationBase = -arc * (selIndex + 0.5);
+        const finalRotation = rotationBase + direction * spins * 2 * Math.PI;
 
         const start = performance.now();
         const duration = 5000; // 5 秒
@@ -345,17 +364,17 @@ function spinWheel(items, clockwise, forcedIndex){
             const eased = easeOut(t);
             const angle = finalRotation * eased;
 
-            drawWheel(items, angle);
+            drawWheel(items, angle, optionsForDraw || {});
 
             if(t < 1){
                 requestAnimationFrame(animate);
             } else {
-                resolve(items[selIndex]);
+                resolve({ winner: items[selIndex], finalRotation: angle });
             }
         }
 
-        // 先畫出初始狀態
-        drawWheel(items, 0);
+        // 初始畫面
+        drawWheel(items, 0, optionsForDraw || {});
         requestAnimationFrame(animate);
     });
 }
@@ -396,12 +415,17 @@ async function startFirstRound(){
     selectedName = null;
     selectedVerse = null;
 
-    drawWheel(nameList, 0);
+    drawWheel(nameList, 0, { showLabels:true });
 
-    await spinWheel(nameList, false, forcedIndex);
+    const result = await spinWheel(
+        nameList,
+        false, // 逆時針
+        forcedIndex,
+        { showLabels:true }
+    );
 
-    selectedName = winner;
-    statusText.innerText = `第 1 輪完成：抽中「${winner}」`;
+    selectedName = result.winner;
+    statusText.innerText = `第 1 輪完成：抽中「${selectedName}」`;
 
     setTimeout(()=>{
         secondBtn.style.display = "inline-block";
@@ -411,7 +435,9 @@ async function startFirstRound(){
 
 /* ------------------------------------
    第二輪：抽經句（順時針）
-   ※ 視覺上：仍停在第一輪抽到的那一位
+   - 外觀：沿用第一輪輪盤，但「不顯示姓名」（空白切片）
+   - 內部：從 001–128 經句中抽一個（不重複）
+   - 轉完後：在輪盤中央顯示經句編號（字體放大）
 -------------------------------------*/
 async function startSecondRound(){
 
@@ -440,13 +466,25 @@ async function startSecondRound(){
         return;
     }
 
-    // 視覺上：仍用姓名輪盤，只是改為順時針，最後停在同一位
-    await spinWheel(nameList, true, winnerIndex);
+    // 第二輪：視覺上還是用姓名切片數，但不顯示文字（空白）
+    const spinResult = await spinWheel(
+        nameList,
+        true,  // 順時針
+        winnerIndex,
+        { showLabels:false }
+    );
 
     // 內部真正抽經句（不可重複）
     selectedVerse = available[Math.floor(Math.random() * available.length)];
     usedVersesAll.push(selectedVerse);
     localStorage.setItem("usedVersesAll", JSON.stringify(usedVersesAll));
+
+    // 轉完後，把經句編號畫在輪盤中央（字體放大）
+    drawWheel(nameList, spinResult.finalRotation, {
+        showLabels:false,
+        centerText:selectedVerse,
+        centerFontSize:40
+    });
 
     statusText.innerText = `第 2 輪完成：抽中經句「${selectedVerse}」`;
 
@@ -502,7 +540,7 @@ function saveRecord(name, verse){
         localStorage.setItem("usedNames", JSON.stringify(usedNames));
     }
 
-    // 這裡只標記 roundFinished，不再動 statusText
+    // 全部人都抽過後，只標記 roundFinished，不立刻跳警告
     if(nameList.length > 0 && usedNames.length >= nameList.length){
         roundFinished = true;
         localStorage.setItem("roundFinished", "1");
