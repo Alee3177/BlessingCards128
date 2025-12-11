@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<title>BlessingCards128｜祝福經句紅包內容（v5.3.1）</title>
+<title>BlessingCards128｜祝福經句紅包內容（v5.4）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 body {
@@ -11,6 +11,10 @@ body {
     text-align: center;
     padding: 22px;
     color: #5b3a00;
+}
+h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
 }
 h2 {
     font-size: 22px;
@@ -99,16 +103,15 @@ if (verseParam && /^\d{3}$/.test(verseParam)){
 }
 cardImg.src = imgSrc;
 
-/* 下載 PNG（整張背景統一顏色） */
+/* 下載 PNG（整張背景統一白色） */
 function downloadPNG(){
     if (!cardImg.complete){
         alert("圖片尚未載入完成，請稍候再試。");
         return;
     }
 
-    // 建立 canvas，預留上方文字區
     const padding   = 20;
-    const textAreaH = 60;  // 給兩行文字使用
+    const textAreaH = 60;
 
     const imgW = cardImg.naturalWidth  || 360;
     const imgH = cardImg.naturalHeight || 540;
@@ -119,11 +122,11 @@ function downloadPNG(){
     canvas.width  = imgW + padding*2;
     canvas.height = textAreaH + imgH + padding*2;
 
-    // 底色：統一使用白色（整張一個顏色）
+    // 統一白底
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // 繪製文字（PNG 版使用含時間的版本）
+    // 上方兩行文字（含時間）
     ctx.font      = "18px Noto Sans TC";
     ctx.fillStyle = "#5b3a00";
     ctx.textAlign = "center";
@@ -139,7 +142,6 @@ function downloadPNG(){
     const imgY = padding + textAreaH;
     ctx.drawImage(cardImg, imgX, imgY, imgW, imgH);
 
-    // 下載
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
     a.download = `BlessingCards128_${nameParam || "經句"}_${verseParam || ""}.png`;

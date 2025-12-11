@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<title>BlessingCards128｜祝福經句紅包（v5.3.1）</title>
+<title>BlessingCards128｜祝福經句紅包（v5.4）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <style>
@@ -159,10 +159,10 @@ let selectedName  = null;   // 第 1 輪抽中的姓名
 let selectedVerse = null;   // 第 2 輪抽中的經句編號
 let selectedTime  = null;   // 抽籤時間（給 PNG 記錄用）
 
-let usedNames   = [];       // 已完成兩輪的人
+let usedNames   = [];       // 已完成紅包抽籤的人
 let usedVerses  = [];       // 已抽過的經句編號
 let roundFinished   = false; // 本輪是否已全部抽完
-let awaitingSecond  = false; // 是否處在「已完成第 1 輪，等待第 2 輪」
+let awaitingSecond  = false; // 是否正在等待第 2 輪
 
 const canvas = document.getElementById("wheelCanvas");
 const ctx     = canvas.getContext("2d");
@@ -232,16 +232,17 @@ function playDrum(){
 /* ==================================
    畫輪盤（使用 rotationOffset）
    幾何設定：
-   - slice i 起始角度：start = -π/2 - arc/2 + i*arc
-   - slice i 中心角度：center = -π/2 + i*arc
-   → pointer 固定在 -π/2（正上方），
-     當 rotationOffset = -i*arc 時，i 號切片中心正好在指針下方
+   - slice i 中心角度（未旋轉時）：center = -π/2 + i*arc
+   - 指針固定在 -π/2（正上方）
+   - 當 rotationOffset = -i*arc 時，i 號切片中心就會在指針下方
 ================================== */
 function drawWheel(items, opt = {}){
     const {
         hideText = false,
         highlightWinnerIndex = null,
-        highlightVerseText   = ""
+        highlightVerseText   = "",
+        centerBook = "",
+        centerChapter = ""
     } = opt;
 
     ctx.clearRect(0,0,380,380);
@@ -272,7 +273,7 @@ function drawWheel(items, opt = {}){
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 姓名（若不隱藏）
+        // 姓名（可選擇隱藏）
         if (!hideText){
             const centerAngle = -Math.PI/2 + i*arc;
             ctx.save();
@@ -286,7 +287,7 @@ function drawWheel(items, opt = {}){
         }
     }
 
-    // 第二輪：只在中獎格畫上經句編號（只用在轉完後的最後一次重繪）
+    // 第二輪：在中獎格上畫經句編號（只用在最後一次重繪）
     if (highlightWinnerIndex != null && highlightVerseText){
         const centerAngle = -Math.PI/2 + highlightWinnerIndex*arc;
         ctx.save();
@@ -300,17 +301,35 @@ function drawWheel(items, opt = {}){
     }
 
     ctx.restore();
+
+    // 第二輪：輪盤中央顯示「書卷 / 章節」
+    if (centerBook || centerChapter){
+        ctx.save();
+        ctx.translate(CENTER, CENTER);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#5b3a00";
+        ctx.font = "24px Noto Sans TC";
+        ctx.fillText(centerBook, 0, -8);
+        ctx.font = "20px Noto Sans TC";
+        ctx.fillText(centerChapter, 0, 22);
+        ctx.restore();
+    }
 }
 
 /* ==================================
-   緩動函數（自然減速）
+   緩動函數
 ================================== */
 function easeOutCubic(t){
     return 1 - Math.pow(1 - t, 3);
 }
 
+// 方案 B1：ease-out Expo（最後微調使用）
+function easeOutExpo(t){
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+}
+
 /* ==================================
-   核心：轉盤動畫（自然停點 + 精準命中，不再最後強制 Snap）
+   核心：轉盤動畫（主旋轉 + 0.3s 平滑微調）
 ================================== */
 function spinToIndex(items, index, clockwise, options = {}){
     return new Promise(resolve => {
@@ -321,39 +340,64 @@ function spinToIndex(items, index, clockwise, options = {}){
         const count = items.length;
         const arc   = 2 * Math.PI / count;
 
-        // 目標：rotationOffset_f = - index * arc
-        const baseTarget = -index * arc;
+        // 目標 offset：rotationOffset = - index * arc
+        const targetBase = -index * arc;
 
-        // 自然旋轉 4~6 圈
-        const spins     = 4 + Math.random() * 2;
+        // 至少 4~6 圈
+        const spinsInt  = 4 + Math.floor(Math.random() * 3); // 4,5,6
         const direction = clockwise ? 1 : -1;
 
+        // 最終角度（視覺上累積了 spinsInt 圈，但「模 2π」後等於 targetBase）
+        const finalAngle = targetBase + direction * spinsInt * 2 * Math.PI;
+
+        // 主動畫先轉到「接近」 finalAngle 的位置，再用 0.3s 微調
+        const errorRange = Math.PI / 12; // 約 ±15 度
+        const error      = (Math.random() - 0.5) * 2 * errorRange;
+        const mainTarget = finalAngle + error;
+
+        const mainDuration   = 4700; // 4.7 秒主旋轉
+        const adjustDuration = 300;  // 0.3 秒微調
+
         const startAngle = rotationOffset;
-        const endAngle   = baseTarget + direction * spins * 2 * Math.PI;
 
         playDrum();
 
-        const startTime  = performance.now();
-        const duration   = 5000; // 5 秒
+        const startTime = performance.now();
 
-        function frame(now){
-            let t = (now - startTime) / duration;
+        function mainFrame(now){
+            let t = (now - startTime) / mainDuration;
             if (t > 1) t = 1;
             const eased = easeOutCubic(t);
-            rotationOffset = startAngle + (endAngle - startAngle) * eased;
+            rotationOffset = startAngle + (mainTarget - startAngle) * eased;
 
-            // 轉動過程中只負責畫輪盤，不做最後 Snap
             drawWheel(items, options);
 
             if (t < 1){
-                requestAnimationFrame(frame);
+                requestAnimationFrame(mainFrame);
             } else {
-                // 結束時「不再」額外重畫一次，直接以最後角度作為定格
-                resolve();
+                // 進入 0.3s 微調階段（ease-out Expo）
+                const adjustStart = performance.now();
+                const adjustStartAngle = rotationOffset;
+
+                function adjustFrame(now2){
+                    let tt = (now2 - adjustStart) / adjustDuration;
+                    if (tt > 1) tt = 1;
+                    const easedExpo = easeOutExpo(tt);
+                    rotationOffset = adjustStartAngle + (finalAngle - adjustStartAngle) * easedExpo;
+
+                    drawWheel(items, options);
+
+                    if (tt < 1){
+                        requestAnimationFrame(adjustFrame);
+                    } else {
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(adjustFrame);
             }
         }
 
-        requestAnimationFrame(frame);
+        requestAnimationFrame(mainFrame);
     });
 }
 
@@ -419,7 +463,7 @@ async function startFirstRound(){
         return;
     }
     if (awaitingSecond && selectedName && !selectedVerse){
-        alert("已抽完第 1 輪，請先按「抽紅包（第二輪）」再開始下一位！");
+        alert("已完成第 1 輪，請先按「抽紅包（第二輪）」再開始下一位！");
         return;
     }
 
@@ -449,7 +493,6 @@ async function startFirstRound(){
     verseBadge.style.display = "none";
     viewerBtn.style.display  = "none";
 
-    // 轉動到中獎者位置（自然停點）
     await spinToIndex(nameList, winnerIndex, false, { hideText:false });
 
     statusText.textContent = `第 1 輪完成：抽中「${winner}」`;
@@ -462,8 +505,10 @@ async function startFirstRound(){
 
 /* ==================================
    第二輪：抽經句（順時針）
-   - 外觀：仍用同一輪盤，但轉動時「不顯示任何文字」
-   - 轉完後再「一次性」顯示編號（不跟著轉）
+   - 外觀：同一輪盤，但轉動時不顯示文字
+   - 停住後：
+       1) 指針下方 badge 顯示「編號 XXX」
+       2) 輪盤中央顯示「書卷 / 章節」兩行
 ================================== */
 async function startSecondRound(){
     secondBtn.classList.remove("blinking");
@@ -495,12 +540,12 @@ async function startSecondRound(){
         return;
     }
 
-    // 真正抽出經句編號（內部邏輯）
+    // 真正抽出經句編號
     selectedVerse = available[Math.floor(Math.random()*available.length)];
     usedVerses.push(selectedVerse);
     lsSet("usedVerses", usedVerses);
 
-    // 產生時間戳記（給 PNG 用）
+    // 產生時間戳記
     const now = new Date();
     const ts =
         `${now.getFullYear()}/` +
@@ -514,10 +559,17 @@ async function startSecondRound(){
     lsSet("currentVerse", selectedVerse);
     lsSet("currentTime", selectedTime);
 
-    const ref       = (window.VERSE_REF_MAP || {})[selectedVerse] || "";
-    const verseText = `編號「${selectedVerse}」`;
+    // 經句資訊
+    const ref = (window.VERSE_REF_MAP || {})[selectedVerse] || "";
+    let book = "", chapter = "";
+    if (ref){
+        const parts = ref.split(/\s+/);
+        book    = parts[0] || "";
+        chapter = parts.slice(1).join(" ") || "";
+    }
+    const verseBadgeText = `編號「${selectedVerse}」`;
 
-    // 第二輪：同一個 index，再轉一輪（順時針），「整個過程不顯示任何文字」
+    // 第二輪轉動：同一 index，順時針，過程中完全不顯示文字
     await spinToIndex(
         nameList,
         winnerIndex,
@@ -525,23 +577,30 @@ async function startSecondRound(){
         {
             hideText:true,
             highlightWinnerIndex:null,
-            highlightVerseText:""
+            highlightVerseText:"",
+            centerBook:"",
+            centerChapter:""
         }
     );
 
-    // 轉完後，才重畫一次，並在中獎格顯示經句編號
+    // 轉完後，重畫一次：
+    // 1) 隱藏姓名
+    // 2) 在中獎格顯示「編號 XXX」
+    // 3) 輪盤中央顯示「書卷 / 章節」
     drawWheel(nameList, {
         hideText:true,
         highlightWinnerIndex:winnerIndex,
-        highlightVerseText:verseText
+        highlightVerseText:verseBadgeText,
+        centerBook:book,
+        centerChapter:chapter
     });
 
-    verseBadge.textContent = verseText;
+    verseBadge.textContent = verseBadgeText;
     verseBadge.style.display = "block";
 
     statusText.textContent = `第 2 輪完成：抽中經句「${selectedVerse}」`;
 
-    // 寫入紀錄（兩輪都完成才算）
+    // 記錄（兩輪完成才算）
     saveRecord(selectedName, selectedVerse, selectedTime);
 
     awaitingSecond = false;
