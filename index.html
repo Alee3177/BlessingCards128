@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<title>BlessingCards128｜祝福經句紅包（v5.3）</title>
+<title>BlessingCards128｜祝福經句紅包（v5.3.1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <style>
@@ -157,7 +157,7 @@ let locked = false;
 
 let selectedName  = null;   // 第 1 輪抽中的姓名
 let selectedVerse = null;   // 第 2 輪抽中的經句編號
-let selectedTime  = null;   // 抽籤時間（給 viewer & PNG）
+let selectedTime  = null;   // 抽籤時間（給 PNG 記錄用）
 
 let usedNames   = [];       // 已完成兩輪的人
 let usedVerses  = [];       // 已抽過的經句編號
@@ -286,7 +286,7 @@ function drawWheel(items, opt = {}){
         }
     }
 
-    // 第二輪：只在中獎格畫上經句編號
+    // 第二輪：只在中獎格畫上經句編號（只用在轉完後的最後一次重繪）
     if (highlightWinnerIndex != null && highlightVerseText){
         const centerAngle = -Math.PI/2 + highlightWinnerIndex*arc;
         ctx.save();
@@ -310,11 +310,7 @@ function easeOutCubic(t){
 }
 
 /* ==================================
-   核心：轉盤動畫（自然停點 + 精準命中）
-   items    : 名單
-   index    : 要命中的 index（0 ~ N-1）
-   clockwise: true = 順時針、false = 逆時針
-   options  : { hideText, highlightWinnerIndex, highlightVerseText }
+   核心：轉盤動畫（自然停點 + 精準命中，不再最後強制 Snap）
 ================================== */
 function spinToIndex(items, index, clockwise, options = {}){
     return new Promise(resolve => {
@@ -344,17 +340,15 @@ function spinToIndex(items, index, clockwise, options = {}){
             let t = (now - startTime) / duration;
             if (t > 1) t = 1;
             const eased = easeOutCubic(t);
-            const current = startAngle + (endAngle - startAngle) * eased;
+            rotationOffset = startAngle + (endAngle - startAngle) * eased;
 
-            rotationOffset = current;
+            // 轉動過程中只負責畫輪盤，不做最後 Snap
             drawWheel(items, options);
 
             if (t < 1){
                 requestAnimationFrame(frame);
             } else {
-                // 將 rotationOffset 歸約到「真正目標 baseTarget」的等價角度
-                rotationOffset = baseTarget;
-                drawWheel(items, options);
+                // 結束時「不再」額外重畫一次，直接以最後角度作為定格
                 resolve();
             }
         }
@@ -414,8 +408,6 @@ function lockList(){
 
 /* ==================================
    第一輪：抽姓名（逆時針）
-   規則：
-   - 若上一位已抽完第 1 輪但尚未抽第 2 輪，禁止重新開始
 ================================== */
 async function startFirstRound(){
     if (roundFinished){
@@ -470,9 +462,8 @@ async function startFirstRound(){
 
 /* ==================================
    第二輪：抽經句（順時針）
-   - 外觀：仍用同一輪盤，但不顯示姓名（空白切片）
-   - 指針仍停在第 1 輪同一格
-   - 內部：從 001–128 未抽過的經句中抽一個
+   - 外觀：仍用同一輪盤，但轉動時「不顯示任何文字」
+   - 轉完後再「一次性」顯示編號（不跟著轉）
 ================================== */
 async function startSecondRound(){
     secondBtn.classList.remove("blinking");
@@ -509,7 +500,7 @@ async function startSecondRound(){
     usedVerses.push(selectedVerse);
     lsSet("usedVerses", usedVerses);
 
-    // 產生時間戳記
+    // 產生時間戳記（給 PNG 用）
     const now = new Date();
     const ts =
         `${now.getFullYear()}/` +
@@ -526,17 +517,24 @@ async function startSecondRound(){
     const ref       = (window.VERSE_REF_MAP || {})[selectedVerse] || "";
     const verseText = `編號「${selectedVerse}」`;
 
-    // 第二輪：同一個 index，再轉一輪（順時針），外觀不顯示姓名，只在中獎格顯示編號
+    // 第二輪：同一個 index，再轉一輪（順時針），「整個過程不顯示任何文字」
     await spinToIndex(
         nameList,
         winnerIndex,
         true,
         {
             hideText:true,
-            highlightWinnerIndex:winnerIndex,
-            highlightVerseText:verseText
+            highlightWinnerIndex:null,
+            highlightVerseText:""
         }
     );
+
+    // 轉完後，才重畫一次，並在中獎格顯示經句編號
+    drawWheel(nameList, {
+        hideText:true,
+        highlightWinnerIndex:winnerIndex,
+        highlightVerseText:verseText
+    });
 
     verseBadge.textContent = verseText;
     verseBadge.style.display = "block";

@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<title>BlessingCards128｜祝福經句紅包內容（v5.3）</title>
+<title>BlessingCards128｜祝福經句紅包內容（v5.3.1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 body {
@@ -71,16 +71,23 @@ const timeParam  = getQueryParam("time");
 const verseMap = window.VERSE_REF_MAP || {};
 const verseRef = verseMap[verseParam] || "";
 
-const line1 = timeParam
-    ? `[${timeParam}] ${nameParam}｜抽中的經句紅包`
-    : `${nameParam}｜抽中的經句紅包`;
-
-const line2 = verseRef
+/* 頁面顯示（不含時間） */
+const line1Page = `${nameParam}｜抽中的經句紅包`;
+const line2Page = verseRef
     ? `編號「${verseParam}」（${verseRef}）`
     : `編號「${verseParam}」`;
 
-document.getElementById("infoLine1").innerHTML = `<h2>${line1}</h2>`;
-document.getElementById("infoLine2").innerHTML = `<h3>${line2}</h3>`;
+document.getElementById("infoLine1").innerHTML = `<h2>${line1Page}</h2>`;
+document.getElementById("infoLine2").innerHTML = `<h3>${line2Page}</h3>`;
+
+/* PNG 內文字（保留時間） */
+const line1PNG = timeParam
+    ? `[${timeParam}] ${nameParam}｜抽中的經句紅包`
+    : `${nameParam}｜抽中的經句紅包`;
+
+const line2PNG = verseRef
+    ? `編號「${verseParam}」（${verseRef}）`
+    : `編號「${verseParam}」`;
 
 /* 設定卡片圖片路徑（cards/NNN.png） */
 const cardImg = document.getElementById("cardImg");
@@ -88,12 +95,11 @@ let imgSrc = "";
 if (verseParam && /^\d{3}$/.test(verseParam)){
     imgSrc = `cards/${verseParam}.png`;
 } else {
-    // 若 verseParam 不是 3 位數，仍嘗試
     imgSrc = `cards/${verseParam}.png`;
 }
 cardImg.src = imgSrc;
 
-/* 下載 PNG（背景底色固定為 #fff8e7，與頁面一致） */
+/* 下載 PNG（整張背景統一顏色） */
 function downloadPNG(){
     if (!cardImg.complete){
         alert("圖片尚未載入完成，請稍候再試。");
@@ -102,7 +108,6 @@ function downloadPNG(){
 
     // 建立 canvas，預留上方文字區
     const padding   = 20;
-    const textLines = 2;
     const textAreaH = 60;  // 給兩行文字使用
 
     const imgW = cardImg.naturalWidth  || 360;
@@ -114,20 +119,20 @@ function downloadPNG(){
     canvas.width  = imgW + padding*2;
     canvas.height = textAreaH + imgH + padding*2;
 
-    // 底色：與頁面相同
-    ctx.fillStyle = "#fff8e7";
+    // 底色：統一使用白色（整張一個顏色）
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    // 繪製文字
+    // 繪製文字（PNG 版使用含時間的版本）
     ctx.font      = "18px Noto Sans TC";
     ctx.fillStyle = "#5b3a00";
     ctx.textAlign = "center";
 
     const centerX = canvas.width / 2;
     let textY = padding + 22;
-    ctx.fillText(line1, centerX, textY);
+    ctx.fillText(line1PNG, centerX, textY);
     textY += 24;
-    ctx.fillText(line2, centerX, textY);
+    ctx.fillText(line2PNG, centerX, textY);
 
     // 繪製經句圖片
     const imgX = padding;
@@ -143,7 +148,6 @@ function downloadPNG(){
 
 /* 回首頁 / 下一位 */
 function goNext(){
-    // 回到 index.html，讓輪盤判斷是否已全部抽完
     window.location.href = "index.html";
 }
 </script>
