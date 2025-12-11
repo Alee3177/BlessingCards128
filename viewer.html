@@ -1,164 +1,151 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<title>BlessingCards128｜紅包內容（v5.1）</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta charset="UTF-8" />
+<title>BlessingCards128｜祝福經句紅包內容（v5.3）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
 body {
     background: #fff8e7;
-    font-family: "Noto Sans TC", sans-serif;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
     text-align: center;
     padding: 22px;
     color: #5b3a00;
 }
-
-h1 {
-    font-size: 26px;
-    color: #b07500;
-    margin-bottom: 10px;
-}
-
-.info-line {
+h2 {
     font-size: 22px;
     margin: 6px 0;
 }
-
-#verseImg {
-    width: 88%;
-    max-width: 450px;
-    margin-top: 20px;
-    border-radius: 12px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+h3 {
+    font-size: 20px;
+    margin: 4px 0 14px 0;
 }
-
-/* 按鈕 */
 .btn {
     background: #f7c76c;
     border: none;
-    padding: 10px 22px;
+    padding: 10px 20px;
     border-radius: 22px;
     font-size: 18px;
     color: #5b3a00;
     cursor: pointer;
-    margin: 8px;
+    margin: 6px;
 }
 .btn:hover {
     background: #f3b84f;
 }
-
+#cardImg {
+    max-width: 90vw;
+    width: 360px;
+    margin-top: 10px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
 </style>
 </head>
-
 <body>
 
-<h1>抽中紅包內容</h1>
+<h1>祝福經句紅包內容</h1>
 
-<div id="displayName" class="info-line"></div>
-<div id="displayVerse" class="info-line"></div>
-<div id="displayRef" class="info-line"></div>
+<div id="infoLine1"></div>
+<div id="infoLine2"></div>
 
-<img id="verseImg" src="" alt="verse image">
+<img id="cardImg" src="" alt="經句紅包圖片" />
 
-<br>
-
-<button class="btn" onclick="downloadPNG()">下載經句圖片</button>
-<button class="btn" onclick="nextOrHome()">下一位／回首頁</button>
+<div style="margin-top:16px;">
+    <button class="btn" onclick="downloadPNG()">下載經句圖片</button>
+    <button class="btn" onclick="goNext()">下一位 / 回首頁</button>
+</div>
 
 <script src="verseRefMap.js"></script>
-
 <script>
-/* -------------------------------------------------------
-   取得網址參數：name（抽到的人），verse（經句編號），time（抽籤時間）
---------------------------------------------------------*/
-const url = new URL(window.location.href);
-const name = url.searchParams.get("name") || "（無資料）";
-const verse = url.searchParams.get("verse") || "";
-const time = url.searchParams.get("time") || "";  // v5.1 新增：從 index.html 帶入
+/* 解析 URL 參數 */
+function getQueryParam(name){
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name) || "";
+}
 
+const nameParam  = getQueryParam("name");
+const verseParam = getQueryParam("verse");
+const timeParam  = getQueryParam("time");
 
+const verseMap = window.VERSE_REF_MAP || {};
+const verseRef = verseMap[verseParam] || "";
 
-/* -------------------------------------------------------
-   顯示內容
---------------------------------------------------------*/
-const ref = VERSE_REF_MAP[verse] || "";
-document.getElementById("displayName").innerText = `抽中者：${name}`;
-document.getElementById("displayVerse").innerText = `經句編號：${verse}`;
-document.getElementById("displayRef").innerText = `${ref}`;
+const line1 = timeParam
+    ? `[${timeParam}] ${nameParam}｜抽中的經句紅包`
+    : `${nameParam}｜抽中的經句紅包`;
 
-document.getElementById("verseImg").src = `cards/${verse}.png`;
+const line2 = verseRef
+    ? `編號「${verseParam}」（${verseRef}）`
+    : `編號「${verseParam}」`;
 
+document.getElementById("infoLine1").innerHTML = `<h2>${line1}</h2>`;
+document.getElementById("infoLine2").innerHTML = `<h3>${line2}</h3>`;
 
-/* -------------------------------------------------------
-   下載 PNG：包含兩行文字 + 原經句圖
---------------------------------------------------------*/
-async function downloadPNG(){
+/* 設定卡片圖片路徑（cards/NNN.png） */
+const cardImg = document.getElementById("cardImg");
+let imgSrc = "";
+if (verseParam && /^\d{3}$/.test(verseParam)){
+    imgSrc = `cards/${verseParam}.png`;
+} else {
+    // 若 verseParam 不是 3 位數，仍嘗試
+    imgSrc = `cards/${verseParam}.png`;
+}
+cardImg.src = imgSrc;
 
-    const img = document.getElementById("verseImg");
+/* 下載 PNG（背景底色固定為 #fff8e7，與頁面一致） */
+function downloadPNG(){
+    if (!cardImg.complete){
+        alert("圖片尚未載入完成，請稍候再試。");
+        return;
+    }
 
-    // 等待圖片載入完成
-    await img.decode().catch(()=>{});
+    // 建立 canvas，預留上方文字區
+    const padding   = 20;
+    const textLines = 2;
+    const textAreaH = 60;  // 給兩行文字使用
 
-    // 建立 Canvas
+    const imgW = cardImg.naturalWidth  || 360;
+    const imgH = cardImg.naturalHeight || 540;
+
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx    = canvas.getContext("2d");
 
-    const w = img.naturalWidth;
-    const h = img.naturalHeight + 160;   // 上方加 2 行空間
+    canvas.width  = imgW + padding*2;
+    canvas.height = textAreaH + imgH + padding*2;
 
-    canvas.width = w;
-    canvas.height = h;
-
+    // 底色：與頁面相同
     ctx.fillStyle = "#fff8e7";
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    ctx.textAlign = "center";
+    // 繪製文字
+    ctx.font      = "18px Noto Sans TC";
     ctx.fillStyle = "#5b3a00";
+    ctx.textAlign = "center";
 
-    ctx.font = "28px Noto Sans TC";
-    ctx.fillText(`[${time}] ${name}｜抽中的經句紅包`, w/2, 45);
+    const centerX = canvas.width / 2;
+    let textY = padding + 22;
+    ctx.fillText(line1, centerX, textY);
+    textY += 24;
+    ctx.fillText(line2, centerX, textY);
 
-    ctx.font = "26px Noto Sans TC";
-    ctx.fillText(`編號「${verse}」（${ref}）`, w/2, 95);
+    // 繪製經句圖片
+    const imgX = padding;
+    const imgY = padding + textAreaH;
+    ctx.drawImage(cardImg, imgX, imgY, imgW, imgH);
 
-    // 畫原本經句圖片
-    ctx.drawImage(img, 0, 160, w, img.naturalHeight);
-
-    // 產生下載
-    const link = document.createElement("a");
-    link.download = `Blessing_${name}_${verse}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    // 下載
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `BlessingCards128_${nameParam || "經句"}_${verseParam || ""}.png`;
+    a.click();
 }
 
-
-/* -------------------------------------------------------
-   下一位／回首頁
-   - 若姓名模式未抽完下一位 → 回 index.html
-   - 若姓名全部抽完 → 顯示警告後回首頁
---------------------------------------------------------*/
-function nextOrHome(){
-
-    const usedNames = JSON.parse(localStorage.getItem("usedNames") || "[]");
-    const nameList = JSON.parse(localStorage.getItem("nameList") || "[]");
-
-    if(!nameList || nameList.length === 0){
-        location.href = "index.html";
-        return;
-    }
-
-    if(usedNames.length >= nameList.length){
-        alert("本輪全部姓名已完成抽籤，將返回首頁！");
-        location.href = "index.html";
-        return;
-    }
-
-    // 尚未抽完 → 回首頁繼續下一位
-    location.href = "index.html";
+/* 回首頁 / 下一位 */
+function goNext(){
+    // 回到 index.html，讓輪盤判斷是否已全部抽完
+    window.location.href = "index.html";
 }
-
 </script>
-
 </body>
 </html>
