@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>BlessingCards128｜祝福經句紅包（v5.5）</title>
+<title>BlessingCards128｜祝福經句紅包（v5.5）-->v5.6 </title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -179,7 +179,8 @@ const secondBtn  = document.getElementById("secondBtn");
 const viewerBtn  = document.getElementById("viewerBtn");
 const statusText = document.getElementById("statusText");
 const centerDiv  = document.getElementById("wheelCenterText");
-// 若你的 HTML 有額外做一個指針下方小標籤，就抓這個；沒有也沒關係
+
+// 若有額外做一個指針下方的小標籤，可以抓這個；沒有也沒關係
 const pointerLabel = document.getElementById("pointerLabel") || null;
 
 /* ------------------------------------
@@ -252,7 +253,7 @@ function lockList(){
     nameList = arr;
     locked = true;
 
-    // 重置整輪狀態
+    // 重置整輪狀態（新名單即新一輪）
     usedNames = [];
     usedVerses = [];
     roundFinished = false;
@@ -283,7 +284,7 @@ function lockList(){
    繪製輪盤
    items: 文字陣列
    rotation: 目前旋轉角度 (rad)
-   showText: 是否顯示文字（第二輪可關掉）
+   showText: 是否顯示文字
 -------------------------------------*/
 function drawWheel(items, rotation, showText){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -337,22 +338,39 @@ function easeOut(t){
 }
 
 /* ------------------------------------
-   通用轉盤動畫
-   items          : 文字陣列（計算切片數用）
-   forcedIndex    : 最後指針要指到的 index
-   options:
-     - clockwise  : true=順時針, false=逆時針
-     - duration   : 動畫時間(ms)
-     - showText   : 是否顯示文字
+   從「最終旋轉角度」反推出在指針下的是哪一格
+   rotation: 最後輪盤旋轉角度 (rad)
+   n       : 切片數量
 -------------------------------------*/
-function spinWheel(items, forcedIndex, options = {}){
+function getWinnerIndexFromRotation(rotation, n){
+    const arc = 2 * Math.PI / n;
+    const pointerAngle = -Math.PI / 2; // 指針在畫面上方（12 點鐘方向）
+
+    // 將指針角度換算到「輪盤本身的座標系」
+    let theta = pointerAngle - rotation;
+
+    // 正規化到 [0, 2π)
+    theta = (theta % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+
+    // 讓每一格範圍是 [i*arc - arc/2, i*arc + arc/2)
+    // → 直接把指針角度往右平移 arc/2，再除以 arc 取 floor
+    let idx = Math.floor((theta + arc/2) / arc) % n;
+    return idx;
+}
+
+/* ------------------------------------
+   通用轉盤動畫
+   - 不再預先指定中獎 index
+   - 純粹隨機轉動，最後回傳「實際轉完的角度」
+-------------------------------------*/
+function spinWheelGeneric(items, options = {}){
     const clockwise = (options.clockwise !== false); // 預設順時針
     const duration  = options.duration || 4000;
     const showText  = (options.showText !== false);
 
     return new Promise(resolve => {
         if(!items || items.length === 0){
-            resolve(null);
+            resolve(0);
             return;
         }
 
@@ -364,24 +382,12 @@ function spinWheel(items, forcedIndex, options = {}){
 
         playDrum();
 
-        const n   = items.length;
-        const arc = 2 * Math.PI / n;
+        // 總旋轉角度：4~6 圈，再加一點隨機偏移
+        const baseSpins = 4 + Math.random() * 2; // 4~6 圈
+        const randomOffset = Math.random() * 2 * Math.PI; // 0~2π
+        const direction = clockwise ? 1 : -1;
 
-        // slice 中心角度（以 3 點鐘方向為 0）
-        const sliceCenter = forcedIndex * arc + arc/2;
-
-        // 指針固定在畫面上方，也就是 -90 度
-        const pointerAngle = -Math.PI / 2;
-
-        // 多轉幾圈，讓畫面看起來順暢
-        const extraSpins = 4 + Math.random() * 2; // 4~6 圈
-        const direction  = clockwise ? 1 : -1;
-
-        // 最終輪盤旋轉角度：
-        // sliceCenter + finalRotation = pointerAngle (mod 2π)
-        // => finalRotation = pointerAngle - sliceCenter + direction * extraSpins * 2π
-        const finalRotation = pointerAngle - sliceCenter + direction * extraSpins * 2 * Math.PI;
-
+        const finalRotation = direction * (baseSpins * 2 * Math.PI + randomOffset);
         const startTime = performance.now();
 
         function animate(now){
@@ -397,13 +403,40 @@ function spinWheel(items, forcedIndex, options = {}){
                 requestAnimationFrame(animate);
             }else{
                 isSpinning = false;
-                // 直接回傳 forcedIndex（不再重新計算，避免錯位）
-                resolve(forcedIndex);
+                resolve(finalRotation);
             }
         }
 
         requestAnimationFrame(animate);
     });
+}
+
+/* ------------------------------------
+   幫你轉到「一個還沒抽過的人」
+   – 真正中獎者由最終角度決定
+   – 如果轉到已抽過的人，就自動再轉一次
+-------------------------------------*/
+async function spinAndPickName(clockwise){
+    const n = nameList.length;
+    if(n === 0) return null;
+
+    while(true){
+        const rotation = await spinWheelGeneric(nameList, {
+            clockwise,
+            duration: 4200,
+            showText: true
+        });
+
+        const idx  = getWinnerIndexFromRotation(rotation, n);
+        const name = nameList[idx];
+
+        // 沒抽過 → 中獎者就是這位
+        if(!usedNames.includes(name)){
+            return { index: idx, name };
+        }
+
+        // 若已經抽過，就自動再轉一次（使用者只會看到「多轉一次」）
+    }
 }
 
 /* ------------------------------------
@@ -431,6 +464,7 @@ async function startFirstRound(){
         return;
     }
 
+    // 確認是否還有沒抽過的人
     const remaining = nameList.filter(n => !usedNames.includes(n));
     if(remaining.length === 0){
         roundFinished = true;
@@ -439,10 +473,6 @@ async function startFirstRound(){
         startBtn.disabled = true;
         return;
     }
-
-    // 真正中獎者
-    const winner = remaining[Math.floor(Math.random() * remaining.length)];
-    const forcedIndex = nameList.indexOf(winner);
 
     statusText.innerText = "第 1 輪：姓名輪盤抽籤中…";
     selectedName   = null;
@@ -453,16 +483,13 @@ async function startFirstRound(){
         pointerLabel.textContent = "";
     }
 
-    // 第一輪：逆時針、顯示姓名
-    await spinWheel(nameList, forcedIndex, {
-        clockwise: false,
-        duration: 4200,
-        showText: true
-    });
+    // 交給「實際轉完的角度」來決定中獎者
+    const result = await spinAndPickName(false); // 逆時針
+    if(!result) return;
 
-    selectedName   = winner;
+    selectedName   = result.name;
     firstRoundDone = true;
-    statusText.innerText = `第 1 輪完成：抽中「${winner}」`;
+    statusText.innerText = `第 1 輪完成：抽中「${selectedName}」`;
 
     // 顯示第二輪按鈕並閃爍
     setTimeout(() => {
@@ -473,11 +500,11 @@ async function startFirstRound(){
 }
 
 /* ------------------------------------
-   第二輪：抽經句（順時針、輪盤不顯示姓名）
-   - 外觀看起來只是空白切片在轉
-   - 內部從 001~128 中抽經句（不重複）
-   - 最後：指針下方顯示「編號」，
-           輪盤中央顯示「書卷 / 章節」兩行
+   第二輪：抽經句（順時針，輪盤不顯示姓名）
+   - 外觀看起來是「空白切片」在轉
+   - 經句實際從 001~128 中抽一個（不重複）
+   - 指針下方顯示「編號」
+   - 輪盤中央顯示「書卷 / 章節」兩行
 -------------------------------------*/
 async function startSecondRound(){
     if(isSpinning){
@@ -510,25 +537,18 @@ async function startSecondRound(){
 
     statusText.innerText = "第 2 輪：祝福經句輪盤抽籤中…";
 
-    const winnerIndex = nameList.indexOf(selectedName);
-    if(winnerIndex < 0){
-        alert("內部狀態異常，請全部歸零後再試。");
-        return;
-    }
-
-    // 第二輪外觀看起來「空白切片」，只保留切線
-    await spinWheel(nameList, winnerIndex, {
+    // 第二輪：只當動畫用，不顯示文字
+    await spinWheelGeneric(nameList, {
         clockwise: true,
         duration: 4200,
         showText: false
     });
 
-    // 這裡才真正從 001~128 中抽一個經句（不重複）
+    // 真正從 001~128 中抽一個經句（不重複）
     selectedVerse = available[Math.floor(Math.random() * available.length)];
     usedVerses.push(selectedVerse);
     localStorage.setItem("usedVerses", JSON.stringify(usedVerses));
 
-    // 顯示狀態文字
     statusText.innerText = `第 2 輪完成：抽中經句「${selectedVerse}」`;
 
     // 指針下方顯示「編號」
@@ -549,7 +569,7 @@ async function startSecondRound(){
 }
 
 /* ------------------------------------
-   在輪盤中央顯示書卷 + 章節
+   在輪盤中央顯示書卷 + 章節（兩行）
 -------------------------------------*/
 function showCenterVerse(verse){
     const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verse]) || "";
@@ -559,8 +579,8 @@ function showCenterVerse(verse){
     }
     const idx = ref.indexOf(" ");
     if(idx > -1){
-        const book   = ref.slice(0, idx);
-        const chap   = ref.slice(idx + 1);
+        const book = ref.slice(0, idx);
+        const chap = ref.slice(idx + 1);
         centerDiv.innerHTML = `${book}<br>${chap}`;
     }else{
         centerDiv.textContent = ref;
@@ -584,8 +604,6 @@ function gotoViewer(){
 
 /* ------------------------------------
    儲存抽籤紀錄（姓名模式）
-   格式：
-   [YYYY/MM/DD HH:MM:SS] xxx｜抽中經句：065（詩篇 118:24）
 -------------------------------------*/
 function saveRecord(name, verse){
     const now = new Date();
@@ -622,7 +640,7 @@ function saveRecord(name, verse){
         localStorage.setItem("usedNames", JSON.stringify(usedNames));
     }
 
-    // 全部抽完 → 僅標記狀態，真正提示留在下一次想再抽時
+    // 全部抽完 → 標記狀態（真正提示留在下一次再抽時）
     if(usedNames.length >= nameList.length){
         roundFinished = true;
         localStorage.setItem("roundFinished", "1");
