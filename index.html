@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>BlessingCards128｜第一輪姓名輪盤 v5.3</title>
+<title>BlessingCards128｜v5.4</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -57,6 +57,18 @@ button{
   z-index:10;
 }
 
+#badge{
+  position:absolute;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#fff;
+  padding:6px 14px;
+  border-radius:18px;
+  font-size:18px;
+  display:none;
+}
+
 #status{
   font-size:20px;
   margin-top:10px;
@@ -66,40 +78,58 @@ button{
 
 <body>
 
-<h1>祝福經句紅包（第一輪測試）</h1>
+<h1>祝福經句紅包（v5.4）</h1>
 <img src="logo3524.png" class="logo"><br>
 
 <input id="nameInput" placeholder="輸入姓名，用、或空白分隔"><br>
 
 <button onclick="lockList()">鎖定名單</button>
-<button onclick="startSpin()">開始抽姓名</button>
+<button onclick="startFirstRound()">開始抽姓名</button>
+<button id="secondBtn" onclick="startSecondRound()" style="display:none">抽紅包（第二輪）</button>
 <button onclick="resetAll()">全部歸零</button>
 
 <div id="wheelBox">
   <div id="pointer">▼</div>
+  <div id="badge"></div>
   <canvas id="wheel" width="380" height="380"></canvas>
 </div>
 
 <div id="status">請輸入姓名並鎖定名單</div>
 
-<script>
-/* ========= 狀態 ========= */
-let names = [];
-let used = [];
-let locked = false;
-let isSpinning = false;
+<script src="verseRefMap.js"></script>
 
-/* ========= Canvas ========= */
+<script>
+/* ===== 音效（一定要在 click 當下播放） ===== */
+const drumAudio = new Audio("audio/drum.mp3");
+drumAudio.preload = "auto";
+
+/* ===== 狀態 ===== */
+let names = [];
+let usedNames = [];
+let locked = false;
+let spinning = false;
+
+let selectedIndex = null;   // 第一輪選到的 index
+let selectedName = null;    // 第一輪選到的人
+
+/* ===== Canvas ===== */
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 const C = 190, R = 175;
 
-/* ========= 工具 ========= */
+/* ===== 工具 ===== */
 function resetAll(){
-  names=[]; used=[]; locked=false;
+  names=[]; usedNames=[]; locked=false;
+  selectedIndex=null; selectedName=null;
   document.getElementById("nameInput").value="";
+  document.getElementById("secondBtn").style.display="none";
+  document.getElementById("badge").style.display="none";
   ctx.clearRect(0,0,380,380);
-  document.getElementById("status").innerText="已清空，請重新輸入姓名";
+  status("已清空，請重新輸入姓名");
+}
+
+function status(t){
+  document.getElementById("status").innerText=t;
 }
 
 function lockList(){
@@ -107,15 +137,18 @@ function lockList(){
   if(!raw){alert("請輸入姓名");return;}
   const arr=[...new Set(raw.split(/[,、\s]+/).filter(Boolean))];
   if(arr.length<2){alert("至少兩位");return;}
-  names=arr; used=[]; locked=true;
-  drawWheel(names,0);
-  document.getElementById("status").innerText=`名單已鎖定（${names.length} 位）`;
+  names=arr;
+  usedNames=[];
+  locked=true;
+  drawWheel(0);
+  status(`名單已鎖定（${names.length} 位）`);
 }
 
-/* ========= 畫輪盤 ========= */
-function drawWheel(items,angle){
+/* ===== 畫輪盤（只依角度） ===== */
+function drawWheel(angle){
   ctx.clearRect(0,0,380,380);
-  const n=items.length;
+  const n=names.length;
+  if(n===0) return;
   const arc=2*Math.PI/n;
 
   ctx.save();
@@ -142,54 +175,94 @@ function drawWheel(items,angle){
     ctx.textAlign="right";
     ctx.font="20px Noto Sans TC";
     ctx.fillStyle="#5b3a00";
-    ctx.fillText(items[i],R-18,8);
+    ctx.fillText(names[i],R-18,8);
     ctx.restore();
   }
-
   ctx.restore();
 }
 
-/* ========= 核心：精準轉動 ========= */
-function startSpin(){
-  if(!locked){alert("請先鎖定名單");return;}
-  if(isSpinning){return;}
+/* ===== 核心轉動（共用） ===== */
+function spinToIndex(targetIndex, clockwise, onDone){
+  spinning=true;
+  const n=names.length;
+  const arc=2*Math.PI/n;
 
-  const remain=names.filter(n=>!used.includes(n));
+  // 指針在 -90°，目標是 slice 中心
+  const targetAngle = -(targetIndex*arc + arc/2);
+  const direction = clockwise ? 1 : -1;
+  const spins = direction * 6 * 2 * Math.PI;
+
+  const start = performance.now();
+  const duration = 4200;
+
+  function easeOut(t){ return 1-Math.pow(1-t,3); }
+
+  function anim(now){
+    const p=Math.min((now-start)/duration,1);
+    const angle = spins*easeOut(p) + targetAngle;
+    drawWheel(angle);
+    if(p<1){
+      requestAnimationFrame(anim);
+    }else{
+      drawWheel(targetAngle);
+      spinning=false;
+      onDone && onDone();
+    }
+  }
+  requestAnimationFrame(anim);
+}
+
+/* ===== 第一輪：抽姓名（逆時針） ===== */
+function startFirstRound(){
+  if(!locked || spinning) return;
+
+  const remain = names
+    .map((n,i)=>({n,i}))
+    .filter(o=>!usedNames.includes(o.i));
+
   if(remain.length===0){
     alert("全部姓名已抽完");
     return;
   }
 
-  const winner=remain[Math.floor(Math.random()*remain.length)];
-  const index=names.indexOf(winner);
+  drumAudio.currentTime=0;
+  drumAudio.play().catch(()=>{});
 
-  isSpinning=true;
-  document.getElementById("status").innerText="輪盤轉動中…";
+  const pick = remain[Math.floor(Math.random()*remain.length)];
+  selectedIndex = pick.i;
+  selectedName = pick.n;
 
-  const n=names.length;
-  const arc=2*Math.PI/n;
-  const targetAngle=-(index*arc+arc/2);
+  status("第 1 輪：姓名輪盤抽籤中…");
+  document.getElementById("badge").style.display="none";
 
-  const start=performance.now();
-  const duration=4200;
-  const spins=6*2*Math.PI;
+  spinToIndex(selectedIndex,false,()=>{
+    usedNames.push(selectedIndex);
+    status(`第 1 輪完成：抽中「${selectedName}」`);
+    document.getElementById("secondBtn").style.display="inline-block";
+  });
+}
 
-  function animate(t){
-    const p=Math.min((t-start)/duration,1);
-    const ease=1-Math.pow(1-p,3);
-    const angle=spins*ease+targetAngle;
-    drawWheel(names,angle);
+/* ===== 第二輪：抽紅包（順時針，index 不變） ===== */
+function startSecondRound(){
+  if(spinning || selectedIndex===null) return;
 
-    if(p<1){
-      requestAnimationFrame(animate);
-    }else{
-      drawWheel(names,targetAngle);
-      used.push(winner);
-      document.getElementById("status").innerText=`第 1 輪完成：抽中「${winner}」`;
-      isSpinning=false;
-    }
-  }
-  requestAnimationFrame(animate);
+  drumAudio.currentTime=0;
+  drumAudio.play().catch(()=>{});
+
+  status("第 2 輪：祝福經句輪盤抽籤中…");
+  document.getElementById("badge").style.display="none";
+
+  spinToIndex(selectedIndex,true,()=>{
+    // 內部只抽經句
+    const all = Object.keys(VERSE_REF_MAP);
+    const verse = all[Math.floor(Math.random()*all.length)];
+    const ref = VERSE_REF_MAP[verse] || "";
+
+    document.getElementById("badge").innerText = `編號「${verse}」`;
+    document.getElementById("badge").style.display="block";
+
+    status(`第 2 輪完成：抽中經句「${verse}」`);
+  });
 }
 </script>
 
