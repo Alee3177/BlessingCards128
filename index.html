@@ -1,162 +1,149 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<title>BlessingCards128｜祝福經句紅包（v5.7）</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>BlessingCards128｜祝福經句紅包（v6.0 真實版）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<style>
-body {
-    background: #fff8e7;
-    font-family: "Noto Sans TC", sans-serif;
-    text-align: center;
-    padding: 22px;
-    color: #5b3a00;
-}
+  <style>
+    body {
+      background: #fff8e7;
+      font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-align: center;
+      padding: 22px;
+      color: #5b3a00;
+    }
 
-h1 {
-    color: #b07500;
-    font-size: 26px;
-    margin-bottom: 10px;
-}
+    h1 {
+      color: #b07500;
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
 
-/* LOGO */
-.logo {
-    width: 120px;
-    margin-bottom: 14px;
-}
+    /* LOGO */
+    .logo {
+      width: 120px;
+      margin-bottom: 14px;
+    }
 
-/* 輸入框 */
-#nameInput {
-    width: 280px;
-    padding: 10px;
-    font-size: 18px;
-    border-radius: 8px;
-    border: 1px solid #bf8a3e;
-    margin-bottom: 12px;
-}
+    /* 姓名輸入框 */
+    #nameInput {
+      width: 280px;
+      padding: 10px;
+      font-size: 18px;
+      border-radius: 8px;
+      border: 1px solid #bf8a3e;
+      margin-bottom: 10px;
+    }
 
-/* 共用按鈕 */
-.btn {
-    background: #f7c76c;
-    border: none;
-    padding: 12px 22px;
-    border-radius: 25px;
-    font-size: 18px;
-    color: #5b3a00;
-    cursor: pointer;
-    margin: 6px;
-}
-.btn:hover {
-    background: #f3b84f;
-}
-.btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
+    /* 共用按鈕 */
+    .btn {
+      background: #f7c76c;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 16px;
+      color: #5b3a00;
+      cursor: pointer;
+      margin: 4px;
+    }
+    .btn:hover {
+      background: #f3b84f;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
 
-/* 第二輪按鈕閃爍 */
-@keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.25; }
-    100% { opacity: 1; }
-}
-.blinking {
-    animation: blink 1s infinite;
-}
+    /* 第二輪按鈕閃爍效果 */
+    @keyframes blink {
+      0%   { opacity: 1; }
+      50%  { opacity: 0.25; }
+      100% { opacity: 1; }
+    }
+    .blinking {
+      animation: blink 1s infinite;
+    }
 
-/* 轉盤容器 */
-#wheelContainer {
-    position: relative;
-    width: 380px;
-    height: 380px;
-    margin: 22px auto;
-}
+    /* 轉盤容器 */
+    #wheelContainer {
+      position: relative;
+      width: 380px;
+      height: 380px;
+      margin: 20px auto 10px auto;
+    }
 
-/* Canvas */
-#wheelCanvas {
-    width: 380px;
-    height: 380px;
-}
+    /* Canvas 本體 */
+    #wheelCanvas {
+      width: 380px;
+      height: 380px;
+    }
 
-/* 指針 ▼ */
-#wheelPointer {
-    position: absolute;
-    top: -26px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 44px;
-    color: red;
-    z-index: 20;
-}
+    /* 指針：永遠固定在上方 ▼，指向輪盤外緣 */
+    #wheelPointer {
+      position: absolute;
+      top: -28px;              /* 向上拉出一點 */
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 44px;
+      color: red;
+      z-index: 20;
+    }
 
-/* 指針下方的小標籤（顯示 編號「xxx」）*/
-#pointerLabel {
-    margin-top: 4px;
-    font-size: 18px;
-    color: #a56b00;
-}
-
-/* 輪盤中央顯示經句書卷/章節 */
-#wheelCenterText {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    font-size: 18px;
-    color: #5b3a00;
-    pointer-events: none;
-    line-height: 1.4;
-}
-
-/* 狀態訊息 */
-#statusText {
-    font-size: 20px;
-    margin-top: 8px;
-    color: #a56b00;
-}
-#statusText.error {
-    color: #c0392b;
-    font-weight: bold;
-}
-</style>
+    /* 狀態文字（第 1 輪 / 第 2 輪 顯示區） */
+    #statusText {
+      font-size: 18px;
+      margin-top: 10px;
+      color: #a56b00;
+      min-height: 24px;
+    }
+    #statusText.error {
+      color: #c0392b;
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
 
-<h1>祝福經句紅包（BlessingCards128）</h1>
-<img src="logo3524.png" class="logo">
+  <h1>祝福經句紅包（BlessingCards128）</h1>
+  <img src="logo3524.png" class="logo" alt="BlessingCards128 Logo">
 
-<!-- 姓名輸入 -->
-<input id="nameInput" placeholder="請輸入姓名（用、或空白分隔）"><br>
+  <!-- 姓名輸入：可用、或空白分隔 -->
+  <div>
+    <input id="nameInput" placeholder="請輸入姓名（用、或空白分隔）">
+  </div>
 
-<button class="btn" onclick="lockList()">鎖定名單</button>
-<button id="startBtn" class="btn" onclick="startFirstRound()">開始抽姓名 + 經句</button>
-<button class="btn" onclick="resetAll()">全部歸零</button>
-<button class="btn" onclick="exportPDF()">抽籤紀錄 PDF</button>
+  <!-- 上方操作按鈕列 -->
+  <div style="margin-bottom: 10px;">
+    <button class="btn" onclick="lockList()">鎖定名單</button>
+    <button id="startBtn" class="btn" onclick="startFirstRound()">開始抽姓名 + 經句</button>
+    <button class="btn" onclick="resetAll()">全部歸零</button>
+    <button class="btn" onclick="exportPDF()">抽籤紀錄 PDF</button>
+  </div>
 
-<!-- 第二輪按鈕 -->
-<button id="secondBtn" class="btn" style="display:none;" onclick="startSecondRound()">抽紅包（第二輪）</button>
+  <!-- 第二輪：抽紅包 -->
+  <div style="margin-bottom: 6px;">
+    <button id="secondBtn" class="btn" style="display:none;" onclick="startSecondRound()">抽紅包（第二輪）</button>
+    <button id="viewerBtn" class="btn" style="display:none;" onclick="gotoViewer()">看紅包內容</button>
+  </div>
 
-<!-- 第三步：看紅包 -->
-<button id="viewerBtn" class="btn" style="display:none;" onclick="gotoViewer()">看紅包內容</button>
-
-<!-- 轉盤 -->
-<div id="wheelContainer">
+  <!-- 轉盤 + 指針 -->
+  <div id="wheelContainer">
     <div id="wheelPointer">▼</div>
     <canvas id="wheelCanvas" width="380" height="380"></canvas>
-    <div id="wheelCenterText" style="display:none;"></div>
-</div>
+  </div>
 
-<div id="pointerLabel"></div>
-<div id="statusText">請輸入姓名並鎖定名單</div>
+  <!-- 狀態訊息：例如「第 1 輪完成：抽中『孟淇』」 -->
+  <div id="statusText">請輸入姓名並鎖定名單</div>
 
-<!-- 經句編號 → 書卷章節對照 -->
-<script src="verseRefMap.js"></script>
-<!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- 外部對照表：編號 → 書卷章節（001～128） -->
+  <script src="verseRefMap.js"></script>
 
+  <!-- jsPDF（產生抽籤紀錄 PDF 用） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- 後面這一段：v6.0 真實物理版的完整 JS 邏輯（下一段貼） -->
 <script>
 /* ------------------------------------
    全域變數
@@ -186,7 +173,9 @@ const secondBtn  = document.getElementById("secondBtn");
 const viewerBtn  = document.getElementById("viewerBtn");
 const statusText = document.getElementById("statusText");
 const centerDiv  = document.getElementById("wheelCenterText");
-const pointerLabel = document.getElementById("pointerLabel");
+
+// 若有額外做一個指針下方的小標籤，可以抓這個；沒有也沒關係
+const pointerLabel = document.getElementById("pointerLabel") || null;
 
 /* ------------------------------------
    音效：drum.mp3
@@ -235,7 +224,7 @@ function playDrum(){
 })();
 
 /* ------------------------------------
-   鎖定名單
+   讀取輸入並鎖定名單
 -------------------------------------*/
 function lockList(){
     if(isSpinning){
@@ -258,7 +247,7 @@ function lockList(){
     nameList = arr;
     locked = true;
 
-    // 新名單 = 新一輪
+    // 重置整輪狀態（新名單即新一輪）
     usedNames = [];
     usedVerses = [];
     roundFinished = false;
@@ -266,9 +255,11 @@ function lockList(){
     selectedVerse = null;
     firstRoundDone = false;
     centerDiv.style.display = "none";
-    centerDiv.innerHTML = "";
-    pointerLabel.textContent = "";
+    if(pointerLabel){
+        pointerLabel.textContent = "";
+    }
 
+    // 存入 localStorage
     localStorage.setItem("nameList", JSON.stringify(nameList));
     localStorage.setItem("usedNames",  "[]");
     localStorage.setItem("usedVerses", "[]");
@@ -341,25 +332,56 @@ function easeOut(t){
 }
 
 /* ------------------------------------
-   轉盤動畫：從 0 → finalAngle
+   從「最終旋轉角度」反推出在指針下的是哪一格
+   rotation: 最後輪盤旋轉角度 (rad)
+   n       : 切片數量
 -------------------------------------*/
-function spinWheelToAngle(items, finalAngle, options = {}){
-    const duration = options.duration || 4200;
-    const showText = (options.showText !== false);
+function getWinnerIndexFromRotation(rotation, n){
+    const arc = 2 * Math.PI / n;
+    const pointerAngle = -Math.PI / 2; // 指針在畫面上方（12 點鐘方向）
+
+    // 將指針角度換算到「輪盤本身的座標系」
+    let theta = pointerAngle - rotation;
+
+    // 正規化到 [0, 2π)
+    theta = (theta % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+
+    // 讓每一格範圍是 [i*arc - arc/2, i*arc + arc/2)
+    // → 直接把指針角度往右平移 arc/2，再除以 arc 取 floor
+    let idx = Math.floor((theta + arc/2) / arc) % n;
+    return idx;
+}
+
+/* ------------------------------------
+   通用轉盤動畫
+   - 不再預先指定中獎 index
+   - 純粹隨機轉動，最後回傳「實際轉完的角度」
+-------------------------------------*/
+function spinWheelGeneric(items, options = {}){
+    const clockwise = (options.clockwise !== false); // 預設順時針
+    const duration  = options.duration || 4000;
+    const showText  = (options.showText !== false);
 
     return new Promise(resolve => {
         if(!items || items.length === 0){
-            resolve();
+            resolve(0);
             return;
         }
 
         isSpinning = true;
         centerDiv.style.display = "none";
-        centerDiv.innerHTML = "";
-        pointerLabel.textContent = "";
+        if(pointerLabel){
+            pointerLabel.textContent = "";
+        }
 
         playDrum();
 
+        // 總旋轉角度：4~6 圈，再加一點隨機偏移
+        const baseSpins = 4 + Math.random() * 2; // 4~6 圈
+        const randomOffset = Math.random() * 2 * Math.PI; // 0~2π
+        const direction = clockwise ? 1 : -1;
+
+        const finalRotation = direction * (baseSpins * 2 * Math.PI + randomOffset);
         const startTime = performance.now();
 
         function animate(now){
@@ -367,7 +389,7 @@ function spinWheelToAngle(items, finalAngle, options = {}){
             if(t > 1) t = 1;
 
             const eased = easeOut(t);
-            const angle = finalAngle * eased;
+            const angle = finalRotation * eased;
 
             drawWheel(items, angle, showText);
 
@@ -375,7 +397,7 @@ function spinWheelToAngle(items, finalAngle, options = {}){
                 requestAnimationFrame(animate);
             }else{
                 isSpinning = false;
-                resolve();
+                resolve(finalRotation);
             }
         }
 
@@ -384,10 +406,35 @@ function spinWheelToAngle(items, finalAngle, options = {}){
 }
 
 /* ------------------------------------
-   第 1 輪：抽姓名（逆時針）
-   1. 在「尚未抽過的人」裡隨機挑一位 winner
-   2. 算出讓指針停在 winner 那一格中央的角度
-   3. 做一次轉盤動畫 → 永遠只轉一次
+   幫你轉到「一個還沒抽過的人」
+   – 真正中獎者由最終角度決定
+   – 如果轉到已抽過的人，就自動再轉一次
+-------------------------------------*/
+async function spinAndPickName(clockwise){
+    const n = nameList.length;
+    if(n === 0) return null;
+
+    while(true){
+        const rotation = await spinWheelGeneric(nameList, {
+            clockwise,
+            duration: 4200,
+            showText: true
+        });
+
+        const idx  = getWinnerIndexFromRotation(rotation, n);
+        const name = nameList[idx];
+
+        // 沒抽過 → 中獎者就是這位
+        if(!usedNames.includes(name)){
+            return { index: idx, name };
+        }
+
+        // 若已經抽過，就自動再轉一次（使用者只會看到「多轉一次」）
+    }
+}
+
+/* ------------------------------------
+   第一輪：抽姓名（逆時針）
 -------------------------------------*/
 async function startFirstRound(){
     if(isSpinning){
@@ -411,7 +458,7 @@ async function startFirstRound(){
         return;
     }
 
-    // 剩餘尚未完成兩輪的人
+    // 確認是否還有沒抽過的人
     const remaining = nameList.filter(n => !usedNames.includes(n));
     if(remaining.length === 0){
         roundFinished = true;
@@ -426,40 +473,19 @@ async function startFirstRound(){
     selectedVerse  = null;
     firstRoundDone = false;
     centerDiv.style.display = "none";
-    centerDiv.innerHTML = "";
-    pointerLabel.textContent = "";
+    if(pointerLabel){
+        pointerLabel.textContent = "";
+    }
 
-    // 1. 在 remaining 名單中隨機挑一位 winner（等機率）
-    const winner = remaining[Math.floor(Math.random() * remaining.length)];
-    const winnerIndex = nameList.indexOf(winner);
-    const n = nameList.length;
-    const arc = 2 * Math.PI / n;
+    // 交給「實際轉完的角度」來決定中獎者
+    const result = await spinAndPickName(false); // 逆時針
+    if(!result) return;
 
-    // 2. 算出「讓指針停在 winner 那一格中央」所需角度
-    // 指針在畫面上方 = -90° = -π/2
-    const pointerAngle = -Math.PI / 2;
-    const sliceCenter  = winnerIndex * arc + arc/2;
-
-    // baseAngle：不考慮轉幾圈，只讓 pointer 對準 sliceCenter
-    const baseAngle = pointerAngle - sliceCenter;
-
-    // 多轉幾圈（4~6圈）+ 逆時針方向（direction = -1）
-    const spins = 4 + Math.random() * 2; // 4~6 圈
-    const direction = -1;
-    const finalAngle = direction * (spins * 2 * Math.PI) + baseAngle;
-
-    // 3. 一次性轉到 finalAngle
-    await spinWheelToAngle(nameList, finalAngle, {
-        duration: 4200,
-        showText: true
-    });
-
-    // 動畫結束 → winner 就是中獎者
-    selectedName   = winner;
+    selectedName   = result.name;
     firstRoundDone = true;
     statusText.innerText = `第 1 輪完成：抽中「${selectedName}」`;
 
-    // 顯示第 2 輪按鈕
+    // 顯示第二輪按鈕並閃爍
     setTimeout(() => {
         secondBtn.style.display = "inline-block";
         secondBtn.classList.add("blinking");
@@ -487,8 +513,9 @@ async function startSecondRound(){
     secondBtn.classList.remove("blinking");
     secondBtn.style.display = "none";
     centerDiv.style.display = "none";
-    centerDiv.innerHTML = "";
-    pointerLabel.textContent = "";
+    if(pointerLabel){
+        pointerLabel.textContent = "";
+    }
 
     // 尚未抽過的經句
     const verseNums = Object.keys(window.VERSE_REF_MAP || {});
@@ -505,19 +532,8 @@ async function startSecondRound(){
     statusText.innerText = "第 2 輪：祝福經句輪盤抽籤中…";
 
     // 第二輪：只當動畫用，不顯示文字
-    const n = nameList.length;
-    const arc = 2 * Math.PI / n;
-    const pointerAngle = -Math.PI/2;
-
-    // 隨機選一個切片 index，純粹讓畫面看起來有變化（與姓名無關）
-    const randomIdx   = Math.floor(Math.random() * n);
-    const sliceCenter = randomIdx * arc + arc/2;
-    const baseAngle   = pointerAngle - sliceCenter;
-    const spins       = 4 + Math.random() * 2;
-    const direction   = 1; // 順時針
-    const finalAngle  = direction * (spins * 2 * Math.PI) + baseAngle;
-
-    await spinWheelToAngle(nameList, finalAngle, {
+    await spinWheelGeneric(nameList, {
+        clockwise: true,
         duration: 4200,
         showText: false
     });
@@ -530,7 +546,9 @@ async function startSecondRound(){
     statusText.innerText = `第 2 輪完成：抽中經句「${selectedVerse}」`;
 
     // 指針下方顯示「編號」
-    pointerLabel.textContent = `編號「${selectedVerse}」`;
+    if(pointerLabel){
+        pointerLabel.textContent = `編號「${selectedVerse}」`;
+    }
 
     // 輪盤中央顯示「書卷 / 章節」兩行
     showCenterVerse(selectedVerse);
@@ -551,7 +569,6 @@ function showCenterVerse(verse){
     const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verse]) || "";
     if(!ref){
         centerDiv.style.display = "none";
-        centerDiv.innerHTML = "";
         return;
     }
     const idx = ref.indexOf(" ");
