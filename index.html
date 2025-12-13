@@ -129,10 +129,46 @@
   </div>
 
   <!-- 轉盤 + 指針 -->
-  <div id="wheelContainer">
+<div id="wheelContainer">
+
+    <!-- 指針 -->
     <div id="wheelPointer">▼</div>
+
+    <!-- 指針下方顯示：編號「061」 -->
+    <div id="pointerLabel"
+         style="
+            position:absolute;
+            top:20px;
+            left:50%;
+            transform:translateX(-50%);
+            font-size:16px;
+            font-weight:bold;
+            color:#8b0000;
+         ">
+    </div>
+
+    <!-- Canvas -->
     <canvas id="wheelCanvas" width="380" height="380"></canvas>
-  </div>
+
+    <!-- 輪盤中央：書卷 / 章節 -->
+    <div id="wheelCenterText"
+         style="
+            position:absolute;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            text-align:center;
+            font-size:20px;
+            font-weight:bold;
+            line-height:1.4;
+            color:#7a4a00;
+            pointer-events:none;
+            display:none;
+         ">
+    </div>
+
+</div>
+
 
   <!-- 狀態訊息：例如「第 1 輪完成：抽中『孟淇』」 -->
   <div id="statusText">請輸入姓名並鎖定名單</div>
