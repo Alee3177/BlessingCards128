@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>BlessingCards128｜祝福經句紅包（v6.0 真實版）</title>
+  <title>BlessingCards128｜祝福經句紅包（v6.0 真實版(-1r)）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -187,6 +187,8 @@
 
 let nameList = [];
 let locked = false;
+let currentRotation = 0;   // 當前輪盤角度（全域）
+let isSpinning = false;   // 防止重複點擊
 
 let selectedName = null;   // 第一輪抽到的姓名
 let selectedVerse = null;  // 第二輪抽到的經句編號
@@ -472,62 +474,111 @@ async function spinAndPickName(clockwise){
 /* ------------------------------------
    第一輪：抽姓名（逆時針）
 -------------------------------------*/
-async function startFirstRound(){
-    if(isSpinning){
-        alert("輪盤正在轉動中，請稍候。");
+async function startFirstRound() {
+
+    if (isSpinning) return;
+
+    if (!locked) {
+        alert("請先鎖定名單！");
         return;
     }
 
-    if(roundFinished){
-        alert("此輪的全部姓名都已完成抽籤，請按「全部歸零」開始新的一輪。");
-        return;
-    }
-
-    if(!locked || nameList.length < 2){
-        alert("請先輸入姓名並按「鎖定名單」（至少 2 位）。");
-        return;
-    }
-
-    // 若上一位只抽完第 1 輪、尚未抽第 2 輪，不允許再抽下一個
-    if(firstRoundDone && !selectedVerse){
-        alert(`已抽出姓名「${selectedName}」，請先完成「抽紅包（第二輪）」再抽下一位。`);
-        return;
-    }
-
-    // 確認是否還有沒抽過的人
+    // 剩餘可抽的姓名
     const remaining = nameList.filter(n => !usedNames.includes(n));
-    if(remaining.length === 0){
-        roundFinished = true;
-        localStorage.setItem("roundFinished", "1");
-        alert("全部姓名皆已完成紅包抽籤！請按「全部歸零」開始新的一輪。");
-        startBtn.disabled = true;
+    if (remaining.length === 0) {
+        alert("全部姓名皆已完成紅包抽籤！");
         return;
     }
 
+    isSpinning = true;
     statusText.innerText = "第 1 輪：姓名輪盤抽籤中…";
-    selectedName   = null;
-    selectedVerse  = null;
-    firstRoundDone = false;
-    centerDiv.style.display = "none";
-    if(pointerLabel){
-        pointerLabel.textContent = "";
-    }
 
-    // 交給「實際轉完的角度」來決定中獎者
-    const result = await spinAndPickName(false); // 逆時針
-    if(!result) return;
+    const result = await spinNameWheel(nameList);
 
-    selectedName   = result.name;
-    firstRoundDone = true;
+    selectedName = result.name;
+
     statusText.innerText = `第 1 輪完成：抽中「${selectedName}」`;
 
-    // 顯示第二輪按鈕並閃爍
+    // 標記此人已抽過
+    usedNames.push(selectedName);
+    localStorage.setItem("usedNames", JSON.stringify(usedNames));
+
+    // 顯示第二輪按鈕
     setTimeout(() => {
         secondBtn.style.display = "inline-block";
         secondBtn.classList.add("blinking");
-        viewerBtn.style.display = "none";
+        isSpinning = false;
     }, 800);
 }
+
+/* ------------------------------------
+【第一輪：輪盤旋轉（100% 對齊版）】
+-------------------------------------*/
+function spinNameWheel(items) {
+
+    return new Promise(resolve => {
+
+        playDrum();
+
+        const count = items.length;
+        const arc = (Math.PI * 2) / count;
+
+        // 指針固定在正上方（Canvas 座標）
+        const POINTER_ANGLE = -Math.PI / 2;
+
+        // 隨機選一個「最終中獎 index」
+        const targetIndex = Math.floor(Math.random() * count);
+
+        // 該格的中心角度
+        const targetCenterAngle =
+            targetIndex * arc + arc / 2;
+
+        // 計算「輪盤最後必須轉到的角度」
+        const finalRotation =
+            POINTER_ANGLE - targetCenterAngle;
+
+        // 多轉幾圈，讓動畫自然
+        const extraSpins = 4 * Math.PI * 2;
+
+        const startRotation = currentRotation;
+        const endRotation = finalRotation + extraSpins;
+
+        const duration = 5000;
+        const startTime = performance.now();
+
+        function animate(now) {
+
+            const elapsed = now - startTime;
+            const t = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3); // easeOut
+
+            currentRotation =
+                startRotation + (endRotation - startRotation) * eased;
+
+            // 重畫輪盤
+            ctx.save();
+            ctx.clearRect(0, 0, 380, 380);
+            ctx.translate(CENTER, CENTER);
+            ctx.rotate(currentRotation);
+            ctx.translate(-CENTER, -CENTER);
+            drawWheel(items);
+            ctx.restore();
+
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // 結束時不再修改 rotation
+                resolve({
+                    index: targetIndex,
+                    name: items[targetIndex]
+                });
+            }
+        }
+
+        requestAnimationFrame(animate);
+    });
+}
+
 
 /* ------------------------------------
    第二輪：抽經句（順時針，輪盤不顯示姓名）
