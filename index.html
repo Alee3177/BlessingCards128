@@ -44,7 +44,7 @@ button{
 
 #wheel{
   width:380px;
-  height:380px;
+  height:380px
 }
 
 #pointer{
@@ -57,15 +57,17 @@ button{
   z-index:10;
 }
 
-#badge{
+#centerText{
   position:absolute;
-  top:12px;
+  top:50%;
   left:50%;
-  transform:translateX(-50%);
-  background:#fff;
-  padding:6px 14px;
-  border-radius:18px;
-  font-size:18px;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  font-size:20px;
+  line-height:1.4;
+  color:#5b3a00;
+  font-weight:600;
+  pointer-events:none;
   display:none;
 }
 
@@ -90,9 +92,10 @@ button{
 
 <div id="wheelBox">
   <div id="pointer">▼</div>
-  <div id="badge"></div>
+  <div id="centerText"></div>
   <canvas id="wheel" width="380" height="380"></canvas>
 </div>
+
 
 <div id="status">請輸入姓名並鎖定名單</div>
 
@@ -258,8 +261,26 @@ function startSecondRound(){
     const verse = all[Math.floor(Math.random()*all.length)];
     const ref = VERSE_REF_MAP[verse] || "";
 
-    document.getElementById("badge").innerText = `編號「${verse}」`;
-    document.getElementById("badge").style.display="block";
+const center = document.getElementById("centerText");
+
+// 從 verseRefMap 拿書卷與章節
+const ref = VERSE_REF_MAP[verse] || "";
+let book = "";
+let chapter = "";
+
+if(ref){
+  const parts = ref.split(" ");
+  book = parts[0] || "";
+  chapter = parts.slice(1).join(" ");
+}
+
+// 顯示在輪盤正中央（兩行）
+center.innerHTML = `
+  <div>${book}</div>
+  <div>${chapter}</div>
+`;
+center.style.display = "block";
+
 
     status(`第 2 輪完成：抽中經句「${verse}」`);
   });
