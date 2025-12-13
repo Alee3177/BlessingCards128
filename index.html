@@ -1,79 +1,78 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>祝福經句紅包（應許等您拿）</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-  body{
-    background:#fff8e7;
-    font-family:"Noto Sans TC",system-ui,-apple-system,BlinkMacSystemFont;
-    text-align:center;
-    padding:20px;
-    color:#5b3a00;
-  }
-  h1{ color:#b07500; margin-bottom:10px; }
-  .logo{ width:120px; margin-bottom:10px; }
+body{
+  background:#fff8e7;
+  font-family:"Noto Sans TC",system-ui;
+  text-align:center;
+  padding:20px;
+  color:#5b3a00;
+}
+h1{color:#b07500;margin-bottom:10px;}
+.logo{width:120px;margin-bottom:10px;}
 
-  input{
-    width:280px;
-    padding:10px;
-    font-size:18px;
-    border-radius:8px;
-    border:1px solid #bf8a3e;
-    margin-bottom:10px;
-  }
+input{
+  width:280px;
+  padding:10px;
+  font-size:18px;
+  border-radius:8px;
+  border:1px solid #bf8a3e;
+  margin-bottom:10px;
+}
 
-  .btn{
-    background:#f7c76c;
-    border:none;
-    padding:10px 20px;
-    border-radius:22px;
-    font-size:16px;
-    color:#5b3a00;
-    cursor:pointer;
-    margin:4px;
-  }
-  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn{
+  background:#f7c76c;
+  border:none;
+  padding:10px 20px;
+  border-radius:22px;
+  font-size:16px;
+  color:#5b3a00;
+  cursor:pointer;
+  margin:4px;
+}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
 
-  #wheelWrap{
-    position:relative;
-    width:360px;
-    height:360px;
-    margin:18px auto;
-  }
-  canvas{ width:360px; height:360px; }
+#wheelWrap{
+  position:relative;
+  width:360px;
+  height:360px;
+  margin:20px auto;
+}
+canvas{width:360px;height:360px;}
 
-  #pointer{
-    position:absolute;
-    top:-22px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:40px;
-    color:red;
-    z-index:10;
-  }
+#pointer{
+  position:absolute;
+  top:-22px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:40px;
+  color:red;
+  z-index:10;
+}
 
-  #status{
-    margin-top:10px;
-    font-size:18px;
-    color:#a56b00;
-  }
+#status{
+  margin-top:12px;
+  font-size:18px;
+  color:#a56b00;
+}
 </style>
 </head>
 
 <body>
 
 <h1>祝福經句紅包（應許等您拿）</h1>
-<img src="logo3524.png" class="logo" />
+<img src="logo3524.png" class="logo">
 
 <br>
-<input id="nameInput" placeholder="請輸入姓名（用 , 或 、 分隔）" />
-<br>
+<input id="nameInput" placeholder="請輸入姓名（用 , 或 、 分隔）"><br>
 
 <button class="btn" onclick="lockList()">鎖定名單</button>
-<button class="btn" onclick="startDraw()" id="startBtn" disabled>開始抽姓名</button>
+<button class="btn" id="startBtn" onclick="startDraw()" disabled>開始抽姓名</button>
 <button class="btn" onclick="resetAll()">全部歸零</button>
 
 <div id="wheelWrap">
@@ -86,42 +85,40 @@
 <audio id="drum" src="audio/drum.mp3" preload="auto"></audio>
 
 <script>
-/* ===============================
-   v6.3-stable 核心設計
-   - 永不改動 wheelOrder
-   - 抽籤只抽 index
-   - 轉盤只依 index 精準對齊
-================================ */
+/* =====================================================
+   v6.4-core-test
+   核心原則：
+   1. 指針方向 = 唯一座標原點
+   2. index = 視覺切片順序
+   3. 不使用 sliceCenter / arc/2
+   4. 不 snap、不重畫、不補救
+===================================================== */
 
-// Canvas
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 const C = 180;
 const R = 170;
 
-// 狀態
-let wheelOrder = [];          // 永久固定順序
-let remainingIndexes = [];   // 尚未抽的 index
-let locked = false;
-let isSpinning = false;
-
-// 角度狀態
-let currentAngle = 0;
-
-// UI
 const statusEl = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
 const drum = document.getElementById("drum");
 
-// ===== 工具 =====
-function shuffleIndexes(n){
-  return [...Array(n).keys()];
+let wheelOrder = [];          // 固定順序（視覺即真相）
+let remainingIndexes = [];
+let locked = false;
+let spinning = false;
+
+let currentAngle = 0;         // 當前輪盤角度（視覺）
+
+/* ---------- 工具 ---------- */
+function unique(arr){
+  return Array.from(new Set(arr));
 }
-function randomPick(arr){
+function randPick(arr){
   return arr[Math.floor(Math.random()*arr.length)];
 }
 
-// ===== 畫輪盤（純顯示，無副作用）=====
+/* ---------- 畫輪盤（index = 視覺順序） ---------- */
 function drawWheel(){
   ctx.clearRect(0,0,360,360);
   const n = wheelOrder.length;
@@ -130,7 +127,8 @@ function drawWheel(){
   const arc = Math.PI*2/n;
 
   for(let i=0;i<n;i++){
-    const start = i*arc - Math.PI/2;
+    // 直接定義：index 0 的起始角度 = 指針正下方
+    const start = i*arc;
     const end = start + arc;
 
     ctx.beginPath();
@@ -146,29 +144,27 @@ function drawWheel(){
     ctx.translate(C,C);
     ctx.rotate(start + arc/2);
     ctx.textAlign="right";
-    ctx.fillStyle="#5b3a00";
     ctx.font="20px 'Noto Sans TC'";
-    ctx.fillText(wheelOrder[i], R-12, 8);
+    ctx.fillStyle="#5b3a00";
+    ctx.fillText(wheelOrder[i], R-14, 8);
     ctx.restore();
   }
 }
 
-// ===== 核心：依 index 計算目標角度 =====
+/* ---------- index → 目標角度 ---------- */
 function angleForIndex(index){
-  const n = wheelOrder.length;
-  const arc = Math.PI*2/n;
-  const sliceCenter = index*arc + arc/2;
-  const pointerAngle = Math.PI/2; // 指針向下
-  return pointerAngle - sliceCenter;
+  const arc = Math.PI*2/wheelOrder.length;
+  // index 0 本來就在指針下方，所以角度 = 0
+  return -index * arc;
 }
 
-// ===== 轉動動畫（自然減速，無 snap）=====
+/* ---------- 旋轉動畫（自然結束） ---------- */
 function spinToIndex(index){
   return new Promise(resolve=>{
-    const target = angleForIndex(index);
-    const spins = 4; // 固定整圈數，穩定
     const startAngle = currentAngle;
-    const endAngle = target + spins*2*Math.PI;
+    const targetAngle = angleForIndex(index);
+    const spins = 4; // 固定整圈
+    const endAngle = targetAngle + spins*2*Math.PI;
 
     const duration = 4200;
     const startTime = performance.now();
@@ -193,7 +189,7 @@ function spinToIndex(index){
       if(t<1){
         requestAnimationFrame(frame);
       }else{
-        currentAngle = target; // 精準落點（無重畫）
+        currentAngle = targetAngle;
         ctx.save();
         ctx.clearRect(0,0,360,360);
         ctx.translate(C,C);
@@ -208,16 +204,15 @@ function spinToIndex(index){
   });
 }
 
-// ===== 流程 =====
+/* ---------- 流程 ---------- */
 function lockList(){
-  if(isSpinning) return;
+  if(spinning) return;
 
   const raw = document.getElementById("nameInput").value.trim();
   if(!raw){ alert("請輸入姓名"); return; }
 
   let names = raw.split(/[,、\s]+/).filter(Boolean);
-  const set = new Set(names);
-  if(set.size !== names.length){
+  if(unique(names).length !== names.length){
     alert("Oops, 有姓名被重複輸入了唷！");
     return;
   }
@@ -226,45 +221,46 @@ function lockList(){
     return;
   }
 
-  wheelOrder = names.slice(); // 永久固定
-  remainingIndexes = shuffleIndexes(wheelOrder.length);
+  wheelOrder = names.slice();          // 視覺即順序
+  remainingIndexes = [...wheelOrder.keys()];
   locked = true;
   startBtn.disabled = false;
-  statusEl.textContent = `名單已鎖定（${wheelOrder.length} 位）`;
 
   currentAngle = 0;
   drawWheel();
+  statusEl.textContent = `名單已鎖定（${wheelOrder.length} 位）`;
 }
 
 async function startDraw(){
-  if(!locked || isSpinning) return;
+  if(!locked || spinning) return;
+
   if(remainingIndexes.length===0){
-    statusEl.textContent = `此輪轉盤已完成 ${wheelOrder.length} 位的紅包抽籤，請按「全部歸零」重新開始。`;
+    statusEl.textContent =
+      `此輪轉盤已完成 ${wheelOrder.length} 位的紅包抽籤，請按「全部歸零」重新開始。`;
     startBtn.disabled = true;
     return;
   }
 
-  isSpinning = true;
+  spinning = true;
   startBtn.disabled = true;
 
-  const winIndex = randomPick(remainingIndexes);
+  const winIndex = randPick(remainingIndexes);
   remainingIndexes = remainingIndexes.filter(i=>i!==winIndex);
   const winner = wheelOrder[winIndex];
 
   statusEl.textContent = "轉盤轉動中…";
-
   await spinToIndex(winIndex);
 
   statusEl.textContent = `第 1 輪完成：抽中「${winner}」`;
+  spinning = false;
   startBtn.disabled = false;
-  isSpinning = false;
 }
 
 function resetAll(){
   wheelOrder=[];
   remainingIndexes=[];
   locked=false;
-  isSpinning=false;
+  spinning=false;
   currentAngle=0;
   ctx.clearRect(0,0,360,360);
   document.getElementById("nameInput").value="";
