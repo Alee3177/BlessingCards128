@@ -63,13 +63,6 @@
     font-weight:700;
   }
 
-  .hint{
-    font-size:14px;
-    color:#9b6a1a;
-    margin-top:6px;
-    line-height: 1.4;
-  }
-
   /* 第二輪按鈕閃爍 */
   @keyframes blink { 0%{opacity:1} 50%{opacity:.25} 100%{opacity:1} }
   .blinking { animation: blink 1s infinite; }
@@ -97,15 +90,11 @@
 </div>
 
 <div id="status">請輸入姓名並鎖定名單</div>
-<div class="hint">
-  規則：同一輪名單只需輸入一次；除非按「全部歸零」，否則會持續記住並防止重複抽到同一位。<br>
-  防呆：完成第一輪後，在你按「抽紅包（第二輪）」之前，不能再按「開始抽姓名 + 經句」。
-</div>
 
-<!-- 需要：verseRefMap.js 內含 window.VERSE_REF_MAP -->
+<!-- 經文對照表 -->
 <script src="verseRefMap.js"></script>
 
-<!-- 若你有 font_base64.js，可保留載入；PDF 會優先用它 -->
+<!-- 若你有 font_base64.js（window.PDF_FONT.normal），可取消註解讓 PDF 最穩 -->
 <!-- <script src="font_base64.js"></script> -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -115,18 +104,14 @@
 
 <script>
 /* =========================================================
-   BlessingCards128 - index.html v7.0 Stable Core
-   目標：
-   - 中獎結果永遠與指針停的位置一致（100% 命中）
-   - 永不落在分隔線（內建邊界安全距）
-   - 最後一位也一定顯示「第 1 輪完成：抽中XXX」，完成訊息不搶畫面
-   - 禁止在未完成第二輪前重複按「開始抽姓名+經句」
-   - 不會在未操作抽籤時自動播放 drum.mp3
+   v7.1 Stable Core (Fixes)
+   1) viewer 回來可繼續下一位
+   2) 第二輪書卷/章節：停下才顯示（不作弊）
+   3) 指針永遠命中中獎 slice：角度反推校驗 + 自動微調
+   4) 不會自己播 drum：只有按抽籤才播
+   5) 不需要再按鎖定名單才能玩完一輪
 ========================================================= */
 
-/* ---------------------------
-   DOM
---------------------------- */
 const canvas   = document.getElementById("wheel");
 const ctx      = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
@@ -143,50 +128,38 @@ const viewerBtn= document.getElementById("viewerBtn");
 const drum     = document.getElementById("drum");
 const winAudio = document.getElementById("win");
 
-/* ---------------------------
-   Constants
---------------------------- */
-const C = 180;          // center
-const R = 168;          // radius
-const START0 = -Math.PI/2;  // slice drawing starts at 12 o'clock
+const C = 180;
+const R = 168;
+const START0 = -Math.PI/2;
 
-// Pointer triangle drawn on canvas
+// pointer triangle
 const POINTER_LEN = 18;
 const POINTER_W   = 18;
 
-/* ---------------------------
-   State
---------------------------- */
+// State
 let locked = false;
 let spinning = false;
 
-// Name wheel
+// name wheel data
 let nameList = [];
-let remainingNames = [];   // array of indices not yet used
-let usedNames = [];        // names already completed (after 2nd round)
+let remainingIndices = [];   // 尚未被抽第一輪的 index
+let completedNames = [];     // 已完成第二輪的人（用來做結束判斷）
 
-// Second round
-let usedVerses = [];       // verse codes already used
-let selectedName = null;   // current turn
-let selectedVerse = null;  // current turn
+// second round
+let usedVerses = [];         // 同輪不重複
+let selectedName = null;
+let selectedVerse = null;
 
-// Wheel rendering
-let currentRotation = 0;   // radians
-let lastRenderItems = [];  // items shown on wheel (names)
-let showLabels = true;
-
-// Stage control:
-// "idle" -> ready for first round
-// "afterFirst" -> waiting for second round
-// "afterSecond" -> can go viewer
+// stage: idle / afterFirst / afterSecond
 let stage = "idle";
 
-// completion notice (no alert)
-let completedNoticePending = false;
+// render
+let currentRotation = 0;
 
-/* ---------------------------
-   Helpers
---------------------------- */
+// completion notice after viewer return
+let completionPending = false;
+
+// ---------- UI helpers ----------
 function setStatus(text, isError=false){
   statusEl.textContent = text;
   statusEl.classList.toggle("error", !!isError);
@@ -198,44 +171,43 @@ function hasDuplicate(arr){
   return new Set(arr).size !== arr.length;
 }
 function playDrum(){
-  // 只在開始旋轉時播放
   try { drum.currentTime = 0; drum.play().catch(()=>{}); } catch(_){}
 }
 function playWin(){
   try { winAudio.currentTime = 0; winAudio.play().catch(()=>{}); } catch(_){}
 }
+
+// ---------- LocalStorage ----------
 function saveLS(){
-  localStorage.setItem("BC128_v7_locked", locked ? "1":"0");
-  localStorage.setItem("BC128_v7_nameList", JSON.stringify(nameList));
-  localStorage.setItem("BC128_v7_remainingNames", JSON.stringify(remainingNames));
-  localStorage.setItem("BC128_v7_usedNames", JSON.stringify(usedNames));
-  localStorage.setItem("BC128_v7_usedVerses", JSON.stringify(usedVerses));
-  localStorage.setItem("BC128_v7_stage", stage);
-  localStorage.setItem("BC128_v7_selectedName", selectedName ?? "");
-  localStorage.setItem("BC128_v7_selectedVerse", selectedVerse ?? "");
-  localStorage.setItem("BC128_v7_completedNoticePending", completedNoticePending ? "1":"0");
+  localStorage.setItem("BC128_v71_locked", locked ? "1":"0");
+  localStorage.setItem("BC128_v71_nameList", JSON.stringify(nameList));
+  localStorage.setItem("BC128_v71_remaining", JSON.stringify(remainingIndices));
+  localStorage.setItem("BC128_v71_completed", JSON.stringify(completedNames));
+  localStorage.setItem("BC128_v71_usedVerses", JSON.stringify(usedVerses));
+  localStorage.setItem("BC128_v71_stage", stage);
+  localStorage.setItem("BC128_v71_selectedName", selectedName ?? "");
+  localStorage.setItem("BC128_v71_selectedVerse", selectedVerse ?? "");
+  localStorage.setItem("BC128_v71_rotation", String(currentRotation));
+  localStorage.setItem("BC128_v71_completionPending", completionPending ? "1":"0");
+  localStorage.setItem("BC128_v71_logs", localStorage.getItem("BC128_v71_logs") || "[]");
 }
 function loadLS(){
   try{
-    locked = localStorage.getItem("BC128_v7_locked") === "1";
-    nameList = JSON.parse(localStorage.getItem("BC128_v7_nameList") || "[]");
-    remainingNames = JSON.parse(localStorage.getItem("BC128_v7_remainingNames") || "[]");
-    usedNames = JSON.parse(localStorage.getItem("BC128_v7_usedNames") || "[]");
-    usedVerses = JSON.parse(localStorage.getItem("BC128_v7_usedVerses") || "[]");
-    stage = localStorage.getItem("BC128_v7_stage") || "idle";
-    selectedName = localStorage.getItem("BC128_v7_selectedName") || null;
-    selectedVerse = localStorage.getItem("BC128_v7_selectedVerse") || null;
-    completedNoticePending = localStorage.getItem("BC128_v7_completedNoticePending") === "1";
-  }catch(e){
-    // ignore
-  }
+    locked = localStorage.getItem("BC128_v71_locked") === "1";
+    nameList = JSON.parse(localStorage.getItem("BC128_v71_nameList") || "[]");
+    remainingIndices = JSON.parse(localStorage.getItem("BC128_v71_remaining") || "[]");
+    completedNames = JSON.parse(localStorage.getItem("BC128_v71_completed") || "[]");
+    usedVerses = JSON.parse(localStorage.getItem("BC128_v71_usedVerses") || "[]");
+    stage = localStorage.getItem("BC128_v71_stage") || "idle";
+    selectedName = localStorage.getItem("BC128_v71_selectedName") || null;
+    selectedVerse = localStorage.getItem("BC128_v71_selectedVerse") || null;
+    currentRotation = Number(localStorage.getItem("BC128_v71_rotation") || "0") || 0;
+    completionPending = localStorage.getItem("BC128_v71_completionPending") === "1";
+  }catch(e){}
 }
 
-/* ---------------------------
-   Wheel drawing
---------------------------- */
+// ---------- Drawing ----------
 function drawPointer(){
-  // tip touches wheel rim (slightly outside for visual)
   const tipX = C;
   const tipY = C - R - 2;
   const baseY = tipY - POINTER_LEN;
@@ -252,22 +224,18 @@ function drawPointer(){
   ctx.restore();
 }
 
-function drawWheel(items, rotation, options={}){
-  const {
-    labels = true,
-    centerLines = null  // ["書卷", "章節"] or null
-  } = options;
+function drawWheel(items, rotation, opts={}){
+  const { labels=true, centerLines=null } = opts;
 
   ctx.clearRect(0,0,360,360);
 
-  // rotate wheel only
   ctx.save();
   ctx.translate(C,C);
   ctx.rotate(rotation);
   ctx.translate(-C,-C);
 
   const n = items.length;
-  if(n > 0){
+  if(n>0){
     const arc = Math.PI*2/n;
     for(let i=0;i<n;i++){
       const start = START0 + i*arc;
@@ -280,7 +248,6 @@ function drawWheel(items, rotation, options={}){
       ctx.fillStyle = (i%2===0) ? "#fce8b8" : "#fde2a7";
       ctx.fill();
 
-      // separators
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -297,15 +264,14 @@ function drawWheel(items, rotation, options={}){
       }
     }
   }
-
   ctx.restore();
 
-  // center text for second round: book/chapter
+  // center text AFTER wheel rotation (not rotating with wheel)
   if(centerLines && centerLines.length){
     ctx.save();
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#7a4d00";
-    ctx.font = "18px 'Noto Sans TC'";
+    ctx.textAlign="center";
+    ctx.fillStyle="#7a4d00";
+    ctx.font="18px 'Noto Sans TC'";
     const y0 = C - 8;
     if(centerLines.length === 1){
       ctx.fillText(centerLines[0], C, C+6);
@@ -316,48 +282,106 @@ function drawWheel(items, rotation, options={}){
     ctx.restore();
   }
 
-  // pointer always on top
   drawPointer();
 }
 
-/* ---------------------------
-   v7 spin: Winner index is truth
-   - compute target rotation that places winner slice center at pointer (12 o'clock)
-   - add extra spins for show
-   - add safe jitter inside slice to avoid boundaries (>= ~10px)
-   - NO snap redraw (end angle is exactly the final)
---------------------------- */
-function computeFinalRotation(n, winnerIndex){
-  const arc = Math.PI*2/n;
-
-  // Want: sliceCenter = START0 + winnerIndex*arc + arc/2 + rot == START0
-  // => rot = -(winnerIndex*arc + arc/2)
-  const base = -(winnerIndex*arc + arc/2);
-
-  // Boundary safety: keep away from both edges by marginAngle
-  const marginAngle = 10 / R; // ~10px at rim
-  const maxJitter = Math.max(0, (arc/2) - marginAngle*1.3);
-  const jitter = (Math.random()*2 - 1) * maxJitter;
-
-  return base + jitter;
+// ---------- Exact index mapping under pointer ----------
+function mod2pi(x){
+  const t = x % (2*Math.PI);
+  return t < 0 ? t + 2*Math.PI : t;
 }
 
-function spinToWinner(items, winnerIndex, direction, durationMs, options={}){
+// pointer at angle START0 (12 o'clock). Slice i covers [START0 + i*arc + rot, START0 + (i+1)*arc + rot)
+function indexAtPointer(rot, n){
+  const arc = 2*Math.PI/n;
+  // pointer inside slice when -rot mod 2pi in [i*arc, (i+1)*arc)
+  const s = mod2pi(-rot);
+  let idx = Math.floor(s / arc);
+  if(idx < 0) idx = 0;
+  if(idx >= n) idx = n-1;
+  return idx;
+}
+
+// push rotation away from boundaries by >=10px at rim
+function pushAwayFromBoundary(rot, n){
+  const arc = 2*Math.PI/n;
+  const marginAngle = 10 / R; // ~10px
+  const s = mod2pi(-rot);
+  const i = Math.floor(s / arc);
+  const left = i*arc;
+  const right = (i+1)*arc;
+  const distL = s - left;
+  const distR = right - s;
+
+  let newRot = rot;
+  if(distL < marginAngle){
+    const delta = (marginAngle - distL) + 0.0005;
+    newRot -= delta; // because s = -rot, decreasing rot increases s
+  }else if(distR < marginAngle){
+    const delta = (marginAngle - distR) + 0.0005;
+    newRot += delta;
+  }
+  return newRot;
+}
+
+// compute a final rotation that guarantees winner index is under pointer, and not on boundary
+function computeFinalRotationGuaranteed(n, winnerIndex){
+  const arc = 2*Math.PI/n;
+
+  // base: center of slice at pointer
+  let rot = -(winnerIndex*arc + arc/2);
+
+  // add mild jitter but keep in same slice safely
+  const marginAngle = 10 / R;
+  const maxJitter = Math.max(0, (arc/2) - marginAngle*1.6);
+  const jitter = (Math.random()*2 - 1) * maxJitter;
+  rot += jitter;
+
+  // verify & adjust until index matches (should converge fast)
+  let guard = 0;
+  while(indexAtPointer(rot, n) !== winnerIndex && guard < 20){
+    // if off by one, nudge by arc in correct direction
+    const cur = indexAtPointer(rot, n);
+    const diff = (winnerIndex - cur + n) % n;
+    if(diff === 1){
+      rot -= arc * 0.9;
+    }else if(diff === n-1){
+      rot += arc * 0.9;
+    }else{
+      // fallback: force back to center
+      rot = -(winnerIndex*arc + arc/2);
+    }
+    guard++;
+  }
+
+  // ensure not near boundary
+  rot = pushAwayFromBoundary(rot, n);
+
+  // final re-verify (hard guarantee)
+  guard = 0;
+  while(indexAtPointer(rot, n) !== winnerIndex && guard < 20){
+    rot -= 0.0007; // tiny nudge
+    guard++;
+  }
+  return rot;
+}
+
+// ---------- Spin animation ----------
+function spinToWinner(items, winnerIndex, direction, durationMs, opts={}){
   return new Promise(resolve=>{
     const n = items.length;
     if(n < 2){ resolve(); return; }
 
-    const extraSpins = 4 + Math.random()*1.5; // natural
-    const dir = direction === "cw" ? 1 : -1;
+    const extraSpins = 4 + Math.random()*1.5;
+    const dir = (direction === "cw") ? 1 : -1;
 
-    const target = computeFinalRotation(n, winnerIndex);
+    const target = computeFinalRotationGuaranteed(n, winnerIndex);
     const final = target + dir * extraSpins * 2*Math.PI;
 
     const startRot = currentRotation;
     const startTime = performance.now();
     const duration = durationMs;
 
-    // easing: decelerate naturally
     function easeOutQuart(t){ return 1 - Math.pow(1-t, 4); }
 
     function frame(now){
@@ -365,40 +389,57 @@ function spinToWinner(items, winnerIndex, direction, durationMs, options={}){
       const eased = easeOutQuart(t);
 
       currentRotation = startRot + (final - startRot) * eased;
-      drawWheel(items, currentRotation, options);
+      drawWheel(items, currentRotation, opts);
 
       if(t < 1){
         requestAnimationFrame(frame);
       }else{
-        // normalize to reduce drift
-        currentRotation = ((final % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
-        drawWheel(items, currentRotation, options);
+        // keep the exact final (no snap redraw)
+        currentRotation = final;
+        drawWheel(items, currentRotation, opts);
         resolve();
       }
     }
-
     requestAnimationFrame(frame);
   });
 }
 
-/* ---------------------------
-   Buttons state
---------------------------- */
+// ---------- Logs ----------
+function pushLog(line){
+  const logs = JSON.parse(localStorage.getItem("BC128_v71_logs") || "[]");
+  logs.push(line);
+  localStorage.setItem("BC128_v71_logs", JSON.stringify(logs));
+}
+function formatTS(d){
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  const HH = String(d.getHours()).padStart(2,"0");
+  const MM = String(d.getMinutes()).padStart(2,"0");
+  const SS = String(d.getSeconds()).padStart(2,"0");
+  return `${yyyy}/${mm}/${dd} ${HH}:${MM}:${SS}`;
+}
+function splitBookChapter(ref){
+  if(!ref) return ["",""];
+  const idx = ref.lastIndexOf(" ");
+  if(idx < 0) return [ref,""];
+  return [ref.slice(0, idx).trim(), ref.slice(idx+1).trim()];
+}
+
+// ---------- UI state ----------
 function refreshUI(){
-  // load wheel display if locked
   if(locked && nameList.length >= 2){
     nameInput.value = nameList.join("、");
-    startBtn.disabled = (spinning || stage !== "idle");
-    lockBtn.disabled = spinning;
+    // start is enabled only when idle & not spinning & there are remaining indices
+    startBtn.disabled = spinning || (stage !== "idle") || (remainingIndices.length === 0);
   }else{
     startBtn.disabled = true;
-    lockBtn.disabled = spinning;
   }
 
+  lockBtn.disabled = spinning;
   resetBtn.disabled = spinning;
   pdfBtn.disabled = spinning;
 
-  // second/view buttons
   if(stage === "afterFirst"){
     secondBtn.style.display = "inline-block";
     secondBtn.classList.add("blinking");
@@ -414,28 +455,7 @@ function refreshUI(){
   }
 }
 
-/* ---------------------------
-   Logs (for PDF)
---------------------------- */
-function pushLog(line){
-  const logs = JSON.parse(localStorage.getItem("BC128_v7_logs") || "[]");
-  logs.push(line);
-  localStorage.setItem("BC128_v7_logs", JSON.stringify(logs));
-}
-function formatTS(d){
-  // yyyy/mm/dd HH:MM:SS
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
-  const HH = String(d.getHours()).padStart(2,"0");
-  const MM = String(d.getMinutes()).padStart(2,"0");
-  const SS = String(d.getSeconds()).padStart(2,"0");
-  return `${yyyy}/${mm}/${dd} ${HH}:${MM}:${SS}`;
-}
-
-/* ---------------------------
-   Lock list
---------------------------- */
+// ---------- Lock list ----------
 function lockList(){
   if(spinning) return;
 
@@ -444,7 +464,6 @@ function lockList(){
     alert("請輸入姓名");
     return;
   }
-
   const names = parseNames(raw);
   if(hasDuplicate(names)){
     alert("Oops, 有姓名被重複輸入了唷！");
@@ -455,36 +474,33 @@ function lockList(){
     return;
   }
 
-  // If already in-progress and user re-locks without reset:
-  // treat as new round (clear all v7 state) but DO NOT play any audio.
+  // 若同一輪名單相同且已鎖定，直接忽略（避免你誤按又被洗掉狀態）
+  if(locked && JSON.stringify(names) === JSON.stringify(nameList) && remainingIndices.length > 0){
+    setStatus(`名單已鎖定（${nameList.length} 位）`);
+    refreshUI();
+    return;
+  }
+
+  // Start a fresh round
+  locked = true;
   nameList = names.slice();
-  remainingNames = nameList.map((_,i)=>i);
-  usedNames = [];
+  remainingIndices = nameList.map((_,i)=>i);
+  completedNames = [];
+  usedVerses = [];
   selectedName = null;
   selectedVerse = null;
   stage = "idle";
-  completedNoticePending = false;
-
-  // usedVerses persists across both modes previously; for index-only, keep it persistent in-round.
-  usedVerses = JSON.parse(localStorage.getItem("BC128_v7_usedVerses") || "[]");
-
-  locked = true;
-  spinning = false;
+  completionPending = false;
   currentRotation = 0;
 
-  lastRenderItems = nameList.slice();
-  showLabels = true;
-
-  setStatus(`名單已鎖定（${nameList.length} 位）`);
   drawWheel(nameList, currentRotation, {labels:true});
+  setStatus(`名單已鎖定（${nameList.length} 位）`);
 
   saveLS();
   refreshUI();
 }
 
-/* ---------------------------
-   First round
---------------------------- */
+// ---------- First round ----------
 async function startFirstRound(){
   if(spinning) return;
   if(!locked || nameList.length < 2){
@@ -492,14 +508,11 @@ async function startFirstRound(){
     return;
   }
   if(stage !== "idle"){
-    // 防止未抽第二輪就重複抽第一輪
     alert("請先完成第二輪（抽紅包），再進行下一位。");
     return;
   }
-  if(remainingNames.length === 0){
-    // Completed: show status only (no alert)
+  if(remainingIndices.length === 0){
     setStatus(`此輪轉盤已完成 ${nameList.length} 位的紅包抽籤，請按「全部歸零」重新開始。`);
-    startBtn.disabled = true;
     refreshUI();
     return;
   }
@@ -507,24 +520,21 @@ async function startFirstRound(){
   spinning = true;
   refreshUI();
 
-  // choose winner index from remaining (truth)
-  const winIndex = remainingNames[Math.floor(Math.random()*remainingNames.length)];
+  // choose winner from remaining
+  const pickPos = Math.floor(Math.random()*remainingIndices.length);
+  const winIndex = remainingIndices[pickPos];
   selectedName = nameList[winIndex];
   selectedVerse = null;
+
+  // IMPORTANT: remove immediately so next person is different even if user refreshes
+  remainingIndices.splice(pickPos, 1);
 
   setStatus("第 1 輪：姓名輪盤抽籤中…");
   playDrum();
 
-  // show names wheel
-  lastRenderItems = nameList.slice();
-  showLabels = true;
-
   await spinToWinner(nameList, winIndex, "ccw", 5000, {labels:true});
 
-  // After spin, ALWAYS show result, including last person
   setStatus(`第 1 輪完成：抽中「${selectedName}」`);
-
-  // move stage; do NOT mark completion message here
   stage = "afterFirst";
 
   saveLS();
@@ -532,13 +542,7 @@ async function startFirstRound(){
   refreshUI();
 }
 
-/* ---------------------------
-   Second round
-   - Visual wheel stays same slice count (names count)
-   - Labels hidden (empty), direction CW
-   - Internal result picks verse 001-128 (no repeat)
-   - Center shows book/chapter, NOT verse number
---------------------------- */
+// ---------- Second round ----------
 async function startSecondRound(){
   if(spinning) return;
   if(stage !== "afterFirst" || !selectedName){
@@ -550,7 +554,6 @@ async function startSecondRound(){
   refreshUI();
   secondBtn.classList.remove("blinking");
 
-  // pick a verse (truth)
   const map = window.VERSE_REF_MAP || {};
   const allVerses = Object.keys(map);
   if(allVerses.length === 0){
@@ -562,46 +565,42 @@ async function startSecondRound(){
 
   const available = allVerses.filter(v => !usedVerses.includes(v));
   if(available.length === 0){
-    setStatus("128 個經句已全抽完（請按全部歸零或清除已抽經句紀錄）", true);
+    setStatus("128 個經句已全抽完（請按全部歸零）", true);
     spinning = false;
     refreshUI();
     return;
   }
 
+  // truth: pick verse first, but DO NOT show book/chapter until stop
   selectedVerse = available[Math.floor(Math.random()*available.length)];
   usedVerses.push(selectedVerse);
 
-  // Visual: same slices, but no labels
-  const n = nameList.length;
-  const winnerIndex = nameList.indexOf(selectedName); // keep pointer aligned to the selected person
-  const ref = map[selectedVerse] || "";
-  const [book, chapter] = splitBookChapter(ref);
-
+  const winnerIndex = nameList.indexOf(selectedName);
   setStatus("第 2 輪：祝福經句輪盤抽籤中…");
   playDrum();
 
-  await spinToWinner(nameList, winnerIndex, "cw", 5000, {
-    labels: false,
-    centerLines: (book || chapter) ? [book || "", chapter || ""] : null
-  });
+  // spin (labels hidden, NO center text during spin)
+  await spinToWinner(nameList, winnerIndex, "cw", 5000, {labels:false, centerLines:null});
 
-  // show result (verse number) in status ONLY
+  // after stop: show center book/chapter
+  const ref = map[selectedVerse] || "";
+  const [book, chapter] = splitBookChapter(ref);
+  drawWheel(nameList, currentRotation, {labels:false, centerLines: (book||chapter) ? [book||"", chapter||""] : null});
+
   setStatus(`第 2 輪完成：抽中經句「${selectedVerse}」`);
 
-  // record this person as completed only after second round
-  if(!usedNames.includes(selectedName)) usedNames.push(selectedName);
+  if(!completedNames.includes(selectedName)) completedNames.push(selectedName);
 
-  // add log line (one-line format)
+  // one-line log
   const ts = formatTS(new Date());
   const line = `[${ts}] ${selectedName}｜姓名模式｜抽中經句：${selectedVerse}（${ref}）`;
   pushLog(line);
 
-  // stage -> afterSecond
   stage = "afterSecond";
 
-  // completion notice should NOT appear now; only after user leaves via viewer & returns
-  if(usedNames.length >= nameList.length){
-    completedNoticePending = true;
+  // if this was the last person, postpone completion message until user returns from viewer
+  if(completedNames.length >= nameList.length){
+    completionPending = true;
   }
 
   saveLS();
@@ -609,69 +608,42 @@ async function startSecondRound(){
   refreshUI();
 }
 
-/* ---------------------------
-   Viewer link
-   - keep as existing query string
---------------------------- */
+// ---------- Viewer ----------
 function gotoViewer(){
   if(stage !== "afterSecond" || !selectedName || !selectedVerse){
     alert("尚未完成第二輪");
     return;
   }
-  // IMPORTANT: do not play drum here.
-  // viewer can play win.mp3/confetti by itself.
+  // viewer 內自己處理 win.mp3/confetti
   const url = `viewer.html?name=${encodeURIComponent(selectedName)}&verse=${encodeURIComponent(selectedVerse)}`;
   window.location.href = url;
 }
 
-/* ---------------------------
-   Reset
---------------------------- */
+// ---------- Reset ----------
 function resetAll(){
-  // clear v7 state but keep browser caches etc
-  localStorage.removeItem("BC128_v7_locked");
-  localStorage.removeItem("BC128_v7_nameList");
-  localStorage.removeItem("BC128_v7_remainingNames");
-  localStorage.removeItem("BC128_v7_usedNames");
-  localStorage.removeItem("BC128_v7_stage");
-  localStorage.removeItem("BC128_v7_selectedName");
-  localStorage.removeItem("BC128_v7_selectedVerse");
-  localStorage.removeItem("BC128_v7_completedNoticePending");
+  // clear v7.1 keys
+  [
+    "BC128_v71_locked","BC128_v71_nameList","BC128_v71_remaining","BC128_v71_completed",
+    "BC128_v71_usedVerses","BC128_v71_stage","BC128_v71_selectedName","BC128_v71_selectedVerse",
+    "BC128_v71_rotation","BC128_v71_completionPending","BC128_v71_logs"
+  ].forEach(k=>localStorage.removeItem(k));
 
-  // optional: keep usedVerses? You asked “不重複經句邏輯”，此處保留跨輪可持續的話會越來越少。
-  // 我這裡採「同輪不重複」：按全部歸零時，也清掉已抽經句，讓新一輪完整 128 可抽。
-  localStorage.removeItem("BC128_v7_usedVerses");
+  locked=false; spinning=false;
+  nameList=[]; remainingIndices=[]; completedNames=[];
+  usedVerses=[]; selectedName=null; selectedVerse=null;
+  stage="idle"; completionPending=false; currentRotation=0;
 
-  // logs too
-  localStorage.removeItem("BC128_v7_logs");
-
-  locked = false;
-  spinning = false;
-  nameList = [];
-  remainingNames = [];
-  usedNames = [];
-  usedVerses = [];
-  selectedName = null;
-  selectedVerse = null;
-  stage = "idle";
-  completedNoticePending = false;
-  currentRotation = 0;
-
-  nameInput.value = "";
+  nameInput.value="";
   setStatus("請輸入姓名並鎖定名單");
   ctx.clearRect(0,0,360,360);
   drawPointer();
   refreshUI();
 }
 
-/* ---------------------------
-   PDF export (best-effort)
-   - If you have window.PDF_FONT.normal from font_base64.js, it will embed and render Chinese sharply.
-   - If not present, it will still try, but Chinese may not render correctly (browser limitation).
---------------------------- */
+// ---------- PDF ----------
 async function exportPDF(){
   try{
-    const logs = JSON.parse(localStorage.getItem("BC128_v7_logs") || "[]");
+    const logs = JSON.parse(localStorage.getItem("BC128_v71_logs") || "[]");
     if(!logs.length){
       setStatus("尚無抽籤紀錄可匯出。", true);
       return;
@@ -680,15 +652,13 @@ async function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:"pt", format:"a4" });
 
-    // Embed font from font_base64.js if available
+    // Prefer embedded font if you use font_base64.js
     if(window.PDF_FONT && window.PDF_FONT.normal){
       try{
         doc.addFileToVFS("NotoSansTC.ttf", window.PDF_FONT.normal);
         doc.addFont("NotoSansTC.ttf","NotoSansTC","normal");
         doc.setFont("NotoSansTC","normal");
-      }catch(e){
-        // fallback: keep default
-      }
+      }catch(e){}
     }
 
     doc.setFontSize(16);
@@ -696,21 +666,19 @@ async function exportPDF(){
 
     doc.setFontSize(12);
     let y = 70;
-    const lineHeight = 18;
+    const lh = 18;
 
     for(const line of logs){
-      // long lines wrap
       const wrapped = doc.splitTextToSize(line, 515);
       doc.text(wrapped, 40, y);
-      y += wrapped.length * lineHeight;
-
+      y += wrapped.length * lh;
       if(y > 770){
         doc.addPage();
         y = 50;
       }
     }
 
-    doc.save("BlessingCards128_抽籤紀錄_v7.pdf");
+    doc.save("BlessingCards128_抽籤紀錄_v7.1.pdf");
     setStatus("PDF 已產生並下載。");
   }catch(err){
     console.error(err);
@@ -718,66 +686,48 @@ async function exportPDF(){
   }
 }
 
-/* ---------------------------
-   Book/Chapter split
---------------------------- */
-function splitBookChapter(ref){
-  // ref like "撒母耳記下 22:2-3"
-  if(!ref) return ["",""];
-  const idx = ref.lastIndexOf(" ");
-  if(idx < 0) return [ref,""];
-  const book = ref.slice(0, idx).trim();
-  const chap = ref.slice(idx+1).trim();
-  return [book, chap];
-}
-
-/* ---------------------------
-   Return from viewer handling:
-   - If completion pending, show completion message now (NO alert)
---------------------------- */
+// ---------- Init ----------
 (function init(){
   loadLS();
 
-  // show initial wheel state
+  // Restore wheel
   if(locked && nameList.length >= 2){
     nameInput.value = nameList.join("、");
     drawWheel(nameList, currentRotation, {labels:true});
-    // If we were in afterFirst/afterSecond, keep that state (user may come back)
   }else{
     ctx.clearRect(0,0,360,360);
     drawPointer();
   }
 
-  // If just finished all and user came back, show completion message now
-  if(completedNoticePending && locked && usedNames.length >= nameList.length){
-    setStatus(`此輪轉盤已完成 ${nameList.length} 位的紅包抽籤，請按「全部歸零」重新開始。`);
-    // do not alert
-    completedNoticePending = false;
-    stage = "idle"; // lock the start button by remainingNames check below
+  // KEY FIX: Coming back from viewer
+  // If we were afterSecond, auto-advance to next person (idle) so start button is enabled.
+  if(locked && stage === "afterSecond"){
+    // If round finished, show completion message ONLY now (no alert)
+    if(completionPending && completedNames.length >= nameList.length){
+      setStatus(`此輪轉盤已完成 ${nameList.length} 位的紅包抽籤，請按「全部歸零」重新開始。`);
+      // lock further start
+      stage = "idle";
+      completionPending = false;
+    }else{
+      // continue next person
+      stage = "idle";
+      selectedName = null;
+      selectedVerse = null;
+      setStatus(`可抽下一位（剩餘 ${remainingIndices.length} 位）`);
+    }
     saveLS();
   }else{
-    // show a reasonable status
+    // status for other states
     if(locked && nameList.length >= 2){
-      if(remainingNames.length === 0){
+      if(remainingIndices.length === 0 && completedNames.length >= nameList.length){
         setStatus(`此輪轉盤已完成 ${nameList.length} 位的紅包抽籤，請按「全部歸零」重新開始。`);
       }else if(stage === "afterFirst"){
-        setStatus(`第 1 輪完成：抽中「${selectedName || ""}」\n請按「抽紅包（第二輪）」`);
+        setStatus(`第 1 輪完成：抽中「${selectedName || ""}」`);
       }else if(stage === "afterSecond"){
-        setStatus(`第 2 輪完成：抽中經句「${selectedVerse || ""}」\n可按「看紅包內容」`);
+        setStatus(`第 2 輪完成：抽中經句「${selectedVerse || ""}」`);
       }else{
-        setStatus(`名單已載入（${nameList.length} 位），可直接開始抽姓名 + 經句`);
+        setStatus(`名單已載入（${nameList.length} 位），可開始抽姓名 + 經句`);
       }
-    }
-  }
-
-  // Hard rule: remainingNames should be indices not-yet-first-round-picked
-  // In v7, we only remove from remaining at first round (and do not restore)
-  // but completion is based on usedNames (after second round).
-  // If remainingNames missing or invalid, reconstruct safely.
-  if(locked && nameList.length >= 2){
-    if(!Array.isArray(remainingNames) || remainingNames.length > nameList.length){
-      remainingNames = nameList.map((_,i)=>i);
-      saveLS();
     }
   }
 
