@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<title>祝福經句紅包（應許等您拿）v7.3 Stable Final</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<title>祝福經句紅包（應許等您拿）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body{
-  margin:0;
-  padding:20px;
   background:#fff8e7;
-  font-family:"Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont;
+  font-family:"Noto Sans TC", system-ui;
   text-align:center;
+  padding:20px;
   color:#5b3a00;
 }
 h1{color:#b07500;margin-bottom:8px;}
@@ -58,6 +57,7 @@ canvas{background:transparent;}
   min-height:32px;
   font-size:20px;
   color:#a56b00;
+  margin-top:6px;
 }
 </style>
 </head>
@@ -83,43 +83,47 @@ canvas{background:transparent;}
 
 <div id="status">請輸入姓名並鎖定名單</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <script>
-/* ===========================
-   v7.3 STABLE CORE
-=========================== */
+/* =========================
+   v7.4 STABLE CORE
+========================= */
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 const CENTER = 190;
 const RADIUS = 180;
 
-let names = [];
-let used = [];
-let locked = false;
-let spinning = false;
-let currentAngle = 0;
-
 const nameInput = document.getElementById("nameInput");
 const lockBtn = document.getElementById("lockBtn");
 const startBtn = document.getElementById("startBtn");
 const resetBtn = document.getElementById("resetBtn");
+const pdfBtn = document.getElementById("pdfBtn");
 const status = document.getElementById("status");
 
-/* ---------- 音效（只在真正開始轉動時） ---------- */
+let names = [];
+let usedNames = [];
+let logs = [];
+
+let locked = false;
+let spinning = false;
+let currentAngle = 0;
+
+/* -------- 音效（只在真正轉動時） -------- */
 function playDrum(){
   const a = new Audio("audio/drum.mp3");
   a.play().catch(()=>{});
 }
 
-/* ---------- 畫輪盤（不含旋轉） ---------- */
+/* -------- 畫輪盤（靜態） -------- */
 function drawWheel(){
   ctx.clearRect(0,0,380,380);
-  const n = names.length;
-  if(!n) return;
+  if(names.length===0) return;
 
-  const arc = Math.PI * 2 / n;
+  const arc = Math.PI*2/names.length;
 
-  for(let i=0;i<n;i++){
+  for(let i=0;i<names.length;i++){
     const start = arc*i - Math.PI/2;
     const end = start + arc;
 
@@ -144,21 +148,20 @@ function drawWheel(){
   }
 }
 
-/* ---------- 核心：index → 角度（唯一正確） ---------- */
-function angleForIndex(index){
+/* -------- index → 精準角度 -------- */
+function angleForIndex(i){
   const arc = Math.PI*2/names.length;
-  // slice 中心 → 對齊 12 點鐘指針
-  return -(index*arc + arc/2);
+  return -(i*arc + arc/2);
 }
 
-/* ---------- 平滑旋轉（不重畫作弊） ---------- */
+/* -------- 平滑旋轉（不中途重畫） -------- */
 function spinToIndex(index){
   return new Promise(resolve=>{
     spinning = true;
     playDrum();
 
     const target = angleForIndex(index);
-    const extra = Math.PI*2*4; // 多轉 4 圈
+    const extra = Math.PI*2*4;
     const startAngle = currentAngle;
     const endAngle = target + extra;
 
@@ -166,9 +169,9 @@ function spinToIndex(index){
     const duration = 4800;
 
     function animate(now){
-      let t = (now - startTime) / duration;
+      let t = (now-startTime)/duration;
       if(t>1) t=1;
-      const ease = 1 - Math.pow(1-t,3);
+      const ease = 1-Math.pow(1-t,3);
       currentAngle = startAngle + (endAngle-startAngle)*ease;
 
       ctx.save();
@@ -182,7 +185,6 @@ function spinToIndex(index){
       if(t<1){
         requestAnimationFrame(animate);
       }else{
-        // 最終精準停在 slice 中心（不再重畫）
         currentAngle = target;
         ctx.save();
         ctx.clearRect(0,0,380,380);
@@ -192,7 +194,7 @@ function spinToIndex(index){
         drawWheel();
         ctx.restore();
 
-        spinning = false;
+        spinning=false;
         resolve();
       }
     }
@@ -200,7 +202,7 @@ function spinToIndex(index){
   });
 }
 
-/* ---------- 鎖定名單 ---------- */
+/* -------- 鎖定名單 -------- */
 lockBtn.onclick = ()=>{
   if(spinning) return;
 
@@ -211,12 +213,13 @@ lockBtn.onclick = ()=>{
   if(arr.length<2) return alert("至少需要兩位");
 
   const set = new Set(arr);
-  if(set.size !== arr.length){
+  if(set.size!==arr.length){
     return alert("Oops, 有姓名被重複輸入了唷！");
   }
 
   names = arr;
-  used = [];
+  usedNames = [];
+  logs = [];
   locked = true;
   currentAngle = 0;
 
@@ -225,42 +228,63 @@ lockBtn.onclick = ()=>{
   status.innerText = `名單已鎖定，共 ${names.length} 位`;
 };
 
-/* ---------- 第一輪抽姓名 ---------- */
+/* -------- 開始抽姓名（可連續） -------- */
 startBtn.onclick = async ()=>{
-  if(spinning) return;
-  if(!locked) return;
+  if(spinning || !locked) return;
 
-  const remain = names.filter(n=>!used.includes(n));
-  if(remain.length===0){
-    status.innerText = `此輪轉盤已完成 ${names.length} 位的紅包抽籤，請按「全部歸零」重新開始。`;
+  const remaining = names.filter(n=>!usedNames.includes(n));
+  if(remaining.length===0){
+    status.innerText =
+      `此輪轉盤已完成 ${names.length} 位的紅包抽籤，請按「全部歸零」重新開始。`;
     startBtn.disabled = true;
     return;
   }
 
-  const winner = remain[Math.floor(Math.random()*remain.length)];
+  startBtn.disabled = true;
+  const winner = remaining[Math.floor(Math.random()*remaining.length)];
   const index = names.indexOf(winner);
 
   status.innerText = "轉盤抽籤中…";
-  startBtn.disabled = true;
-
   await spinToIndex(index);
 
-  used.push(winner);
+  usedNames.push(winner);
+  logs.push({
+    time: new Date().toLocaleString("zh-TW"),
+    name: winner
+  });
+
   status.innerText = `第 1 輪完成：抽中「${winner}」`;
-
-  // 第二輪（viewer / 紅包）交由你既有 viewer.html 處理
+  startBtn.disabled = false;
 };
 
-/* ---------- 全部歸零 ---------- */
-resetBtn.onclick = ()=>{
-  location.reload();
-};
+/* -------- 全部歸零 -------- */
+resetBtn.onclick = ()=>location.reload();
 
-/* ---------- PDF（此頁只保留入口，實作可沿用你既有版本） ---------- */
+/* -------- PDF 匯出（真正可用） -------- */
 pdfBtn.onclick = ()=>{
-  alert("PDF 匯出請使用你目前已確認正常的版本（v5.x 核心）。");
-};
+  if(logs.length===0){
+    alert("尚無抽籤紀錄");
+    return;
+  }
 
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt",format:"a4"});
+
+  doc.setFont("Helvetica");
+  doc.setFontSize(16);
+  doc.text("BlessingCards128 抽籤紀錄",40,40);
+
+  let y=70;
+  doc.setFontSize(12);
+  logs.forEach(l=>{
+    doc.text(`[${l.time}] ${l.name}`,40,y);
+    y+=20;
+    if(y>760){doc.addPage();y=60;}
+  });
+
+  doc.save("BlessingCards128_抽籤紀錄.pdf");
+};
 </script>
+
 </body>
 </html>
