@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BlessingCards128｜祝福經句紅包（應許等您拿）v7.5 Stable Final</title>
+  <title>BlessingCards128｜祝福經句紅包（應許等您拿）v7.6 Stable Final</title>
 
   <!-- 加速 logo 載入 -->
   <link rel="preload" as="image" href="logo3524.png">
@@ -225,6 +225,7 @@
     selectedVerse: "BC128_selectedVerse",
     rotation: "BC128_rotation",
     finished: "BC128_finished"
+    returned: "BC128_RETURNED",
   };
 
   let nameList = [];
@@ -417,7 +418,7 @@
     localStorage.setItem(LS.selectedVerse, selectedVerse ?? "");
     localStorage.setItem(LS.finished, roundFinished ? "1" : "0");
 
-    if(nameList.length && usedNames.length >= nameList.length){
+    if(nameList.length && usedNames.length >= nameList.length && appState === "idle"){
       roundFinished = true;
       appState = "idle";
       selectedName = null;
@@ -439,6 +440,13 @@
     }
 
     appState = localStorage.getItem(LS.state) || "idle";
+    const returnedFlag = localStorage.getItem(LS.returned) === "1";
+    if(returnedFlag){
+      localStorage.setItem(LS.returned, "0");
+      appState = "idle";
+      selectedName = null;
+      selectedVerse = null;
+    }
     selectedName = (localStorage.getItem(LS.selectedName) || "").trim() || null;
     selectedVerse = (localStorage.getItem(LS.selectedVerse) || "").trim() || null;
     roundFinished = localStorage.getItem(LS.finished) === "1";
@@ -467,6 +475,8 @@
   }
 
   lockBtn.addEventListener("click", () => {
+    try{ badge.style.display="none"; badge.textContent=""; }catch(e){}
+
     const arr = parseNames(nameInput.value);
     if(arr.length === 0){ alert("請輸入姓名！"); return; }
     if(arr.length < 2){ alert("至少需要兩位姓名！"); return; }
@@ -499,6 +509,8 @@
   });
 
   startBtn.addEventListener("click", async () => {
+    try{ badge.style.display="none"; badge.textContent=""; }catch(e){}
+
     if(roundFinished){
       setStatus(`此輪轉盤已完成 ${nameList.length} 位的紅包抽籤，請按「全部歸零」重新開始。`, false);
       updateButtons();

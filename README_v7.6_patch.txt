@@ -1,0 +1,1 @@
+v7.6 patch: fixes name parsing (spaces incl fullwidth/NBSP), prevents premature roundFinished before viewer, and ensures returning from viewer re-enables Start via BC128_RETURNED flag.
