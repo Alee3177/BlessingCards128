@@ -1,224 +1,159 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>祝福經句紅包 - 經句顯示</title>
-
+<title>BlessingCards128｜祝福經句紅包</title>
 <style>
-:root {
-  --bg: #fff7e6;
-  --brown-text: #8a5500;
-  --brown-title: #b37500;
-  --gold-light: #ffe9a3;
-  --gold-mid: #ffd166;
-  --gold-dark: #e8a838;
-}
-
-body {
-  margin: 0;
-  background: var(--bg);
-  font-family: "NotoSansTC", sans-serif;
-  text-align: center;
-  color: var(--brown-text);
-}
-
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px 16px 60px;
-}
-
-/* logo */
-.logo-box {
-  width: 100%;
-  text-align: center;
-  margin-top: 10px;
-}
-.logo {
-  width: 180px;
-  height: auto;
-  margin-bottom: 10px;
-}
-
-h1 {
-  font-size: 24px;
-  margin: 10px 0 20px;
-  color: var(--brown-title);
-}
-
-.info {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.verseRef {
-  font-size: 20px;
-  color: #8a5500;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.cardImg {
-  width: 85%;
-  max-width: 480px;
-  border-radius: 14px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-  margin-top: 20px;
-}
-
-.btn {
-  min-width: 220px;
-  padding: 12px 20px;
-  margin: 10px auto;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--gold-light), var(--gold-mid));
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--brown-text);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.18);
-  cursor: pointer;
-}
-.btn:hover {
-  background: linear-gradient(180deg, var(--gold-mid), var(--gold-dark));
-}
+  body{
+    background:#fff8e7;
+    font-family:"Noto Sans TC", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    color:#5b3a00;
+    text-align:center;
+    padding:18px;
+  }
+  h1{
+    margin:10px 0 6px;
+    color:#b07500;
+    font-size:22px;
+    font-weight:700;
+  }
+  #line1,#line2{
+    font-size:18px;
+    margin:4px 0;
+    text-align:center;
+  }
+  #cardImg{
+    margin:12px auto 10px;
+    width:min(92vw, 520px);
+    height:auto;
+    display:block;
+    border-radius:14px;
+    box-shadow:0 6px 18px rgba(0,0,0,.12);
+    background:#fff; /* 避免圖片載入前閃動 */
+  }
+  .btn{
+    background:#f7c76c;
+    border:none;
+    padding:12px 18px;
+    border-radius:22px;
+    font-size:18px;
+    color:#5b3a00;
+    cursor:pointer;
+    margin:8px 6px;
+  }
+  .btn:hover{ background:#f3b84f; }
+  #err{
+    margin-top:10px;
+    color:#c0392b;
+    font-weight:700;
+    display:none;
+    white-space:pre-wrap;
+  }
 </style>
-
-<!-- 字型 & 經文對照 -->
-<script src="font_base64.js"></script>
-<script src="verseRefMap.js"></script>
-
-<!-- confetti -->
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-
 </head>
 <body>
 
-<!-- logo -->
-<div class="logo-box">
-  <img src="logo3524.png" class="logo" alt="logo">
+<h1>祝福經句紅包（應許等您拿）</h1>
+
+<div id="line1"></div>
+<div id="line2"></div>
+
+<img id="cardImg" alt="Blessing Card">
+
+<div>
+  <button class="btn" id="downloadBtn">下載經句圖片</button>
+  <button class="btn" id="nextBtn">下一位</button>
 </div>
 
-<!-- 音效 -->
-<audio id="winSound" src="audio/win.mp3" preload="auto"></audio>
+<div id="err"></div>
 
-<div class="container">
-
-  <h1>祝福經句紅包</h1>
-
-  <div class="info" id="nameField"></div>
-  <div class="verseRef" id="verseRef"></div>
-
-  <img id="verseImg" class="cardImg" src="" alt="經句圖片">
-
-  <button class="btn" onclick="downloadImage()">下載經句圖片</button>
-  <button class="btn" onclick="goNext()">下一位</button>
-  <button class="btn" onclick="goHome()">回首頁</button>
-
-</div>
-
+<script src="verseRefMap.js"></script>
 <script>
-/* ============ 解析 URL ============ */
-function getQuery(key){
-  return new URLSearchParams(window.location.search).get(key);
-}
+(function(){
+  const qs = new URLSearchParams(location.search);
+  const name = (qs.get('name') || '').trim();
+  let verse = (qs.get('verse') || '').trim();
 
-const verseNo = getQuery("no");
-const name    = getQuery("name") ? decodeURIComponent(getQuery("name")) : "";
+  const line1El = document.getElementById('line1');
+  const line2El = document.getElementById('line2');
+  const img = document.getElementById('cardImg');
+  const err = document.getElementById('err');
 
-/* ============ 顯示姓名 + 經文 ============ */
-document.getElementById("nameField").textContent =
-  name ? `抽中： ${name}` : "";
+  function pad3(v){
+    const n = String(v).replace(/\D/g,'');
+    return n.padStart(3,'0');
+  }
+  verse = pad3(verse);
 
-let verseRef = "";
-if(window.VERSE_REF_MAP){
-  verseRef = window.VERSE_REF_MAP[verseNo] || "";
-}
+  const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verse]) ? window.VERSE_REF_MAP[verse] : '';
+  line1El.textContent = `${name}｜抽中的經句紅包`;
+  line2El.textContent = `編號「${verse}」${ref ? `（${ref}）` : ''}`;
 
-document.getElementById("verseRef").textContent =
-  verseRef ? `（${verseRef}）` : "";
+  // PNG 路徑：同 repo 根目錄下 cards/001.png
+  img.src = `cards/${verse}.png`;
+  img.onerror = () => {
+    err.style.display = 'block';
+    err.textContent = `PNG 載入失敗：cards/${verse}.png\n請確認 cards 目錄與檔名(001~128).png 存在。`;
+  };
 
-/* ============ 顯示圖片 ============ */
-const img = document.getElementById("verseImg");
-img.src = `cards/${verseNo}.png`;
+  // 下載：把「兩行」疊在同一張 PNG 上方，並確保背景色一致（以原 PNG 為底）
+  document.getElementById('downloadBtn').addEventListener('click', async () => {
+    try{
+      // 確保圖片載入完成
+      await img.decode();
 
-/* ============ 取得抽籤紀錄中屬於本次的完整資訊 ============ */
-function getLatestLog(){
-  const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-  if(!logs.length) return "";
-  
-  // 依照 time 最新排序（保險）
-  logs.sort((a,b)=> new Date(b.time) - new Date(a.time));
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
 
-  const log = logs[0];  // 最新的一筆
-  const ref = window.VERSE_REF_MAP[log.verseNo] || "";
+      // 上方加一塊文字區（高度依字級給固定值，避免不同手機不一致）
+      const topPad = Math.round(h * 0.16); // 16% 作為文字區
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h + topPad;
 
-  return `[${log.time}] ${log.name}｜經句：${log.verseNo}（${ref}）`;
-}
+      const ctx = canvas.getContext('2d');
 
-const fullLogLine = getLatestLog();
+      // 先鋪底：取 PNG 左上角像素色作為底色，避免與卡片底色不一致
+      ctx.drawImage(img, 0, 0);
+      const px = ctx.getImageData(2,2,1,1).data;
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      ctx.fillStyle = `rgb(${px[0]},${px[1]},${px[2]})`;
+      ctx.fillRect(0,0,canvas.width, canvas.height);
 
-/* ============ 播放 win ============ */
-const winSound = document.getElementById("winSound");
-winSound.currentTime = 0;
-winSound.play().catch(()=>{});
+      // 再畫 PNG 本體（往下位移）
+      ctx.drawImage(img, 0, topPad);
 
-/* ============ confetti ============ */
-setTimeout(()=>{
-  confetti({
-    particleCount: 140,
-    spread: 90,
-    origin: { y: 0.25 }
+      // 文字
+      ctx.fillStyle = '#5b3a00';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // 字體大小：跟卡片底部分類字差不多的視覺（依圖片寬度自動縮放）
+      const font1 = Math.max(26, Math.round(w * 0.045));
+      const font2 = Math.max(24, Math.round(w * 0.040));
+
+      ctx.font = `700 ${font1}px "Noto Sans TC", sans-serif`;
+      ctx.fillText(line1El.textContent, w/2, topPad*0.42);
+
+      ctx.font = `700 ${font2}px "Noto Sans TC", sans-serif`;
+      ctx.fillText(line2El.textContent, w/2, topPad*0.74);
+
+      // 下載
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `${verse}_${name || 'Blessing'}_card.png`;
+      a.click();
+    }catch(e){
+      err.style.display = 'block';
+      err.textContent = '下載失敗：' + (e && e.message ? e.message : e);
+    }
   });
-}, 300);
 
-/* ============ 下載 PNG（含文字） ============ */
-function downloadImage(){
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  const w = img.naturalWidth;
-  const h = img.naturalHeight + 160; // 預留上方文字區域
-  canvas.width  = w;
-  canvas.height = h;
-
-  // 背景白色
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0,0,w,h);
-
-  // 字體樣式（與底部分類字體一致）
-  ctx.font = "28px NotoSansTC";
-  ctx.fillStyle = "#333";
-  ctx.textAlign = "center";
-
-  // 第一行：完整紀錄（置中）
-  ctx.fillText(fullLogLine, w/2, 50);
-
-  // 第二行：標題
-  ctx.fillText("抽中的祝福經句紅包", w/2, 100);
-
-  // 原 PNG 圖片
-  ctx.drawImage(img, 0, 160, w, img.naturalHeight);
-
-  // 下載
-  const link = document.createElement("a");
-  link.href = canvas.toDataURL("image/png");
-  link.download = `blessing_${verseNo}.png`;
-  link.click();
-}
-
-/* ============ 下一位、回首頁 ============ */
-function goNext(){
-  try{ localStorage.setItem("BC128_RETURNED","1"); }catch(e){}
-  window.location = "index.html";
-}
-function goHome(){
-  try{ localStorage.setItem("BC128_RETURNED","1"); }catch(e){}
-  window.location = "index.html";
-}
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    location.href = 'index.html';
+  });
+})();
 </script>
-
 </body>
 </html>
