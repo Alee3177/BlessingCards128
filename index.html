@@ -160,6 +160,7 @@ drumAudio.addEventListener('loadedmetadata', () => {
   if (isFinite(drumAudio.duration) && drumAudio.duration > 0) {
     // 以音檔長度為準；給一點 buffer，避免聲音比動畫晚結束
     drumDurationMs = Math.round(drumAudio.duration * 1000) + 80;
+    if (typeof getSpinDurationMs === 'function') state.spinDurationMs = getSpinDurationMs();
   }
 });
 
@@ -197,7 +198,7 @@ function getSpinDurationMs(){
       // 轉盤核心：單一真相
       rotation: 0,            // 目前輪盤旋轉角（弧度）
       lastWinnerIndex: null,  // 第一輪抽中者 index
-      spinDurationMs: 2800,   // 加快 30%（相較 4s 量級）
+      spinDurationMs: 5200,   // 加快 30%（相較 4s 量級）
     };
 
     function loadState(){
@@ -243,7 +244,7 @@ function getSpinDurationMs(){
         selectedRef: null,
         rotation: 0,
         lastWinnerIndex: null,
-        spinDurationMs: 2800,
+        spinDurationMs: 5200,
       };
     }
 
@@ -417,7 +418,7 @@ function getSpinDurationMs(){
       // 名單鎖定後仍可看文字，但不強制清空
       // 若你想鎖死輸入，可改為 true
       nameInput.disabled = false;
-      if(p===Phase.FINISHED){ pdfBtn.classList.add('blinking'); } else { pdfBtn.classList.remove('blinking'); }
+      if(p===PHASE.FINISHED){ pdfBtn.classList.add('blinking'); } else { pdfBtn.classList.remove('blinking'); }
     }
 
     function remainingNames(){
