@@ -1,588 +1,473 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>祝福經句紅包（應許等您拿）</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BlessingCards128｜祝福經句紅包（應許等您拿）</title>
 <style>
-  body{
-    background:#fff8e7;
-    font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;
-    text-align:center;
-    padding:22px;
-    color:#5b3a00;
-    margin:0;
-  }
-  h1{
-    color:#b07500;
-    font-size:26px;
-    margin:0 0 10px 0;
-  }
-  .logo{
-    width:120px;
-    margin:8px 0 14px 0;
-  }
-
-  #nameInput{
-    width:280px;
-    padding:10px;
-    font-size:18px;
-    border-radius:8px;
-    border:1px solid #bf8a3e;
-    margin-bottom:12px;
-    outline:none;
-  }
-
-  .btn{
-    background:#f7c76c;
-    border:none;
-    padding:12px 22px;
-    border-radius:25px;
-    font-size:18px;
-    color:#5b3a00;
-    cursor:pointer;
-    margin:6px;
-  }
-  .btn:hover{ background:#f3b84f; }
-  .btn:disabled{
-    opacity:.45;
-    cursor:not-allowed;
-  }
-
-  @keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.25; }
-    100% { opacity: 1; }
-  }
-  .blinking{ animation: blink 1s infinite; }
-
-  #wheelContainer{
-    position:relative;
-    width:380px;
-    height:380px;
-    margin:22px auto;
-  }
-  #wheelCanvas{
-    width:380px;
-    height:380px;
-  }
-  #wheelPointer{
-    position:absolute;
-    top:-26px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:44px;
-    color:red;
-    z-index:20;
-  }
-
-  #statusText{
-    font-size:18px;
-    margin-top:10px;
-    color:#a56b00;
-    white-space:pre-line;
-    line-height:1.6;
-  }
+:root{--bg:#fff8e7;--text:#5b3a00;--accent:#f7c76c;--accent2:#f3b84f;--danger:#c0392b;}
+body{margin:0;background:var(--bg);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;text-align:center;padding:22px 16px 28px;color:var(--text);}
+h1{color:#b07500;font-size:26px;margin:8px 0 10px;font-weight:800;letter-spacing:.5px;}
+.logo{width:120px;height:auto;margin:10px 0 12px;display:inline-block;}
+#nameInput{width:min(520px,92vw);padding:10px 12px;font-size:18px;border-radius:10px;border:1px solid #bf8a3e;outline:none;background:#fff;box-sizing:border-box;}
+.row{margin-top:12px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+.btn{background:var(--accent);border:none;padding:12px 18px;border-radius:999px;font-size:17px;color:var(--text);cursor:pointer;min-width:120px;}
+.btn:hover{background:var(--accent2);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+@keyframes blink{0%{opacity:1}50%{opacity:.25}100%{opacity:1}}
+.blinking{animation:blink 1s infinite;}
+#wheelContainer{position:relative;width:380px;height:380px;margin:18px auto 8px;}
+#wheelCanvas{width:380px;height:380px;}
+#wheelPointer{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:44px;color:#d40000;z-index:5;user-select:none;}
+#centerOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.82);border-radius:14px;padding:10px 14px;min-width:160px;max-width:220px;line-height:1.15;display:none;box-shadow:0 6px 16px rgba(0,0,0,.10);color:#6b3e00;user-select:none;}
+#centerOverlay .book{font-size:18px;font-weight:800;}
+#centerOverlay .chap{font-size:16px;margin-top:4px;font-weight:700;}
+#statusText{font-size:18px;margin-top:10px;color:#a56b00;min-height:48px;white-space:pre-line;}
+#statusText.error{color:var(--danger);font-weight:800;}
+.hint{font-size:13px;color:#9a6a22;margin-top:6px;opacity:.85;}
 </style>
 </head>
-
 <body>
-  <h1>祝福經句紅包（應許等您拿）</h1>
-  <img src="logo3524.png" class="logo" alt="logo" />
+<h1>祝福經句紅包（應許等您拿）</h1>
+<img src="logo3524.png" class="logo" alt="BlessingCards128" loading="eager" decoding="async" fetchpriority="high">
+<div><input id="nameInput" placeholder="請輸入姓名（用逗號、頓號、空白分隔）" autocomplete="off"></div>
+<div class="row">
+  <button id="lockBtn" class="btn" onclick="lockList()">鎖定名單</button>
+  <button id="startBtn" class="btn" onclick="startFirstRound()" disabled>開始抽姓名 + 經句</button>
+  <button id="pdfBtn" class="btn" onclick="exportPDF()">抽籤紀錄 PDF</button>
+  <button id="resetBtn" class="btn" onclick="resetAll()">全部歸零</button>
+</div>
+<div class="row">
+  <button id="secondBtn" class="btn" style="display:none" onclick="startSecondRound()">抽紅包（第二輪）</button>
+  <button id="viewerBtn" class="btn" style="display:none" onclick="gotoViewer()">看紅包內容</button>
+</div>
+<div id="wheelContainer">
+  <div id="wheelPointer">▼</div>
+  <canvas id="wheelCanvas" width="380" height="380"></canvas>
+  <div id="centerOverlay"><div class="book" id="centerBook"></div><div class="chap" id="centerChap"></div></div>
+</div>
+<div id="statusText">請輸入姓名並按「鎖定名單」</div>
+<div class="hint">提示：除非按「全部歸零」，本輪名單與紀錄會被記住。</div>
 
-  <div>
-    <input id="nameInput" placeholder="請輸入姓名（可用空白、逗號、頓號分隔）" />
-  </div>
-
-  <div>
-    <button class="btn" id="lockBtn" onclick="lockList()">鎖定名單</button>
-    <button class="btn" id="startBtn" onclick="startFirstRound()">開始抽姓名 + 經句</button>
-    <button class="btn" id="pdfBtn" onclick="exportPDF()">抽籤紀錄 PDF</button>
-    <button class="btn" onclick="resetAll()">全部歸零</button>
-  </div>
-
-  <div id="wheelContainer">
-    <div id="wheelPointer">▼</div>
-    <canvas id="wheelCanvas" width="380" height="380"></canvas>
-  </div>
-
-  <div id="statusText">請輸入姓名並按「鎖定名單」</div>
+<script src="verseRefMap.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-/* =========================
-   State
-========================= */
-let nameList = [];
-let locked = false;
-let usedNames = [];
-let drawLogs = [];
-let roundFinished = false;
+const nameInput=document.getElementById('nameInput');
+const startBtn=document.getElementById('startBtn');
+const secondBtn=document.getElementById('secondBtn');
+const viewerBtn=document.getElementById('viewerBtn');
+const pdfBtn=document.getElementById('pdfBtn');
+const statusText=document.getElementById('statusText');
+const centerOverlay=document.getElementById('centerOverlay');
+const centerBook=document.getElementById('centerBook');
+const centerChap=document.getElementById('centerChap');
+const canvas=document.getElementById('wheelCanvas');
+const ctx=canvas.getContext('2d');
 
-let isSpinning = false;
-let currentRotation = 0; // 保留目前輪盤停下來的角度（避免下一位開始時畫面不一致）
+const CENTER=190, RADIUS=180;
+const POINTER_ANGLE=-Math.PI/2;
 
-/* =========================
-   Canvas
-========================= */
-const canvas = document.getElementById("wheelCanvas");
-const ctx = canvas.getContext("2d");
+let nameList=[], locked=false;
+let usedNames=[], usedVerses=[];
+let selectedName=null, selectedVerse=null;
+let phase='idle'; // firstReady | firstDone | secondDone | completed
+let isSpinning=false;
+let currentRotation=0;
 
-const CENTER = 190;
-const RADIUS = 180;
+const drumAudio=new Audio('audio/drum.mp3');
+drumAudio.preload='auto';
+let drumDurationMs=5600;
+drumAudio.addEventListener('loadedmetadata',()=>{if(isFinite(drumAudio.duration)&&drumAudio.duration>0) drumDurationMs=Math.round(drumAudio.duration*1000);});
 
-const lockBtn = document.getElementById("lockBtn");
-const startBtn = document.getElementById("startBtn");
-const pdfBtn   = document.getElementById("pdfBtn");
-const statusText = document.getElementById("statusText");
-
-/* =========================
-   Drum 音效（只在真正開轉時播放）
-========================= */
-let drumAudio = null;
-function playDrum(){
-  try{
-    if(!drumAudio){
-      drumAudio = new Audio("audio/drum.mp3");
-      drumAudio.preload = "auto";
-    }
-    drumAudio.currentTime = 0;
-    drumAudio.play().catch(()=>{});
-  }catch(e){}
+function setStatus(msg,isError=false){
+  statusText.classList.toggle('error',!!isError);
+  statusText.textContent=msg;
 }
-function stopDrum(){
-  try{
-    if(drumAudio){
-      drumAudio.pause();
-      drumAudio.currentTime = 0;
-    }
-  }catch(e){}
+function clamp01(x){return Math.max(0,Math.min(1,x));}
+function easeOutCubic(t){return 1-Math.pow(1-t,3);}
+function normalizeAngle(a){
+  const TWO=Math.PI*2;
+  a=(a%TWO+TWO)%TWO;
+  if(a>=Math.PI) a-=TWO;
+  return a;
 }
-
-/* =========================
-   Utils
-========================= */
-function tokenize(raw){
-  return raw.split(/[\s,、]+/).map(s=>s.trim()).filter(Boolean);
+function parseNames(raw){
+  return (raw||'').trim().split(/[,\s、]+/g).map(s=>s.trim()).filter(Boolean);
+}
+function uniqueAndCheckDup(arr){
+  const s=new Set();
+  for(const x of arr){ if(s.has(x)) return {ok:false}; s.add(x); }
+  return {ok:true};
+}
+function nowTimestamp(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-// 需求：若有重複輸入，必須 alert 並阻止鎖定
-function hasDuplicates(arr){
-  const s = new Set();
-  for(const x of arr){
-    if(s.has(x)) return true;
-    s.add(x);
-  }
-  return false;
-}
-
-function saveState(){
-  localStorage.setItem("bc_nameList", JSON.stringify(nameList));
-  localStorage.setItem("bc_locked", locked ? "1" : "0");
-  localStorage.setItem("bc_usedNames", JSON.stringify(usedNames));
-  localStorage.setItem("bc_drawLogs", JSON.stringify(drawLogs));
-  localStorage.setItem("bc_roundFinished", roundFinished ? "1" : "0");
-  localStorage.setItem("bc_rotation", String(currentRotation));
-}
-
-function loadState(){
-  try{
-    const nl = localStorage.getItem("bc_nameList");
-    if(nl) nameList = JSON.parse(nl) || [];
-    locked = localStorage.getItem("bc_locked") === "1";
-    usedNames = JSON.parse(localStorage.getItem("bc_usedNames") || "[]");
-    drawLogs  = JSON.parse(localStorage.getItem("bc_drawLogs") || "[]");
-    roundFinished = localStorage.getItem("bc_roundFinished") === "1";
-    currentRotation = parseFloat(localStorage.getItem("bc_rotation") || "0") || 0;
-  }catch(e){
-    nameList = [];
-    locked = false;
-    usedNames = [];
-    drawLogs = [];
-    roundFinished = false;
-    currentRotation = 0;
-  }
-}
-
-function nowTS(){
-  const d = new Date();
-  const pad = (n)=>String(n).padStart(2,"0");
-  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/* =========================
-   Wheel drawing (base, then rotate outside)
-   分隔線粗細：恢復（固定 2px）
-========================= */
-function drawWheelBase(items){
+function drawWheelAt(rot,items){
   ctx.clearRect(0,0,380,380);
-  if(!items || items.length === 0) return;
-
-  const count = items.length;
-  const arc = Math.PI * 2 / count;
+  if(!items||!items.length) return;
+  const count=items.length, arc=Math.PI*2/count;
+  ctx.save();
+  ctx.translate(CENTER,CENTER);
+  ctx.rotate(rot);
+  ctx.translate(-CENTER,-CENTER);
 
   for(let i=0;i<count;i++){
-    const start = arc * i - Math.PI/2;
-    const end   = start + arc;
-
+    const start=i*arc, end=start+arc;
     ctx.beginPath();
-    ctx.moveTo(CENTER, CENTER);
-    ctx.arc(CENTER, CENTER, RADIUS, start, end);
+    ctx.moveTo(CENTER,CENTER);
+    ctx.arc(CENTER,CENTER,RADIUS,start,end);
     ctx.closePath();
-    ctx.fillStyle = (i % 2 === 0) ? "#fde7b5" : "#fcdca0";
+    ctx.fillStyle=(i%2===0)?'#fde7b5':'#fcdca0';
     ctx.fill();
-
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle='#ffffff';
+    ctx.lineWidth=2;
     ctx.stroke();
 
     ctx.save();
-    ctx.translate(CENTER, CENTER);
-    const mid = start + arc/2;
+    ctx.translate(CENTER,CENTER);
+    const mid=start+arc/2;
     ctx.rotate(mid);
-    ctx.textAlign = "right";
-    ctx.font = "22px Noto Sans TC";
-    ctx.fillStyle = "#5b3a00";
-    ctx.fillText(items[i], RADIUS - 22, 10);
+    ctx.textAlign='right';
+    ctx.font='22px "Noto Sans TC", sans-serif';
+    ctx.fillStyle='#5b3a00';
+    ctx.fillText(items[i],RADIUS-22,10);
     ctx.restore();
   }
-}
 
-function renderWheel(items, rotation){
-  ctx.save();
-  ctx.clearRect(0,0,380,380);
-  ctx.translate(CENTER, CENTER);
-  ctx.rotate(rotation);
-  ctx.translate(-CENTER, -CENTER);
-  drawWheelBase(items);
   ctx.restore();
 }
+function render(){ drawWheelAt(currentRotation,nameList); }
 
-/* =========================
-   Easing
-========================= */
-function easeOutCubic(t){
-  return 1 - Math.pow(1 - t, 3);
+function calcTargetRotationForIndex(index,count){
+  const arc=Math.PI*2/count;
+  const sliceCenter=(index+0.5)*arc;
+  return POINTER_ANGLE - sliceCenter;
+}
+async function playDrum(){
+  try{drumAudio.pause();drumAudio.currentTime=0;await drumAudio.play();}catch(e){}
 }
 
-/* =========================
-   核心：連續自然旋轉，最後自然停在中獎格中心
-   目標：指針在上方（-90°），中獎格中心對準指針
-========================= */
-function spinToIndex(items, winnerIndex, durationMs, clockwise){
-  return new Promise(resolve=>{
-    const n = items.length;
-    const step = (Math.PI * 2) / n;
+function spinToIndex({index,clockwise,durationMs}){
+  return new Promise((resolve)=>{
+    if(isSpinning) return resolve();
+    isSpinning=true;
+    centerOverlay.style.display='none';
 
-    // 中心角（以輪盤未旋轉、且第0格從上方開始的設計）
-    // drawWheelBase 已經用 start = i*step - PI/2
-    // 所以第 i 格中心角 = -PI/2 + (i+0.5)*step
-    const sliceCenter = -Math.PI/2 + (winnerIndex + 0.5) * step;
+    const count=nameList.length;
+    const targetBase=calcTargetRotationForIndex(index,count);
 
-    // 指針在上方：-PI/2
-    // 旋轉後：sliceCenter + rotation == -PI/2
-    // => rotation = -PI/2 - sliceCenter
-    let targetRotation = (-Math.PI/2) - sliceCenter; // 讓中心對準指針
+    const spins=5, TWO=Math.PI*2, dir=clockwise?1:-1;
+    let delta=normalizeAngle(targetBase-currentRotation);
+    if(dir===1 && delta<0) delta+=TWO;
+    if(dir===-1 && delta>0) delta-=TWO;
 
-    // 加上多圈，讓動畫自然
-    const extraSpins = 5; // 固定多圈更穩
-    const dir = clockwise ? 1 : -1;
-    targetRotation += dir * extraSpins * Math.PI * 2;
-
-    // 從 currentRotation 開始到 targetRotation 結束，保持連續不跳
-    const startRot = currentRotation;
-    const endRot = targetRotation;
-
-    const startT = performance.now();
-    const duration = durationMs;
+    const finalRotation=currentRotation + delta + dir*spins*TWO;
+    const startRot=currentRotation;
+    const totalDelta=finalRotation-startRot;
+    const start=performance.now();
 
     playDrum();
 
-    function frame(now){
-      const t = Math.min(1, (now - startT) / duration);
-      const eased = easeOutCubic(t);
-      const rot = startRot + (endRot - startRot) * eased;
-
-      renderWheel(items, rot);
-
-      if(t < 1){
-        requestAnimationFrame(frame);
-      }else{
-        // 最終角度保存（避免下一位畫面被重畫成不同）
-        currentRotation = endRot % (Math.PI * 2);
-        renderWheel(items, currentRotation);
-        stopDrum();
+    function step(now){
+      const t=clamp01((now-start)/durationMs);
+      const eased=easeOutCubic(t);
+      currentRotation=startRot + totalDelta*eased;
+      drawWheelAt(currentRotation,nameList);
+      if(t<1) requestAnimationFrame(step);
+      else{
+        currentRotation=targetBase;
+        drawWheelAt(currentRotation,nameList);
+        isSpinning=false;
         resolve();
       }
     }
-    requestAnimationFrame(frame);
+    requestAnimationFrame(step);
   });
 }
 
-/* =========================
-   UI state update
-========================= */
-function updateUI(){
-  // 若未鎖定
+function saveState(){
+  localStorage.setItem('bc_nameList',JSON.stringify(nameList));
+  localStorage.setItem('bc_usedNames',JSON.stringify(usedNames));
+  localStorage.setItem('bc_usedVerses',JSON.stringify(usedVerses));
+  localStorage.setItem('bc_selectedName',selectedName||'');
+  localStorage.setItem('bc_selectedVerse',selectedVerse||'');
+  localStorage.setItem('bc_phase',phase);
+  localStorage.setItem('bc_rotation',String(currentRotation));
+}
+function loadState(){
+  try{
+    const nl=JSON.parse(localStorage.getItem('bc_nameList')||'[]');
+    if(Array.isArray(nl)&&nl.length){nameList=nl;locked=true;nameInput.value=nameList.join('、');}
+  }catch(e){}
+  try{usedNames=JSON.parse(localStorage.getItem('bc_usedNames')||'[]')||[];}catch(e){usedNames=[];}
+  try{usedVerses=JSON.parse(localStorage.getItem('bc_usedVerses')||'[]')||[];}catch(e){usedVerses=[];}
+  selectedName=(localStorage.getItem('bc_selectedName')||'')||null;
+  selectedVerse=(localStorage.getItem('bc_selectedVerse')||'')||null;
+  phase=localStorage.getItem('bc_phase')||'idle';
+  const rot=parseFloat(localStorage.getItem('bc_rotation')||'0');
+  if(Number.isFinite(rot)) currentRotation=rot;
+  if(!localStorage.getItem('drawLogs')) localStorage.setItem('drawLogs','[]');
+}
+function hasLogs(){
+  try{const logs=JSON.parse(localStorage.getItem('drawLogs')||'[]');return Array.isArray(logs)&&logs.length>0;}catch(e){return false;}
+}
+function updateButtons(){
   if(!locked){
-    startBtn.disabled = false;
-    pdfBtn.disabled = false;
+    startBtn.disabled=true;
+    secondBtn.style.display='none';
+    viewerBtn.style.display='none';
     return;
   }
-
-  // 已鎖定但本輪完成
-  if(roundFinished){
-    startBtn.disabled = true;
-    // PDF 不鎖死，只提醒閃爍
-    pdfBtn.classList.add("blinking");
-    return;
+  if(phase==='idle'||phase==='firstReady'){
+    startBtn.disabled=false;
+    secondBtn.style.display='none';
+    viewerBtn.style.display='none';
+  }else if(phase==='firstDone'){
+    startBtn.disabled=true;
+    secondBtn.style.display='inline-block';
+    viewerBtn.style.display='none';
+  }else if(phase==='secondDone'){
+    startBtn.disabled=true;
+    secondBtn.style.display='none';
+    viewerBtn.style.display='inline-block';
+  }else if(phase==='completed'){
+    startBtn.disabled=true;
+    secondBtn.style.display='none';
+    viewerBtn.style.display='none';
   }
-
-  // 正常可抽
-  startBtn.disabled = isSpinning;
-  pdfBtn.classList.remove("blinking");
+  if(phase==='completed' && hasLogs()) pdfBtn.classList.add('blinking'); else pdfBtn.classList.remove('blinking');
 }
 
-/* =========================
-   lockList
-========================= */
 function lockList(){
-  if(isSpinning) return;
+  const arr=parseNames(nameInput.value||'');
+  if(arr.length<2){alert('至少要有兩位才可以！');return;}
+  const dup=uniqueAndCheckDup(arr);
+  if(!dup.ok){alert('Oops, 有姓名重複輸入了唷！');return;}
 
-  const raw = document.getElementById("nameInput").value.trim();
-  if(!raw){
-    alert("請輸入姓名！");
-    return;
-  }
+  nameList=arr;
+  locked=true;
 
-  const tokens = tokenize(raw);
+  usedNames=[];
+  selectedName=null;
+  selectedVerse=null;
+  phase='firstReady';
+  centerOverlay.style.display='none';
+  currentRotation=0;
 
-  // 需求：有重複就 alert 並停止
-  if(hasDuplicates(tokens)){
-    alert("Oops, 有姓名被重複輸入了唷！");
-    return;
-  }
+  localStorage.setItem('bc_nameList',JSON.stringify(nameList));
+  localStorage.setItem('bc_usedNames',JSON.stringify(usedNames));
+  localStorage.setItem('bc_selectedName','');
+  localStorage.setItem('bc_selectedVerse','');
+  localStorage.setItem('bc_phase',phase);
+  localStorage.setItem('bc_rotation','0');
 
-  if(tokens.length < 2){
-    alert("至少需要兩位才可以");
-    return;
-  }
-
-  nameList = tokens;
-  locked = true;
-  usedNames = [];
-  roundFinished = false;
-  currentRotation = 0;
-
-  // logs 不清空（你要可下載歷史），但新一輪會接著記
-  // 若你要新一輪清空 logs，改成：drawLogs = [];
-  // 目前維持：同一輪鎖定後，重算人名抽籤（符合你之前習慣）
-
-  statusText.innerText = `名單已鎖定，共 ${nameList.length} 位`;
-  renderWheel(nameList, currentRotation);
-
-  saveState();
-  updateUI();
+  render();
+  setStatus(`名單已載入，共 ${nameList.length} 位`);
+  updateButtons();
 }
 
-/* =========================
-   第一輪：抽姓名（逆時針）
-========================= */
 async function startFirstRound(){
   if(isSpinning) return;
+  if(!locked){alert('請先鎖定名單！');return;}
+  if(!(phase==='firstReady'||phase==='idle')) return;
 
-  if(!locked){
-    alert("請先鎖定名單！");
-    return;
+  const remaining=nameList.filter(n=>!usedNames.includes(n));
+  if(remaining.length===0){
+    phase='completed';saveState();showCompletedMessage();updateButtons();return;
   }
 
-  if(roundFinished){
-    // 顯示完成提示（不再跳 alert）
-    showFinishedText();
-    updateUI();
-    return;
-  }
+  selectedName=remaining[Math.floor(Math.random()*remaining.length)];
+  selectedVerse=null;
 
-  const remaining = nameList.filter(n => !usedNames.includes(n));
-  if(remaining.length === 0){
-    roundFinished = true;
-    saveState();
-    showFinishedText();
-    updateUI();
-    return;
-  }
+  const idx=nameList.indexOf(selectedName);
+  setStatus('第 1 輪：姓名輪盤抽籤中…');
+  phase='idle';saveState();updateButtons();
 
-  // 抽中者
-  const winner = remaining[Math.floor(Math.random() * remaining.length)];
-  const winnerIndex = nameList.indexOf(winner);
+  const durationMs=Math.max(drumDurationMs,5200);
+  await spinToIndex({index:idx,clockwise:false,durationMs});
 
-  isSpinning = true;
-  updateUI();
-
-  statusText.innerText = "第 1 輪：姓名輪盤抽籤中…";
-  saveState();
-
-  // 轉盤秒數：加長，讓音效不會比轉盤久（你 v8.0 指出問題）
-  await spinToIndex(nameList, winnerIndex, 4200, false);
-
-  usedNames.push(winner);
-
-  drawLogs.push({
-    time: nowTS(),
-    name: winner
-  });
-
-  // 若這次抽完已經是最後一位，仍要顯示「第 1 輪完成：抽中XX」
-  statusText.innerText = `第 1 輪完成：抽中「${winner}」`;
-
-  if(usedNames.length >= nameList.length){
-    roundFinished = true;
-    // 提示改成你指定的三行內容（下一次 UI update 會讓 PDF 閃）
-    setTimeout(()=>{
-      showFinishedText();
-      updateUI();
-      saveState();
-    }, 400);
-  }
-
-  isSpinning = false;
-  saveState();
-  updateUI();
+  phase='firstDone';saveState();
+  setStatus(`第 1 輪完成：抽中「${selectedName}」`);
+  secondBtn.classList.add('blinking');
+  updateButtons();
 }
 
-/* =========================
-   完成提示（你指定三行版本）
-========================= */
-function showFinishedText(){
-  const c = nameList.length;
-  statusText.innerText =
-`🎉 此輪轉盤已完成 ${c} 位的紅包抽籤
-📄 請按「抽籤紀錄 PDF」下載紀錄，或
-🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
+function pickVerse(){
+  const all=[];for(let i=1;i<=128;i++) all.push(String(i).padStart(3,'0'));
+  const available=all.filter(v=>!usedVerses.includes(v));
+  if(!available.length) return null;
+  return available[Math.floor(Math.random()*available.length)];
+}
+function getVerseRef(verse){
+  try{if(typeof VERSE_REF_MAP==='object'&&VERSE_REF_MAP) return VERSE_REF_MAP[verse]||'';}catch(e){}
+  return '';
+}
+function splitRef(ref){
+  const s=(ref||'').trim();if(!s) return {book:'',chap:''};
+  const m=s.match(/^(.+?)\s+(.+)$/);if(m) return {book:m[1],chap:m[2]};
+  return {book:s,chap:''};
 }
 
-/* =========================
-   PDF：用 Canvas 畫字 → jsPDF 以圖片輸出（避免中文字亂碼）
-   這會很穩定，不依賴字型 cmap
-========================= */
+async function startSecondRound(){
+  if(isSpinning) return;
+  secondBtn.classList.remove('blinking');
+
+  if(phase!=='firstDone'||!selectedName){alert('請先完成第一輪！');return;}
+
+  centerOverlay.style.display='none'; // 停下才顯示，避免“作弊感”
+  const v=pickVerse();
+  if(!v){alert('128 個經句都已抽完！');return;}
+  selectedVerse=v;
+
+  setStatus('第 2 輪：祝福經句輪盤抽籤中…');
+  saveState();updateButtons();
+
+  const idx=nameList.indexOf(selectedName); // 第二輪仍停在同一個人（切片命中一致）
+  const durationMs=Math.max(drumDurationMs,5200);
+  await spinToIndex({index:idx,clockwise:true,durationMs});
+
+  const ref=getVerseRef(selectedVerse);
+  const {book,chap}=splitRef(ref);
+  centerBook.textContent=book||'（書卷）';
+  centerChap.textContent=chap||ref||'（章節）';
+  centerOverlay.style.display='block';
+
+  usedVerses.push(selectedVerse);
+  localStorage.setItem('bc_usedVerses',JSON.stringify(usedVerses));
+  saveRecord(selectedName,selectedVerse);
+
+  phase='secondDone';saveState();
+  setStatus(`第 2 輪完成：抽中經句「${selectedVerse}」`);
+  updateButtons();
+}
+
+function saveRecord(name,verse){
+  const logs=JSON.parse(localStorage.getItem('drawLogs')||'[]');
+  const ref=getVerseRef(verse);
+  logs.push({time:nowTimestamp(),name,verse,ref});
+  localStorage.setItem('drawLogs',JSON.stringify(logs));
+
+  if(!usedNames.includes(name)){
+    usedNames.push(name);
+    localStorage.setItem('bc_usedNames',JSON.stringify(usedNames));
+  }
+
+  if(nameList.length && usedNames.length>=nameList.length){
+    phase='completed';
+    localStorage.setItem('bc_phase','completed');
+  }
+}
+
+function showCompletedMessage(){
+  const n=nameList.length||usedNames.length||0;
+  const msg=`🎉 此輪轉盤已完成 ${n} 位的紅包抽籤\n📄 請按「抽籤紀錄 PDF」下載紀錄，或\n🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
+  setStatus(msg,false);
+  updateButtons();
+}
+
+function gotoViewer(){
+  if(!selectedName||!selectedVerse){alert('請先完成第二輪！');return;}
+  // 回首頁後可直接開始抽下一位（不必再鎖定）
+  localStorage.setItem('bc_phase','firstReady');
+  phase='firstReady';
+  saveState();updateButtons();
+  const url=`viewer.html?name=${encodeURIComponent(selectedName)}&verse=${encodeURIComponent(selectedVerse)}`;
+  window.location.href=url;
+}
+
+function resetAll(){
+  if(!confirm('確定要全部歸零嗎？所有名單/紀錄都會清空。')) return;
+  localStorage.clear();
+  nameList=[];locked=false;usedNames=[];usedVerses=[];selectedName=null;selectedVerse=null;phase='idle';currentRotation=0;
+  centerOverlay.style.display='none';
+  render();
+  setStatus('請輸入姓名並按「鎖定名單」');
+  updateButtons();
+}
+
 async function exportPDF(){
   try{
-    if(!drawLogs || drawLogs.length === 0){
-      alert("尚無抽籤紀錄！");
-      return;
+    const ns=window.jspdf;
+    if(!ns||!ns.jsPDF){setStatus('PDF 產生失敗：jsPDF 載入失敗。',true);return;}
+    const logs=JSON.parse(localStorage.getItem('drawLogs')||'[]');
+    if(!Array.isArray(logs)||!logs.length){alert('尚無抽籤紀錄！');return;}
+
+    const {jsPDF}=ns;
+    const doc=new jsPDF({unit:'pt',format:'a4'});
+    const pageW=doc.internal.pageSize.getWidth();
+    const pageH=doc.internal.pageSize.getHeight();
+
+    const scale=2;
+    const c=document.createElement('canvas');
+    c.width=Math.floor(pageW*scale);
+    c.height=Math.floor(pageH*scale);
+    const g=c.getContext('2d');
+
+    const margin=40*scale, lineH=22*scale, titleH=28*scale;
+    let pageIndex=0, y=margin+titleH;
+
+    function drawHeader(){
+      g.fillStyle='#ffffff';g.fillRect(0,0,c.width,c.height);
+      g.fillStyle='#4a2f00';
+      g.font=`${18*scale}px "Noto Sans TC","Microsoft JhengHei",sans-serif`;
+      g.fillText('BlessingCards128 抽籤紀錄',margin,margin);
+      g.strokeStyle='#e9d2a2';g.lineWidth=2*scale;
+      g.beginPath();g.moveTo(margin,margin+10*scale);g.lineTo(c.width-margin,margin+10*scale);g.stroke();
+      g.fillStyle='#4a2f00';
+      g.font=`${13*scale}px "Noto Sans TC","Microsoft JhengHei",sans-serif`;
     }
-
-    // 建立高解析畫布（2x），文字就不會糊
-    const scale = 2;
-    const pageW = 595;   // A4 pt
-    const pageH = 842;
-    const margin = 30;
-
-    // 一頁可放多少行（用 pt）
-    const lineH = 18;
-    const titleH = 36;
-    const usableH = pageH - margin*2 - titleH;
-    const linesPerPage = Math.floor(usableH / lineH);
-
-    const pages = [];
-    for(let i=0;i<drawLogs.length;i+=linesPerPage){
-      pages.push(drawLogs.slice(i, i+linesPerPage));
+    function flushPage(){
+      const img=c.toDataURL('image/png');
+      if(pageIndex>0) doc.addPage();
+      doc.addImage(img,'PNG',0,0,pageW,pageH,undefined,'FAST');
+      pageIndex++;
     }
+    drawHeader();
 
-    // 用 jsPDF
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit:"pt", format:"a4" });
-
-    for(let p=0;p<pages.length;p++){
-      if(p>0) doc.addPage();
-
-      // 先把這頁內容畫到 canvas
-      const c = document.createElement("canvas");
-      c.width = pageW * scale;
-      c.height = pageH * scale;
-      const g = c.getContext("2d");
-
-      // 背景白
-      g.fillStyle="#ffffff";
-      g.fillRect(0,0,c.width,c.height);
-
-      // 文字
-      g.fillStyle="#000000";
-      g.textBaseline="top";
-      g.font = `${14*scale}px "Noto Sans TC","Microsoft JhengHei",sans-serif`;
-      g.fillText("BlessingCards128 抽籤紀錄", margin*scale, margin*scale);
-
-      g.font = `${11*scale}px "Noto Sans TC","Microsoft JhengHei",sans-serif`;
-
-      let y = (margin + 28) * scale;
-      for(const row of pages[p]){
-        const line = `[${row.time}] ${row.name}`;
-        g.fillText(line, margin*scale, y);
-        y += lineH * scale;
+    for(const log of logs){
+      const ref=log.ref||getVerseRef(log.verse)||'';
+      const line=`[${log.time}] ${log.name}｜抽中經句：${log.verse}${ref?`（${ref}）`:''}`;
+      const maxW=c.width-margin*2;
+      const chars=Array.from(line);
+      let cur='', lines=[];
+      for(const ch of chars){
+        const t=cur+ch;
+        if(g.measureText(t).width>maxW){lines.push(cur);cur=ch;}
+        else cur=t;
       }
+      if(cur) lines.push(cur);
 
-      // 轉成圖片放入 PDF
-      const img = c.toDataURL("image/png");
-      doc.addImage(img, "PNG", 0, 0, pageW, pageH, undefined, "FAST");
+      for(const ln of lines){
+        if(y>c.height-margin){flushPage();drawHeader();y=margin+titleH;}
+        g.fillText(ln,margin,y);y+=lineH;
+      }
     }
+    flushPage();
+    doc.save('BlessingCards128_抽籤紀錄.pdf');
 
-    doc.save("BlessingCards128_抽籤紀錄.pdf");
-
-    // 下載後取消閃爍（符合你的需求）
-    pdfBtn.classList.remove("blinking");
-
-    statusText.innerText = "✅ 抽籤紀錄 PDF 已下載完成";
+    pdfBtn.classList.remove('blinking');
+    setStatus('PDF 已產生並下載完成。');
   }catch(e){
     console.error(e);
-    alert("PDF 產生失敗：請查看 Console 錯誤訊息。");
+    setStatus('PDF 產生失敗：請查看 Console 錯誤訊息。',true);
+    alert('PDF 產生失敗：請查看 Console 錯誤訊息。');
   }
 }
 
-/* =========================
-   全部歸零
-========================= */
-function resetAll(){
-  stopDrum();
-  localStorage.clear();
-
-  nameList = [];
-  locked = false;
-  usedNames = [];
-  drawLogs = [];
-  roundFinished = false;
-  isSpinning = false;
-  currentRotation = 0;
-
-  document.getElementById("nameInput").value = "";
-  statusText.innerText = "請輸入姓名並按「鎖定名單」";
-  ctx.clearRect(0,0,380,380);
-
-  pdfBtn.classList.remove("blinking");
-  updateUI();
-}
-
-/* =========================
-   Init
-========================= */
 (function init(){
   loadState();
-
-  // 如果有已鎖定名單，回填顯示
-  if(locked && nameList.length){
-    document.getElementById("nameInput").value = nameList.join("、");
-    renderWheel(nameList, currentRotation);
-
-    if(roundFinished){
-      showFinishedText();
-      pdfBtn.classList.add("blinking");
-    }else{
-      statusText.innerText = `名單已載入，共 ${nameList.length} 位`;
-    }
-  }else{
-    ctx.clearRect(0,0,380,380);
+  render();
+  if(locked && nameList.length) setStatus(`名單已載入，共 ${nameList.length} 位`);
+  if(locked && nameList.length && usedNames.length>=nameList.length){
+    phase='completed';
+    localStorage.setItem('bc_phase','completed');
+    showCompletedMessage();
   }
-
-  updateUI();
+  updateButtons();
 })();
 </script>
 </body>
