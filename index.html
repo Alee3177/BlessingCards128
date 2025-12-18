@@ -7,14 +7,22 @@
 
 <style>
 body{
-  font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;
   background:#fff7e6;
   text-align:center;
   margin:0;
   padding:20px;
 }
-h1{ color:#b23a00; margin-bottom:10px; }
-.logo{ width:120px; margin-bottom:10px; }
+
+h1{
+  color:#b23a00;
+  margin-bottom:10px;
+}
+
+.logo{
+  width:120px;
+  margin-bottom:10px;
+}
 
 input{
   width:80%;
@@ -36,22 +44,6 @@ button:disabled{
   cursor:not-allowed;
 }
 
-#statusText{
-  margin-top:12px;
-  font-size:16px;
-  line-height:1.6;
-  min-height:3em;
-}
-
-.blink{
-  animation:blink 1s infinite;
-}
-@keyframes blink{
-  0%{opacity:1}
-  50%{opacity:.4}
-  100%{opacity:1}
-}
-
 #wheelBox{
   position:relative;
   width:320px;
@@ -71,6 +63,22 @@ canvas{
   transform:translateX(-50%);
   font-size:26px;
   color:red;
+}
+
+#statusText{
+  margin-top:12px;
+  font-size:16px;
+  line-height:1.6;
+  min-height:3em;
+}
+
+.blink{
+  animation:blink 1s infinite;
+}
+@keyframes blink{
+  0%{opacity:1}
+  50%{opacity:.4}
+  100%{opacity:1}
 }
 </style>
 </head>
@@ -100,7 +108,7 @@ canvas{
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
-/* ========= 狀態 ========= */
+/* ================= 狀態 ================= */
 let nameList=[];
 let locked=false;
 let usedNames=[];
@@ -112,7 +120,7 @@ const statusText=document.getElementById("statusText");
 const startBtn=document.getElementById("startBtn");
 const pdfBtn=document.getElementById("pdfBtn");
 
-/* ========= 工具 ========= */
+/* ================= 工具 ================= */
 function parseNames(str){
   return [...new Set(
     str.split(/[\s,、]+/).map(s=>s.trim()).filter(Boolean)
@@ -121,18 +129,25 @@ function parseNames(str){
 
 function drawWheel(names, highlightIndex=null){
   ctx.clearRect(0,0,320,320);
+  if(!names.length) return;
+
   const cx=160, cy=160, r=150;
   const n=names.length;
-  if(!n) return;
   const step=2*Math.PI/n;
 
   for(let i=0;i<n;i++){
     ctx.beginPath();
     ctx.moveTo(cx,cy);
-    ctx.fillStyle = (i===highlightIndex) ? "#ffd28a" : (i%2?"#ffe7c2":"#fff0d8");
-    ctx.arc(cx,cy,r,-Math.PI/2+i*step,-Math.PI/2+(i+1)*step);
+    ctx.fillStyle =
+      (i===highlightIndex) ? "#ffd28a" :
+      (i%2 ? "#ffe7c2" : "#fff0d8");
+    ctx.arc(
+      cx,cy,r,
+      -Math.PI/2+i*step,
+      -Math.PI/2+(i+1)*step
+    );
     ctx.fill();
-    ctx.strokeStyle="#fff";
+    ctx.strokeStyle="#ffffff";
     ctx.stroke();
 
     ctx.save();
@@ -146,10 +161,10 @@ function drawWheel(names, highlightIndex=null){
   }
 }
 
-/* ========= 初始化 ========= */
+/* ================= 初始化 ================= */
 drawWheel([]);
 
-/* ========= 行為 ========= */
+/* ================= 行為 ================= */
 function lockList(){
   const raw=document.getElementById("nameInput").value;
   const arr=parseNames(raw);
@@ -181,20 +196,20 @@ function startRound(){
     const c=nameList.length;
     statusText.innerHTML =
       `🎉 此輪轉盤已完成 ${c} 位的紅包抽籤<br>`+
-      `📄 請按「抽籤紀錄 PDF」下載紀錄，或<br>`+
-      `🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
+      `📄 請按「抽籤紀錄PDF」下載或是<br>`+
+      `🔁 輸入新姓名後按「鎖定名單」開始下一輪，<br>`+
+      `也可按「全部歸零」清空資料重新開始。`;
     pdfBtn.classList.add("blink");
     return;
   }
 
   startBtn.disabled=true;
 
-  const winner = remain[Math.floor(Math.random()*remain.length)];
-  const idx = nameList.indexOf(winner);
+  const winner=remain[Math.floor(Math.random()*remain.length)];
+  const idx=nameList.indexOf(winner);
 
   drawWheel(nameList, idx);
-
-  statusText.innerText = `🎯 第 1 輪完成：抽中「${winner}」`;
+  statusText.innerText=`🎯 第 1 輪完成：抽中「${winner}」`;
 
   logs.push({
     time:new Date().toLocaleString("zh-TW"),
@@ -203,9 +218,7 @@ function startRound(){
   });
   usedNames.push(winner);
 
-  setTimeout(()=>{
-    startBtn.disabled=false;
-  },600);
+  setTimeout(()=>{ startBtn.disabled=false; },600);
 }
 
 function exportPDF(){
@@ -222,7 +235,6 @@ function exportPDF(){
 
   let y=36;
   doc.setFontSize(12);
-
   logs.forEach(l=>{
     doc.text(`[${l.time}] ${l.name}`,20,y);
     y+=8;
