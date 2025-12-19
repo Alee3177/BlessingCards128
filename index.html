@@ -194,7 +194,7 @@ let locked = false;
 let usedNames = [];     // 本輪已抽過的人（每輪會重置）
 let usedVerses = [];    // 全局不重複（跨輪保留，直到全部歸零）
 let drawLogs = [];      // 全局累積（跨輪保留，直到全部歸零）
-
+let currentRotation = 0;  // 輪盤目前角度（跨第一輪/ 第二輪共用）
 let selectedName = null;
 let selectedVerse = null;
 
@@ -395,58 +395,50 @@ function spinToIndex(items, targetIndex, clockwise, durationMs){
     const count = items.length;
     const arc = (Math.PI*2)/count;
 
-    // 目標：該 slice 的「中心」
     const targetCenter = targetIndex*arc + arc/2;
-
-    // 指針在「正上方」(12點)。我們的 slice 角度也以 12點起算，因此：
-    // 讓 targetCenter 旋轉到 0 (指針方向) 即可
     const pointerAngle = 0;
 
-    // 轉幾圈：基礎圈數依人數做微調，並套用 SPEED_BOOST
-    const SPEED_BOOST= 1.35; // +35%
-    const baseSpins = 4.8;                 // 你覺得自然的基底
-    const spins = baseSpins * SPEED_BOOST; // 角速度 +35% ⇒ 圈數 +35%
+    const SPEED_BOOST = 1.35;
+    const baseSpins = 4.8;
+    const spins = baseSpins * SPEED_BOOST;
     const dir = clockwise ? 1 : -1;
 
-    // 最終角度（精準命中）
-    const finalRotation = (pointerAngle - targetCenter) + dir*(spins*2*Math.PI);
+    // ✅ 改名：這是「相對角度」
+    const deltaRotation =
+      (pointerAngle - targetCenter)
+      + dir * (spins * 2 * Math.PI);
 
-    // 從當前角度開始（每次都從 0 起，避免你說的「重畫位置不同」）
     const startRotation = currentRotation;
 
-    // 播音效（與動畫同時開始）
     await playDrum();
-
     const t0 = performance.now();
 
     function frame(now){
       let t = (now - t0) / durationMs;
-      if(t>1) t = 1;
+      if(t > 1) t = 1;
 
       const eased = easeOutCubic(t);
-      const rot = startRotation + finalRotation*eased;
+      const rot = startRotation + deltaRotation * eased;
 
       drawWheel(items, rot, true);
 
       if(t < 1){
         requestAnimationFrame(frame);
       }else{
-        // 動畫結束：確保畫面停在最終角度（不做「二次重畫跳動」）
-        currentRotation = finalRotation;
+        // ✅ 關鍵：記住「真正停下來的角度」
+        currentRotation = startRotation + deltaRotation;
 
-        // 停掉 drum（避免 drum 比動畫長/短造成不一致）
         try{ drumAudio.pause(); }catch(e){}
 
         isSpinning = false;
         disableAll(false);
-        resolve(finalRotation);
+        resolve(currentRotation);
       }
     }
 
     requestAnimationFrame(frame);
   });
 }
-
 /* --------------------------
    第一輪：抽姓名（逆時針）
 -------------------------- */
