@@ -1,756 +1,277 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>祝福經句紅包（應許等您拿）</title>
-  <style>
-    :root{
-      --bg:#fff8e7;
-      --text:#5b3a00;
-      --gold:#f7c76c;
-      --gold2:#f3b84f;
-      --border:#bf8a3e;
-      --warn:#a56b00;
-      --err:#c0392b;
-    }
-    body{
-      background:var(--bg);
-      font-family:"Noto Sans TC", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-      text-align:center;
-      padding:22px;
-      color:var(--text);
-    }
-    h1{ color:#b07500; font-size:26px; margin:0 0 10px; }
-    .logo{ width:120px; margin:0 0 14px; }
+<meta charset="UTF-8">
+<title>祝福經句紅包（應許等您拿）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-    #nameInput{
-      width:280px; padding:10px; font-size:18px;
-      border-radius:8px; border:1px solid var(--border);
-      margin-bottom:12px;
-      background:#fff;
-    }
+<style>
+body{
+  font-family:"Noto Sans TC",sans-serif;
+  background:#fff7e0;
+  text-align:center;
+  padding:20px;
+}
+h1{ color:#a86a00; }
 
-    .btn{
-      background:var(--gold);
-      border:none;
-      padding:12px 22px;
-      border-radius:25px;
-      font-size:18px;
-      color:var(--text);
-      cursor:pointer;
-      margin:6px;
-      transition:background .15s ease;
-    }
-    .btn:hover{ background:var(--gold2); }
-    .btn:disabled{ opacity:.45; cursor:not-allowed; }
+input{
+  width:300px;
+  padding:10px;
+  font-size:18px;
+  border-radius:8px;
+  border:1px solid #c9a14a;
+}
 
-    @keyframes blink { 0%{opacity:1} 50%{opacity:.25} 100%{opacity:1} }
-    .blinking{ animation:blink 1s infinite; }
+button{
+  background:#f7c76c;
+  border:none;
+  padding:12px 20px;
+  margin:6px;
+  font-size:16px;
+  border-radius:22px;
+  cursor:pointer;
+}
+button:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
 
-    #wheelContainer{
-      position:relative;
-      width:380px; height:380px;
-      margin:22px auto;
-    }
-    #wheelCanvas{ width:380px; height:380px; }
-    #wheelPointer{
-      position:absolute;
-      top:-26px;
-      left:50%;
-      transform:translateX(-50%);
-      font-size:44px;
-      color:red;
-      z-index:20;
-      line-height:1;
-      user-select:none;
-      pointer-events:none;
-    }
-    #centerLabel{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      pointer-events:none;
-      user-select:none;
-      text-align:center;
-      padding:0 38px;
-      color:#5b3a00;
-      font-weight:700;
-      font-size:20px;
-      text-shadow:0 1px 0 rgba(255,255,255,.75);
-      display:none;
-    }
-    #centerLabel .line1{ display:block; font-size:20px; }
-    #centerLabel .line2{ display:block; margin-top:6px; font-size:20px; }
+.blink{
+  animation:blink 1s infinite;
+}
+@keyframes blink{
+  0%{opacity:1}
+  50%{opacity:.3}
+  100%{opacity:1}
+}
 
-    #statusText{
-      font-size:20px;
-      margin-top:8px;
-      color:var(--warn);
-      white-space:pre-line;
-    }
-    #statusText.error{ color:var(--err); font-weight:700; }
-  </style>
+#wheelWrap{
+  position:relative;
+  width:360px;
+  height:360px;
+  margin:20px auto;
+}
+#pointer{
+  position:absolute;
+  top:-18px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:40px;
+  color:red;
+  z-index:10;
+}
+canvas{ background:#fff; border-radius:50%; }
+
+#centerText{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:18px;
+  color:#7a4a00;
+  pointer-events:none;
+}
+
+#status{
+  margin-top:10px;
+  font-size:16px;
+  color:#8a5a00;
+  line-height:1.6;
+}
+</style>
 </head>
+
 <body>
 
-  <h1>祝福經句紅包（應許等您拿）</h1>
-  <img src="logo3524.png" class="logo" alt="logo">
+<h1>祝福經句紅包（應許等您拿）</h1>
 
-  <input id="nameInput" placeholder="請輸入姓名（可用逗號、頓號、空白分隔）"><br>
+<input id="nameInput" placeholder="輸入姓名，用空白或逗號分隔"><br>
 
-  <button id="lockBtn" class="btn">鎖定名單</button>
-  <button id="startBtn" class="btn">開始抽姓名 + 經句</button>
-  <button id="resetBtn" class="btn">全部歸零</button>
-  <button id="pdfBtn" class="btn">抽籤紀錄 PDF</button>
+<button id="lockBtn">鎖定名單</button>
+<button id="startBtn">開始抽姓名 + 經句</button>
+<button id="secondBtn" style="display:none;">抽紅包（第二輪）</button>
+<button id="pdfBtn">抽籤紀錄 PDF</button>
+<button id="resetBtn">全部歸零</button>
 
-  <button id="secondBtn" class="btn" style="display:none;">抽紅包（第二輪）</button>
-  <button id="viewerBtn" class="btn" style="display:none;">看紅包內容</button>
+<div id="wheelWrap">
+  <div id="pointer">▼</div>
+  <canvas id="wheel" width="360" height="360"></canvas>
+  <div id="centerText"></div>
+</div>
 
-  <div id="wheelContainer">
-    <div id="wheelPointer">▼</div>
-    <canvas id="wheelCanvas" width="380" height="380"></canvas>
-    <div id="centerLabel">
-      <div>
-        <span class="line1" id="centerLine1"></span>
-        <span class="line2" id="centerLine2"></span>
-      </div>
-    </div>
-  </div>
+<div id="status">請輸入姓名並鎖定名單</div>
 
-  <div id="statusText">請輸入姓名並鎖定名單</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <script src="verseRefMap.js"></script>
+<script>
+/* =========================
+   全域狀態
+========================= */
+const cvs = document.getElementById("wheel");
+const ctx = cvs.getContext("2d");
+const R = 180, CX = 180, CY = 180;
 
-  <script>
-  /* =========================================================
-     BlessingCards128  index.html  v8.5.0 Stable Final
-     - 僅變更：轉速 +30%（同 drum 時長，轉更多圈）
-     - 跨輪累積：鎖定名單開始下一輪不清空 logs；全部歸零才清空
-  ========================================================== */
+let nameList=[], usedNames=[];
+let selectedName=null;
+let logs = JSON.parse(localStorage.getItem("logs")||"[]");
 
-  const VERSION = "v8.5.0";
+let wheelAngle = 0;
+let spinning = false;
 
-  // storage keys
-  const K_LIST  = "bc_nameList";
-  const K_USEDN = "bc_usedNames";
-  const K_USEDV = "bc_usedVerses";
-  const K_LOGS  = "bc_drawLogs";
-  const K_FIN   = "bc_roundFinished";
-  const K_LAST  = "bc_lastResult";
+const drum = new Audio("audio/drum.mp3");
 
-  const nameInput = document.getElementById("nameInput");
-  const lockBtn   = document.getElementById("lockBtn");
-  const startBtn  = document.getElementById("startBtn");
-  const resetBtn  = document.getElementById("resetBtn");
-  const pdfBtn    = document.getElementById("pdfBtn");
-  const secondBtn = document.getElementById("secondBtn");
-  const viewerBtn = document.getElementById("viewerBtn");
-  const statusText= document.getElementById("statusText");
+/* =========================
+   工具
+========================= */
+function parseNames(raw){
+  const arr = raw.split(/[\s,、]+/).filter(Boolean);
+  const set = new Set(arr);
+  if(set.size !== arr.length) return null;
+  return arr;
+}
 
-  const canvas = document.getElementById("wheelCanvas");
-  const ctx = canvas.getContext("2d");
+function drawWheel(items){
+  ctx.clearRect(0,0,360,360);
+  const n = items.length;
+  if(!n) return;
+  const arc = Math.PI*2/n;
+  for(let i=0;i<n;i++){
+    const start = i*arc - Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(CX,CY);
+    ctx.fillStyle = i%2 ? "#fde2a7" : "#fff0c8";
+    ctx.arc(CX,CY,R,start,start+arc);
+    ctx.fill();
 
-  const centerLabel = document.getElementById("centerLabel");
-  const centerLine1 = document.getElementById("centerLine1");
-  const centerLine2 = document.getElementById("centerLine2");
-
-  const CENTER = 190;
-  const RADIUS = 180;
-
-  let nameList = [];
-  let locked = false;
-
-  let usedNames = [];
-  let usedVerses = [];
-
-  let selectedName = null;
-  let selectedVerse = null;
-
-  let isSpinning = false;
-  let stage = 0; // 0 idle, 1 after round1, 2 after round2 ready viewer
-
-  // keep a stable wheel angle (no redraw drift across steps)
-  let wheelAngle = 0;
-
-  function nowTS(){
-    const d = new Date();
-    const Y = d.getFullYear();
-    const M = String(d.getMonth()+1).padStart(2,"0");
-    const D = String(d.getDate()).padStart(2,"0");
-    const h = String(d.getHours()).padStart(2,"0");
-    const m = String(d.getMinutes()).padStart(2,"0");
-    const s = String(d.getSeconds()).padStart(2,"0");
-    return `${Y}/${M}/${D} ${h}:${m}:${s}`;
-  }
-
-  function setStatus(msg, isError=false){
-    statusText.classList.toggle("error", !!isError);
-    statusText.textContent = msg;
-  }
-
-  function showCenter(book, chap){
-    centerLine1.textContent = book || "";
-    centerLine2.textContent = chap || "";
-    centerLabel.style.display = "flex";
-  }
-  function hideCenter(){
-    centerLabel.style.display = "none";
-    centerLine1.textContent = "";
-    centerLine2.textContent = "";
-  }
-
-  function playDrum(){
-    // 只在真正開始 spin 才播放
-    try{
-      const a = new Audio("audio/drum.mp3");
-      a.preload = "auto";
-      a.play().catch(()=>{});
-    }catch(e){}
-  }
-
-  function ensureLogsInit(){
-    if(!localStorage.getItem(K_LOGS)){
-      localStorage.setItem(K_LOGS, "[]");
-    }
-  }
-
-  function parseNames(raw){
-    // 支援：逗號、頓號、空白
-    const arr = raw.split(/[,，、\s]+/).map(x=>x.trim()).filter(Boolean);
-    return arr;
-  }
-
-  function hasDup(arr){
-    const s = new Set();
-    for(const x of arr){
-      if(s.has(x)) return true;
-      s.add(x);
-    }
-    return false;
-  }
-
-  function drawWheel(items){
-    ctx.clearRect(0,0,380,380);
-    if(!items || items.length===0) return;
-
-    const count = items.length;
-    const arc = Math.PI*2 / count;
-
-    for(let i=0;i<count;i++){
-      const start = arc*i - Math.PI/2;
-      const end   = start + arc;
-
-      ctx.beginPath();
-      ctx.fillStyle = (i%2===0) ? "#fde7b5" : "#fcdca0";
-      ctx.moveTo(CENTER, CENTER);
-      ctx.arc(CENTER, CENTER, RADIUS, start, end);
-      ctx.closePath();
-      ctx.fill();
-
-      // separator lines
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // text
-      ctx.save();
-      ctx.translate(CENTER, CENTER);
-      const mid = start + arc/2;
-      ctx.rotate(mid);
-      ctx.textAlign = "right";
-      ctx.font = "22px Noto Sans TC";
-      ctx.fillStyle = "#5b3a00";
-      ctx.fillText(items[i], RADIUS-22, 10);
-      ctx.restore();
-    }
-  }
-
-  function renderAtAngle(items, angle){
     ctx.save();
-    ctx.clearRect(0,0,380,380);
-    ctx.translate(CENTER, CENTER);
-    ctx.rotate(angle);
-    ctx.translate(-CENTER, -CENTER);
-    drawWheel(items);
+    ctx.translate(CX,CY);
+    ctx.rotate(start+arc/2);
+    ctx.textAlign="right";
+    ctx.fillStyle="#6a3f00";
+    ctx.font="18px Noto Sans TC";
+    ctx.fillText(items[i], R-12,6);
     ctx.restore();
   }
-
-  function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
-
-  // 指針在上方朝下（視覺），以「上方為0」定義
-  // 我們讓中獎 slice 中心角落在指針下方（上方指針→ slice center angle = 0）
-  // 這裡採用 index-based 直算，並加入安全 margin 避免落線
-  function computeTargetAngle(count, index, clockwise){
-    const arc = (Math.PI*2)/count;
-
-    // slice center (with 0 at top)
-    const centerAtTop = index * arc + arc/2;
-
-    // safe margin (10px) -> convert to radians (approx)
-    // angle margin = 10 / RADIUS
-    const margin = 10 / RADIUS;
-
-    // push slightly away from boundaries toward slice center
-    const safeCenter = centerAtTop + (Math.random()*2-1) * (Math.max(0, arc/2 - margin) * 0.15);
-
-    // Our wheel drawing starts at -90° so that slice 0 begins at top.
-    // To bring slice center to pointer top, wheelAngle should be: -safeCenter
-    // Add multiple spins for animation
-    const dir = clockwise ? 1 : -1;
-
-    // ===== v8.5.0 speed +30%: spins 5 -> 6.5 =====
-    const spins = 6.5, TWO = Math.PI*2;
-    const extra = spins*TWO*dir;
-
-    // final absolute angle
-    return (-safeCenter) + extra;
-  }
-
-  function spinTo(items, targetAngle, durationMs){
-    return new Promise(resolve=>{
-      isSpinning = true;
-      playDrum();
-
-      const startAngle = wheelAngle;
-      const delta = targetAngle - startAngle;
-
-      const t0 = performance.now();
-
-      const tick = (t)=>{
-        let p = (t - t0) / durationMs;
-        if(p > 1) p = 1;
-
-        const e = easeOutCubic(p);
-        wheelAngle = startAngle + delta * e;
-
-        renderAtAngle(items, wheelAngle);
-
-        if(p < 1){
-          requestAnimationFrame(tick);
-        }else{
-          // final settle (no snap redraw different angle; keep same wheelAngle)
-          isSpinning = false;
-          resolve();
-        }
-      };
-      requestAnimationFrame(tick);
-    });
-  }
-
-  function getRemainingNames(){
-    return nameList.filter(n=>!usedNames.includes(n));
-  }
-
-  function pickRandom(arr){
-    return arr[Math.floor(Math.random()*arr.length)];
-  }
-
-  function saveLog(mode, nameOrCat, verseId){
-    ensureLogsInit();
-    const logs = JSON.parse(localStorage.getItem(K_LOGS) || "[]");
-    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verseId]) ? window.VERSE_REF_MAP[verseId] : "";
-    logs.push({
-      time: nowTS(),
-      mode,
-      who: nameOrCat,
-      verse: verseId,
-      ref
-    });
-    localStorage.setItem(K_LOGS, JSON.stringify(logs));
-  }
-
-  function markNameUsed(n){
-    if(!usedNames.includes(n)){
-      usedNames.push(n);
-      localStorage.setItem(K_USEDN, JSON.stringify(usedNames));
-    }
-  }
-  function markVerseUsed(v){
-    if(!usedVerses.includes(v)){
-      usedVerses.push(v);
-      localStorage.setItem(K_USEDV, JSON.stringify(usedVerses));
-    }
-  }
-
-  function allNamesDone(){
-    return nameList.length>0 && usedNames.length >= nameList.length;
-  }
-
-  function updateButtons(){
-    // base
-    lockBtn.disabled = isSpinning;
-    resetBtn.disabled = isSpinning;
-    pdfBtn.disabled = isSpinning;
-
-    if(!locked){
-      startBtn.disabled = true;
-      secondBtn.style.display = "none";
-      viewerBtn.style.display = "none";
-      return;
-    }
-
-    // locked
-    if(stage === 0){
-      startBtn.disabled = isSpinning || allNamesDone();
-      secondBtn.style.display = "none";
-      viewerBtn.style.display = "none";
-    }else if(stage === 1){
-      startBtn.disabled = true;
-      secondBtn.style.display = "inline-block";
-      viewerBtn.style.display = "none";
-    }else if(stage === 2){
-      startBtn.disabled = true;
-      secondBtn.style.display = "none";
-      viewerBtn.style.display = "inline-block";
-    }
-  }
-
-  function setPdfBlink(on){
-    if(on){
-      pdfBtn.classList.add("blinking");
-    }else{
-      pdfBtn.classList.remove("blinking");
-    }
-  }
-
-  function showFinishMessage(){
-    const done = usedNames.length;
-    setStatus(
-`🎉 此輪轉盤已完成 ${done} 位的紅包抽籤
-📄 請按「抽籤紀錄 PDF」下載紀錄，或
-🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`
-    );
-    setPdfBlink(true);
-  }
-
-  // =============================
-  // init load
-  // =============================
-  (function init(){
-    ensureLogsInit();
-
-    try{
-      const savedList = localStorage.getItem(K_LIST);
-      if(savedList){
-        nameList = JSON.parse(savedList) || [];
-        if(nameList.length){
-          locked = true;
-          nameInput.value = nameList.join(" ");
-          setStatus(`名單已載入，共 ${nameList.length} 位`);
-          renderAtAngle(nameList, wheelAngle);
-        }
-      }
-      usedNames = JSON.parse(localStorage.getItem(K_USEDN) || "[]");
-      usedVerses= JSON.parse(localStorage.getItem(K_USEDV) || "[]");
-
-      const fin = localStorage.getItem(K_FIN) === "1";
-      if(fin && locked){
-        showFinishMessage();
-      }
-    }catch(e){
-      // ignore
-    }
-
-    updateButtons();
-  })();
-
-  // =============================
-  // handlers
-  // =============================
-  lockBtn.addEventListener("click", ()=>{
-    if(isSpinning) return;
-
-    const raw = (nameInput.value || "").trim();
-    if(!raw){
-      alert("請輸入姓名！");
-      return;
-    }
-    const arr = parseNames(raw);
-
-    if(arr.length < 2){
-      alert("至少要有兩位才可以！");
-      return;
-    }
-    if(hasDup(arr)){
-      alert("Oops, 有姓名重複輸入了唷！");
-      return;
-    }
-
-    // NOTE: 開始下一輪：只重置 usedNames / stage，不清空 logs / usedVerses
-    nameList = arr;
-    locked = true;
-    stage = 0;
-    selectedName = null;
-    selectedVerse = null;
-    hideCenter();
-
-    usedNames = [];
-    localStorage.setItem(K_USEDN, "[]");
-    localStorage.setItem(K_LIST, JSON.stringify(nameList));
-    localStorage.setItem(K_FIN, "0");
-
-    // keep wheelAngle as-is (avoid visual jump); just redraw at current angle
-    renderAtAngle(nameList, wheelAngle);
-
-    setPdfBlink(false);
-    setStatus(`名單已鎖定，共 ${nameList.length} 位`);
-    updateButtons();
-  });
-
-  resetBtn.addEventListener("click", ()=>{
-    if(isSpinning) return;
-    localStorage.clear();
-    alert("所有資料已清空！");
-    location.reload();
-  });
-
-  startBtn.addEventListener("click", async ()=>{
-    if(isSpinning) return;
-    if(!locked){
-      alert("請先鎖定名單！");
-      return;
-    }
-    if(allNamesDone()){
-      showFinishMessage();
-      updateButtons();
-      return;
-    }
-
-    const remaining = getRemainingNames();
-    if(remaining.length === 0){
-      showFinishMessage();
-      updateButtons();
-      return;
-    }
-
-    // pick winner name
-    selectedName = pickRandom(remaining);
-    selectedVerse = null;
-
-    // compute index and target angle (round1: CCW => clockwise=false)
-    const idx = nameList.indexOf(selectedName);
-    const target = computeTargetAngle(nameList.length, idx, /*clockwise*/ false);
-
-    stage = 0;
-    hideCenter();
-    setStatus("🎯 第 1 輪：姓名輪盤抽籤中…");
-    updateButtons();
-
-    // duration: keep as configured in v8.4.1 (do not change logic)
-    const DURATION_MS = 5200;
-
-    await spinTo(nameList, target, DURATION_MS);
-
-    setStatus(`🎯 第 1 輪完成：抽中「${selectedName}」`);
-    stage = 1;
-
-    // show second button quickly (no extra delays)
-    secondBtn.style.display = "inline-block";
-    secondBtn.classList.add("blinking");
-
-    updateButtons();
-  });
-
-  secondBtn.addEventListener("click", async ()=>{
-    if(isSpinning) return;
-
-    secondBtn.classList.remove("blinking");
-    secondBtn.style.display = "none";
-
-    if(!selectedName){
-      alert("請先完成第一輪！");
-      stage = 0;
-      updateButtons();
-      return;
-    }
-
-    // pick verse (unique)
-    const verseNums = window.VERSE_REF_MAP ? Object.keys(window.VERSE_REF_MAP) : [];
-    const avail = verseNums.filter(v=>!usedVerses.includes(v));
-    if(avail.length === 0){
-      alert("128 個經句都已抽完！");
-      stage = 0;
-      updateButtons();
-      return;
-    }
-
-    selectedVerse = pickRandom(avail);
-    markVerseUsed(selectedVerse);
-
-    // Round2: still show SAME name wheel; must stop at same person (clockwise)
-    const idx = nameList.indexOf(selectedName);
-    const target = computeTargetAngle(nameList.length, idx, /*clockwise*/ true);
-
-    hideCenter();
-    setStatus("🎁 第 2 輪：祝福經句輪盤抽籤中…");
-    stage = 1;
-    updateButtons();
-
-    const DURATION_MS = 5200;
-
-    await spinTo(nameList, target, DURATION_MS);
-
-    // show book/chapter in center AFTER stop (no “cheat” feeling)
-    const ref = window.VERSE_REF_MAP ? window.VERSE_REF_MAP[selectedVerse] : "";
-    let book = "", chap = "";
-    if(ref){
-      const parts = ref.split(/\s+/);
-      book = parts[0] || ref;
-      chap = parts.slice(1).join(" ") || "";
-    }
-    showCenter(book, chap);
-
-    setStatus(`🎁 第 2 輪完成：抽中經句「${selectedVerse}」`);
-
-    // log + mark name used (end of one person)
-    saveLog("姓名模式", selectedName, selectedVerse);
-    markNameUsed(selectedName);
-
-    // store lastResult for viewer
-    localStorage.setItem(K_LAST, JSON.stringify({
-      name: selectedName,
-      verse: selectedVerse
-    }));
-
-    stage = 2;
-    updateButtons();
-  });
-
-  viewerBtn.addEventListener("click", ()=>{
-    if(!selectedName || !selectedVerse) return;
-
-    // allow next person after returning from viewer
-    // viewer 會以 querystring 帶回 next=1
-    const ref = window.VERSE_REF_MAP ? (window.VERSE_REF_MAP[selectedVerse] || "") : "";
-    const qs =
-      `viewer.html?name=${encodeURIComponent(selectedName)}`+
-      `&verse=${encodeURIComponent(selectedVerse)}`+
-      `&ref=${encodeURIComponent(ref)}`;
-
-    window.location.href = qs;
-  });
-
-  // On return from viewer (next=1), keep list & allow start next person
-  (function handleReturn(){
-    const url = new URL(location.href);
-    const next = url.searchParams.get("next");
-    if(next === "1"){
-      // reset stage for next person
-      selectedName = null;
-      selectedVerse = null;
-      stage = 0;
-      hideCenter();
-
-      // if finished, show finish message
-      if(allNamesDone()){
-        localStorage.setItem(K_FIN, "1");
-        showFinishMessage();
+}
+
+function renderAt(angle){
+  ctx.save();
+  ctx.clearRect(0,0,360,360);
+  ctx.translate(CX,CY);
+  ctx.rotate(angle);
+  ctx.translate(-CX,-CY);
+  drawWheel(nameList);
+  ctx.restore();
+}
+
+/* =========================
+   核心旋轉（v8.5.1）
+========================= */
+function spinToIndex(index, duration){
+  return new Promise(resolve=>{
+    spinning=true;
+    const n = nameList.length;
+    const arc = Math.PI*2/n;
+    const target = - (index*arc + arc/2);
+
+    const spins = Math.PI*2* (6 + n*0.4); // 固定圈數
+    const startAngle = wheelAngle;
+    const finalAngle = startAngle + spins + target;
+
+    const t0 = performance.now();
+    drum.currentTime=0; drum.play().catch(()=>{});
+
+    function anim(t){
+      let p = (t-t0)/duration;
+      if(p>1) p=1;
+
+      // ease out
+      let eased = p<0.85
+        ? 1-Math.pow(1-p,3)
+        : p; // 尾段線性 clamp
+
+      wheelAngle = startAngle + (finalAngle-startAngle)*eased;
+      renderAt(wheelAngle);
+
+      if(p<1){
+        requestAnimationFrame(anim);
       }else{
-        setStatus(`名單已鎖定，共 ${nameList.length} 位\n已完成：${usedNames.length}/${nameList.length}`);
+        // 最後一幀：強制鎖中心（不可見）
+        wheelAngle = finalAngle;
+        renderAt(wheelAngle);
+        spinning=false;
+        resolve();
       }
-
-      updateButtons();
-
-      // clean param without reloading
-      url.searchParams.delete("next");
-      history.replaceState({}, "", url.toString());
     }
-  })();
-
-  // PDF export (Canvas -> image -> PDF)
-  pdfBtn.addEventListener("click", async ()=>{
-    try{
-      ensureLogsInit();
-      const logs = JSON.parse(localStorage.getItem(K_LOGS) || "[]");
-      if(!logs.length){
-        alert("尚無紀錄");
-        return;
-      }
-
-      // create printable canvas
-      const lineH = 34;
-      const pad = 30;
-      const w = 1200;
-
-      const header = "BlessingCards128 抽籤紀錄";
-      const lines = logs.map(l=>{
-        const ref = l.ref ? `（${l.ref}）` : "";
-        return `[${l.time}] ${l.who}｜抽中的經句紅包; 編號「${l.verse}」${ref}`;
-      });
-
-      const h = pad*2 + 60 + lines.length*lineH;
-
-      const c = document.createElement("canvas");
-      c.width = w;
-      c.height = h;
-      const g = c.getContext("2d");
-
-      // background
-      g.fillStyle = "#ffffff";
-      g.fillRect(0,0,w,h);
-
-      // header
-      g.fillStyle = "#5b3a00";
-      g.font = "bold 34px Noto Sans TC, system-ui, Arial";
-      g.fillText(header, pad, pad+36);
-
-      // lines
-      g.font = "28px Noto Sans TC, system-ui, Arial";
-      let y = pad + 80;
-      for(const ln of lines){
-        g.fillText(ln, pad, y);
-        y += lineH;
-      }
-
-      // Make image
-      const imgData = c.toDataURL("image/png");
-
-      // jsPDF from CDN-less: minimal embed (use window.jspdf if present)
-      // If not present, load jsPDF dynamically
-      const ensureJsPDF = ()=>{
-        return new Promise((resolve, reject)=>{
-          if(window.jspdf && window.jspdf.jsPDF) return resolve();
-          const s = document.createElement("script");
-          s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-          s.onload = ()=> resolve();
-          s.onerror = ()=> reject(new Error("jsPDF load failed"));
-          document.head.appendChild(s);
-        });
-      };
-
-      await ensureJsPDF();
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit:"pt", format:"a4" });
-
-      // fit image into A4
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-
-      // Convert px to pt roughly (assume 96dpi)
-      const imgWpt = w * 0.75;
-      const imgHpt = h * 0.75;
-
-      let scale = Math.min((pageW-40)/imgWpt, (pageH-40)/imgHpt);
-      if(scale > 1) scale = 1;
-
-      const drawW = imgWpt * scale;
-      const drawH = imgHpt * scale;
-
-      doc.addImage(imgData, "PNG", 20, 20, drawW, drawH);
-
-      doc.save("BlessingCards128_抽籤紀錄.pdf");
-
-      // after download, stop blinking
-      setPdfBlink(false);
-
-    }catch(err){
-      console.error(err);
-      alert("PDF 產生失敗：請查看 Console 錯誤訊息。");
-    }
+    requestAnimationFrame(anim);
   });
-  </script>
+}
+
+/* =========================
+   事件
+========================= */
+lockBtn.onclick=()=>{
+  const raw = nameInput.value.trim();
+  const arr = parseNames(raw);
+  if(!arr || arr.length<2){
+    alert("Oops, 有姓名重複輸入了唷！");
+    return;
+  }
+  nameList = arr;
+  usedNames = [];
+  localStorage.setItem("usedNames","[]");
+  drawWheel(nameList);
+  status.innerText=`名單已鎖定（${arr.length} 位）`;
+  startBtn.disabled=false;
+};
+
+startBtn.onclick=async()=>{
+  if(spinning) return;
+  const remain = nameList.filter(n=>!usedNames.includes(n));
+  if(!remain.length) return;
+
+  startBtn.disabled=true;
+  selectedName = remain[Math.floor(Math.random()*remain.length)];
+  const idx = nameList.indexOf(selectedName);
+
+  await spinToIndex(idx, drum.duration*1000*1.3);
+
+  usedNames.push(selectedName);
+  localStorage.setItem("usedNames",JSON.stringify(usedNames));
+  status.innerText=`🎯 第 1 輪完成：抽中「${selectedName}」`;
+
+  secondBtn.style.display="inline-block";
+};
+
+secondBtn.onclick=()=>{
+  secondBtn.style.display="none";
+  logs.push({name:selectedName,time:new Date().toLocaleString()});
+  localStorage.setItem("logs",JSON.stringify(logs));
+
+  if(usedNames.length===nameList.length){
+    status.innerHTML =
+`🎉 此輪轉盤已完成 ${usedNames.length} 位的紅包抽籤<br>
+📄 請按「抽籤紀錄 PDF」下載紀錄，或<br>
+🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
+    pdfBtn.classList.add("blink");
+  }else{
+    startBtn.disabled=false;
+  }
+};
+
+pdfBtn.onclick=()=>{
+  if(!logs.length){ alert("尚無紀錄"); return; }
+  pdfBtn.classList.remove("blink");
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  logs.forEach((l,i)=>doc.text(`${i+1}. ${l.time} ${l.name}`,10,20+i*10));
+  doc.save("BlessingCards128.pdf");
+};
+
+resetBtn.onclick=()=>{
+  localStorage.clear();
+  location.reload();
+};
+</script>
 </body>
 </html>
