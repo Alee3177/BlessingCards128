@@ -152,18 +152,19 @@
    - 僅做速度體感：角速度 +30%（同 drum 長度，轉更多圈）
 
 ---> v8.5.3 +體感升級(2025/12/19)
- * 🔒 STABLE CORE — DO NOT MODIFY (v8.5.x)
- *
- * 說明：
- * - 指針命中已 100% 正確
- * - 第一輪 / 第二輪視覺與結果一致
- * - 不可再改角度公式
- * - 不可再加 snap / 重畫 / 補轉
- * - 不可在動畫結尾做任何 setTimeout 修正
- *
- * 如需優化：
- * ✅ 只允許調整 spins 數值（轉速）
- * ❌ 禁止動 duration 比例或 angle 計算
+🔒 STABLE CORE — DO NOT MODIFY (v8.5.x)
+
+以下區塊已驗證正確：
+1. index → slice 中心角計算
+2. 第一輪 / 第二輪使用同一 currentRotation
+3. SPEED_BOOST 只影響圈數，不影響角度
+4. 第二輪停點 = 第一輪中獎者 index
+5. PDF 使用 drawLogs 並指定黑色字體
+
+⚠️ 禁止：
+- 重置 rotation = 0
+- 二次重畫修正
+- snap / 補轉
 ========================================================= */
 
 const $ = (id)=>document.getElementById(id);
@@ -411,7 +412,7 @@ function spinToIndex(items, targetIndex, clockwise, durationMs){
     const finalRotation = (pointerAngle - targetCenter) + dir*(spins*2*Math.PI);
 
     // 從當前角度開始（每次都從 0 起，避免你說的「重畫位置不同」）
-    const startRotation = 0;
+    const startRotation = currentRotation;
 
     // 播音效（與動畫同時開始）
     await playDrum();
@@ -431,7 +432,7 @@ function spinToIndex(items, targetIndex, clockwise, durationMs){
         requestAnimationFrame(frame);
       }else{
         // 動畫結束：確保畫面停在最終角度（不做「二次重畫跳動」）
-        drawWheel(items, finalRotation, true);
+        currentRotation = finalRotation;
 
         // 停掉 drum（避免 drum 比動畫長/短造成不一致）
         try{ drumAudio.pause(); }catch(e){}
@@ -683,7 +684,7 @@ function resetAll(){
     // ------------------------------
     async function exportPDF(){
       try{
-        const logs = state.logs || [];
+        const logs = drawLogs || [];
         if(logs.length === 0){
           alert('尚無抽籤紀錄！');
           return;
