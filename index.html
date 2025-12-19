@@ -404,7 +404,7 @@ function spinToIndex(items, targetIndex, clockwise, durationMs){
     // 轉幾圈：基礎圈數依人數做微調，並套用 SPEED_BOOST
     const SPEED_BOOST= 1.35; // +35%
     const baseSpins = 4.8;                 // 你覺得自然的基底
-    const spins = baseSpins * SPEED_BOOST; // 角速度 +30% ⇒ 圈數 +30%
+    const spins = baseSpins * SPEED_BOOST; // 角速度 +35% ⇒ 圈數 +35%
     const dir = clockwise ? 1 : -1;
 
     // 最終角度（精準命中）
@@ -515,7 +515,9 @@ async function startRound2(){
 
   setStatus("🎁 第 2 輪：祝福經句抽籤中…");
   showCenterText(""); // 開始轉時不顯示
-  showBadge("");      // 開始轉時不顯示
+/* --------------------------  
+  showBadge("");      // 開始轉時不顯示-->取消
+-------------------------- */ 
 
   // 抽未用過的經句（跨輪不重複）
   const allVerses = Object.keys(window.VERSE_REF_MAP || {}).sort();
@@ -542,7 +544,10 @@ async function startRound2(){
 
   // 轉完才顯示（你要求的順序）
   showCenterText(book, chap);
-  showBadge(`編號「${selectedVerse}」`);
+/* --------------------------
+  // 取消顯示 showBadge(`編號「${selectedVerse}」`);
+-------------------------- */  
+
 
   setStatus(`🎉 第 2 輪完成：抽中經句「${selectedVerse}」`);
 
@@ -673,83 +678,86 @@ function resetAll(){
   location.reload();
 }
 
-/* --------------------------
-   PDF：Canvas → 圖片 → PDF（中文不亂碼）
-   - 下載後停止閃爍
--------------------------- */
-async function exportPDF(){
-  try{
-    if(!drawLogs.length){
-      alert("尚無抽籤紀錄！");
-      return;
-    }
+    // ------------------------------
+    // PDF export (中文可讀)
+    // ------------------------------
+    async function exportPDF(){
+      try{
+        const logs = state.logs || [];
+        if(logs.length === 0){
+          alert('尚無抽籤紀錄！');
+          return;
+        }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit:"pt", format:"a4" });
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit:'pt', format:'a4' });
 
-    // 以 Canvas 畫字（避免字型亂碼）
-    const pageW = 595;  // A4 pt
-    const pageH = 842;
+        // 用 fetch 載入字型（你已確認可放 fonts/SourceHanSansTC-Regular.ttf 或同等）
+        // 若你目前 repo 只有 NotoSansTC-Regular.ttf，也可以把下面檔名換成它。
+        const fontUrlCandidates = [
+          'fonts/SourceHanSansTC-Regular.ttf',
+          'fonts/SourceHanSansTC-Regular.otf',
+          'fonts/NotoSansTC-Regular.ttf',
+          'fonts/NotoSansTC.ttf'
+        ];
 
-    const padX = 40;
-    const padY = 50;
-    const lineH = 26;
+        let fontDataB64 = null;
+        let fontFileName = null;
+        for(const url of fontUrlCandidates){
+          try{
+            const res = await fetch(url, { cache: 'no-store' });
+            if(!res.ok) continue;
+            const buf = await res.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            // Convert to base64 safely
+            let binary = '';
+            const chunk = 0x8000;
+            for(let i=0;i<bytes.length;i+=chunk){
+              binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+            }
+            fontDataB64 = btoa(binary);
+            fontFileName = url.split('/').pop();
+            break;
+          }catch(_){ }
+        }
 
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = pageW;
-    pageCanvas.height = pageH;
-    const pctx = pageCanvas.getContext("2d");
+        if(!fontDataB64){
+          alert('PDF 字型載入失敗：請確認 fonts/ 內有 SourceHanSansTC 或 NotoSansTC 的 ttf/otf。');
+          return;
+        }
 
-    function drawPage(lines){
-      pctx.clearRect(0,0,pageW,pageH);
-      // 背景白
-      pctx.fillStyle = "#ffffff";
-      pctx.fillRect(0,0,pageW,pageH);
+        const vfsName = fontFileName || 'CJK.ttf';
+        doc.addFileToVFS(vfsName, fontDataB64);
+        doc.addFont(vfsName, 'CJKFont', 'normal');
+        doc.setFont('CJKFont', 'normal');
+        doc.setTextColor(0, 0, 0); 
+        doc.setFontSize(16);
+        doc.text('BlessingCards128 抽籤紀錄', 40, 46);
+        doc.setFontSize(12);
 
-      // 標題
-      pctx.fillStyle = "#000";
-      pctx.font = "bold 18px Noto Sans TC, Arial";
-      pctx.fillText("BlessingCards128 抽籤紀錄", padX, padY);
+        let y = 74;
+        const lineH = 18;
+        const maxY = 800;
 
-      pctx.font = "16px Noto Sans TC, Arial";
-      let y = padY + 34;
+        for(const log of logs){
+          const line = `[${log.time}] ${log.name}｜${log.mode}｜抽中經句：${log.verse}（${log.ref || ''}）`;
+          const wrapped = doc.splitTextToSize(line, 515);
+          for(const part of wrapped){
+            doc.text(part, 40, y);
+            y += lineH;
+            if(y > maxY){
+              doc.addPage();
+              y = 60;
+            }
+          }
+        }
 
-      for(const s of lines){
-        pctx.fillText(s, padX, y);
-        y += lineH;
+        doc.save('BlessingCards128_抽籤紀錄.pdf');
+      } catch (e){
+        console.error(e);
+        alert('PDF 產生失敗：請查看 Console 錯誤訊息。');
       }
-
-      const img = pageCanvas.toDataURL("image/png", 1.0);
-      doc.addImage(img, "PNG", 0, 0, pageW, pageH);
     }
-
-    // 組行
-    const allLines = drawLogs.map(log=>{
-      const ref = window.VERSE_REF_MAP?.[log.verse] || "";
-      return `[${log.time}] ${log.name}｜抽中經句：${log.verse}（${ref}）`;
-    });
-
-    // 分頁
-    const maxLinesPerPage = Math.floor((pageH - (padY + 80)) / lineH);
-    let i = 0;
-    let first = true;
-    while(i < allLines.length){
-      const chunk = allLines.slice(i, i + maxLinesPerPage);
-      if(!first) doc.addPage();
-      drawPage(chunk);
-      first = false;
-      i += maxLinesPerPage;
-    }
-
-    doc.save("BlessingCards128_抽籤紀錄.pdf");
-
-    // 下載後停止閃爍
-    pdfBtn.classList.remove("blinking");
-  }catch(e){
-    alert("PDF 產生失敗：請查看 Console 錯誤訊息。");
-    console.error(e);
-  }
-}
 
 /* --------------------------
    按鍵綁定
