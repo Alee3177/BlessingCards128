@@ -90,35 +90,51 @@ function spinToIndex(targetIndex){
   const count = items.length;
   const arc = Math.PI * 2 / count;
 
-  // ★ slice 中心（與 drawWheel 完全一致）
-  const targetCenter = targetIndex*arc - Math.PI/2;
-  const pointerAngle = -Math.PI/2; // 12點
+  // slice 中心（與 drawWheel 完全一致）
+  const targetCenter = targetIndex * arc - Math.PI / 2;
+  const pointerAngle = -Math.PI / 2; // 12 點
 
-  const spins = 5;
-  const delta =
+  // ✅ 轉速：與原 index 相同
+  const SPEED_BOOST = 1.35;
+  const baseSpins = 4.8;
+  const spins = baseSpins * SPEED_BOOST;
+
+  // 最終需要轉的「相對角度」
+  const deltaRotation =
     (pointerAngle - targetCenter)
     + spins * 2 * Math.PI;
 
-  const start = currentRotation;
-  const duration = 4200;
+  const startRotation = currentRotation;
+  const duration = 4800; // 與 drum.mp3 體感一致
   const t0 = performance.now();
 
   function frame(now){
-    let t = (now - t0)/duration;
-    if(t>1) t=1;
-    const rot = start + delta * easeOutCubic(t);
+    let t = (now - t0) / duration;
+    if(t > 1) t = 1;
+
+    const eased = easeOutCubic(t);
+    const rot = startRotation + deltaRotation * eased;
+
     drawWheel(rot);
 
-    if(t<1){
+    if(t < 1){
       requestAnimationFrame(frame);
     }else{
-      currentRotation = start + delta;
+      // ✅ 關鍵：只在這裡定格一次
+      currentRotation = startRotation + deltaRotation;
+      drawWheel(currentRotation);
+
       isSpinning = false;
-      console.log("🎯 抽中 index =", targetIndex, "值 =", items[targetIndex]);
+      console.log(
+        "🎯 抽中 index =", targetIndex,
+        "值 =", items[targetIndex]
+      );
     }
   }
+
   requestAnimationFrame(frame);
 }
+
 
 /* ====== 測試按鈕 ====== */
 document.getElementById("spinBtn").onclick = ()=>{
