@@ -358,7 +358,8 @@ function spinToIndex(items, targetIndex, clockwise, durationMs){
 
     // ✅ v8.5.4：slice 中心角（與 drawWheel 完全一致）
     // drawWheel：start = i*arc - PI/2 - arc/2；中心 mid = start + arc/2 = i*arc - PI/2
-    const targetCenter = targetIndex*arc - Math.PI/2;
+    // 與 drawWheel 的「mid = start + arc/2」完全對齊
+    const targetCenter = targetIndex*arc - Math.PI/2 + arc/2;
     const pointerAngle = -Math.PI/2; // 指針方向：12點
 
     const SPEED_BOOST = 1.35; // +35%（你實測 OK）
