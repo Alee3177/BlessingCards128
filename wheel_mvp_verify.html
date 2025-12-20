@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Wheel MVP Verify</title>
+<style>
+  body { text-align:center; font-family:sans-serif; }
+  canvas { background:#fff8e7; margin-top:20px; }
+  button { padding:10px 20px; font-size:16px; }
+</style>
+</head>
+<body>
+
+<h2>最小可驗證轉盤（MVP）</h2>
+<button id="spinBtn">開始旋轉</button>
+
+<div style="position:relative; width:400px; margin:auto;">
+  <div style="
+    position:absolute;
+    top:-6px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:24px;
+    color:red;
+  ">▼</div>
+  <canvas id="wheel" width="400" height="400"></canvas>
+</div>
+
+<script>
+/* ====== 基本設定 ====== */
+const items = ["1","2","3"];   // ← 改這裡測
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const CENTER = 200;
+const RADIUS = 180;
+
+let currentRotation = 0;
+let isSpinning = false;
+
+/* ====== 畫輪盤 ====== */
+function drawWheel(rotation){
+  ctx.clearRect(0,0,400,400);
+  const count = items.length;
+  const arc = Math.PI * 2 / count;
+
+  ctx.save();
+  ctx.translate(CENTER, CENTER);
+  ctx.rotate(rotation);
+  ctx.translate(-CENTER, -CENTER);
+
+  for(let i=0;i<count;i++){
+    // ★ 關鍵：slice 中心 = i*arc - PI/2
+    const start = i*arc - Math.PI/2 - arc/2;
+    const end   = start + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(CENTER, CENTER);
+    ctx.arc(CENTER, CENTER, RADIUS, start, end);
+    ctx.closePath();
+    ctx.fillStyle = i%2 ? "#fcdca0" : "#fde7b5";
+    ctx.fill();
+    ctx.strokeStyle="#fff";
+    ctx.lineWidth=2;
+    ctx.stroke();
+
+    // 文字
+    ctx.save();
+    ctx.translate(CENTER, CENTER);
+    ctx.rotate(i*arc - Math.PI/2);
+    ctx.textAlign="right";
+    ctx.font="20px sans-serif";
+    ctx.fillStyle="#000";
+    ctx.fillText(items[i], RADIUS-20, 8);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+/* ====== easing ====== */
+function easeOutCubic(t){
+  return 1 - Math.pow(1-t,3);
+}
+
+/* ====== 核心：轉到指定 index ====== */
+function spinToIndex(targetIndex){
+  if(isSpinning) return;
+  isSpinning = true;
+
+  const count = items.length;
+  const arc = Math.PI * 2 / count;
+
+  // ★ slice 中心（與 drawWheel 完全一致）
+  const targetCenter = targetIndex*arc - Math.PI/2;
+  const pointerAngle = -Math.PI/2; // 12點
+
+  const spins = 5;
+  const delta =
+    (pointerAngle - targetCenter)
+    + spins * 2 * Math.PI;
+
+  const start = currentRotation;
+  const duration = 4200;
+  const t0 = performance.now();
+
+  function frame(now){
+    let t = (now - t0)/duration;
+    if(t>1) t=1;
+    const rot = start + delta * easeOutCubic(t);
+    drawWheel(rot);
+
+    if(t<1){
+      requestAnimationFrame(frame);
+    }else{
+      currentRotation = start + delta;
+      isSpinning = false;
+      console.log("🎯 抽中 index =", targetIndex, "值 =", items[targetIndex]);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ====== 測試按鈕 ====== */
+document.getElementById("spinBtn").onclick = ()=>{
+  const idx = Math.floor(Math.random()*items.length);
+  spinToIndex(idx);
+};
+
+// 初始
+drawWheel(0);
+</script>
+
+</body>
+</html>
