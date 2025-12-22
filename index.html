@@ -1,310 +1,175 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
 <title>祝福經句紅包（應許等您拿）</title>
 
 <style>
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Segoe UI",sans-serif;
-  background:#fbf2df;
-  margin:0;
-  padding:16px;
-  text-align:center;
-  color:#5b3a00;
+body {
+  font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont;
+  background: #f6e7d3;
+  text-align: center;
 }
-h1{margin:8px 0}
-
-input,button{
-  font-size:16px;
-  padding:8px 12px;
-  border-radius:10px;
-  border:1px solid #c9a56a;
+input {
+  width: 60%;
+  padding: 10px;
+  font-size: 16px;
 }
-button{
-  background:#f5bc00;
-  color:#5b3a00;
-  cursor:pointer;
+button {
+  padding: 10px 18px;
+  margin: 6px;
+  font-size: 16px;
 }
-button:disabled{
-  opacity:.5;
-  cursor:not-allowed;
+canvas {
+  margin-top: 20px;
 }
-
-#panel{margin-bottom:10px}
-
-#wrap{
-  position:relative;
-  width:360px;
-  margin:0 auto;
-}
-canvas{display:block;margin:0 auto}
-
-#pointer{
-  position:absolute;
-  left:50%;
-  top:18px;
-  transform:translateX(-50%);
-  width:0;height:0;
-  border-left:14px solid transparent;
-  border-right:14px solid transparent;
-  border-top:22px solid #d60000; /* 倒三角，向下 */
-}
-
-#status{margin:8px 0;min-height:24px}
-
-.blinking{
-  animation:blink 1s infinite;
-}
-@keyframes blink{
-  0%,50%,100%{opacity:1}
-  25%,75%{opacity:.3}
+#result {
+  margin-top: 16px;
+  font-size: 20px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>祝福經句紅包（應許等您拿）</h1>
+<h2>🎯 祝福經句紅包（應許等您拿）</h2>
 
-<div id="panel">
-  <input id="nameInput" placeholder="輸入姓名（空白分隔）" size="24">
-  <br><br>
-  <button id="lockBtn">鎖定名單</button>
-  <button id="startBtn">開始抽姓名 + 經句</button>
-  <button id="secondBtn" style="display:none">抽紅包（第二輪）</button>
-  <button id="pdfBtn">抽籤紀錄 PDF</button>
-  <button id="resetBtn">全部歸零</button>
+<div>
+  <input id="names" value="1 2 3" />
 </div>
 
-<div id="wrap">
-  <div id="pointer"></div>
-  <canvas id="cv" width="360" height="360"></canvas>
+<div>
+  <button id="spinOnce">開始旋轉</button>
+  <button id="spin10">連轉 10 次</button>
 </div>
 
-<div id="status"></div>
+<canvas id="cv" width="420" height="420"></canvas>
+
+<div id="result">尚未抽籤</div>
+
+<audio id="drum" src="drum.mp3" preload="auto"></audio>
 
 <script>
 /* =========================
-   全域狀態
-========================= */
-let nameList=[];
-let usedNames=[];
-let usedVerses=[];
-let logs=[];
-let locked=false;
-let stage="idle";
-let selectedName=null;
-let selectedVerse=null;
+   MVP Step3 核心（唯一）
+   ========================= */
 
-let isSpinning=false;
-let currentRotation=0;
+const canvas = document.getElementById("cv");
+const ctx = canvas.getContext("2d");
+const drum = document.getElementById("drum");
+const resultBox = document.getElementById("result");
 
-const cv=document.getElementById("cv");
-const ctx=cv.getContext("2d");
-const CENTER=180;
-const RADIUS=150;
+let items = [];
+let rotation = 0;
+let spinning = false;
 
-const drum=new Audio("drum.mp3");
+function parseNames() {
+  items = document.getElementById("names").value
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean);
+}
 
-/* =========================
-   工具
-========================= */
-const TAU=Math.PI*2;
-const easeOutQuint=t=>1-Math.pow(1-t,5);
-const setStatus=t=>document.getElementById("status").textContent=t;
+function drawWheel(highlightIndex = null) {
+  const n = items.length;
+  const cx = 210, cy = 210, r = 180;
+  ctx.clearRect(0,0,420,420);
 
-/* =========================
-   畫轉盤（唯一基準）
-========================= */
-function drawWheel(items, rotation){
-  ctx.clearRect(0,0,360,360);
-  if(!items.length) return;
-
-  const arc=TAU/items.length;
-
-  ctx.save();
-  ctx.translate(CENTER,CENTER);
-  ctx.rotate(rotation);
-  ctx.translate(-CENTER,-CENTER);
-
-  for(let i=0;i<items.length;i++){
-    const start=i*arc - Math.PI/2 - arc/2;
-    const end=start+arc;
+  for (let i=0;i<n;i++){
+    const a0 = rotation + i * 2*Math.PI/n;
+    const a1 = a0 + 2*Math.PI/n;
 
     ctx.beginPath();
-    ctx.moveTo(CENTER,CENTER);
-    ctx.arc(CENTER,CENTER,RADIUS,start,end);
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,a0,a1);
     ctx.closePath();
-    ctx.fillStyle=i%2? "#fcdca0":"#fde7b5";
-    ctx.fill();
 
-    ctx.strokeStyle="#fff";
-    ctx.lineWidth=2;
+    ctx.fillStyle = (i===highlightIndex) ? "#f5bc00" : "#f9d88a";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
     ctx.stroke();
 
     ctx.save();
-    ctx.translate(CENTER,CENTER);
-    ctx.rotate(start+arc/2);
-    ctx.textAlign="right";
-    ctx.font="22px Noto Sans TC";
-    ctx.fillStyle="#5b3a00";
-    ctx.fillText(items[i],RADIUS-22,10);
+    ctx.translate(cx,cy);
+    ctx.rotate(a0 + Math.PI/n);
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillStyle="#333";
+    ctx.font="16px sans-serif";
+    ctx.fillText(items[i], r*0.65, 0);
     ctx.restore();
   }
-  ctx.restore();
+
+  // 指針（倒三角，固定）
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-r-12);
+  ctx.lineTo(cx-8,cy-r+6);
+  ctx.lineTo(cx+8,cy-r+6);
+  ctx.closePath();
+  ctx.fill();
 }
 
-/* =========================
-   核心旋轉（MVP v3）
-   誰停在指針下，誰中
-========================= */
-function spin(items,targetIndex,durationMs,clockwise=false){
-  return new Promise(resolve=>{
-    if(isSpinning) return;
-    isSpinning=true;
+function spinOnce(callback){
+  if(spinning) return;
+  spinning=true;
 
-    const arc=TAU/items.length;
-    const pointerAngle=-Math.PI/2;
-    const targetCenter=targetIndex*arc - Math.PI/2;
+  parseNames();
+  if(items.length===0){ spinning=false; return; }
 
-    const SPEED_BOOST=1.35;
-    const baseSpins=4.8;
-    const spins=baseSpins*SPEED_BOOST;
-    const dir=clockwise?1:-1;
+  const n = items.length;
+  const winIndex = Math.floor(Math.random()*n);
+  const slice = 2*Math.PI/n;
 
-    const delta=(pointerAngle-targetCenter)+dir*(spins*TAU);
-    const start=currentRotation;
+  const target =
+    (Math.PI*1.5) -
+    (winIndex*slice + slice/2) +
+    Math.PI*6;
 
-    drum.currentTime=0;
-    drum.play();
+  const start = rotation;
+  const duration = 4200;
+  const t0 = performance.now();
 
-    const t0=performance.now();
-    function frame(now){
-      let t=(now-t0)/durationMs;
-      if(t>1) t=1;
-      const rot=start+delta*easeOutQuint(t);
-      drawWheel(items,rot);
+  drum.currentTime = 0;
+  drum.play().catch(()=>{});
 
-      if(t<1){
-        requestAnimationFrame(frame);
-      }else{
-        currentRotation=start+delta;
-        drawWheel(items,currentRotation);
-        isSpinning=false;
-        resolve();
-      }
+  function anim(t){
+    const p = Math.min((t-t0)/duration,1);
+    const ease = 1-Math.pow(1-p,3);
+    rotation = start + (target-start)*ease;
+    drawWheel();
+    if(p<1){
+      requestAnimationFrame(anim);
+    } else {
+      rotation = target;
+      drawWheel(winIndex);
+      drum.onended = ()=>{
+        resultBox.innerHTML = `🎯 抽中：${items[winIndex]}`;
+        spinning=false;
+        if(callback) callback();
+      };
     }
-    requestAnimationFrame(frame);
-  });
-}
-
-/* =========================
-   第一輪
-========================= */
-async function startRound1(){
-  if(!locked||isSpinning) return;
-
-  const remaining=nameList.filter(n=>!usedNames.includes(n));
-  if(!remaining.length){
-    setStatus(`🎉 此輪轉盤已完成 ${usedNames.length} 位的紅包抽籤
-📄 請按「抽籤紀錄 PDF」下載紀錄，或
-🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`);
-    document.getElementById("pdfBtn").classList.add("blinking");
-    return;
   }
-
-  const winner=remaining[Math.floor(Math.random()*remaining.length)];
-  selectedName=winner;
-  const idx=nameList.indexOf(winner);
-
-  setStatus("🎡 第 1 輪：姓名抽籤中…");
-  document.getElementById("startBtn").disabled=true;
-
-  await spin(nameList,idx,5200,false);
-
-  setStatus(`🎯 第 1 輪完成：抽中「${winner}」`);
-  usedNames.push(winner);
-  logs.push({name:winner,verse:null});
-
-  document.getElementById("secondBtn").style.display="inline-block";
-  document.getElementById("secondBtn").classList.add("blinking");
+  requestAnimationFrame(anim);
 }
 
-/* =========================
-   第二輪（經句）
-========================= */
-async function startRound2(){
-  if(isSpinning||!selectedName) return;
+document.getElementById("spinOnce").onclick = ()=> spinOnce();
 
-  let v;
-  do{
-    v=Math.floor(Math.random()*128)+1;
-  }while(usedVerses.includes(v));
-
-  usedVerses.push(v);
-  selectedVerse=v;
-
-  setStatus("🎁 第 2 輪：祝福經句抽籤中…");
-  document.getElementById("secondBtn").classList.remove("blinking");
-  document.getElementById("secondBtn").style.display="none";
-
-  await spin(nameList,nameList.indexOf(selectedName),5200,true);
-
-  setStatus(`🎯 第 2 輪完成：抽中經句「${String(v).padStart(3,"0")}」`);
-  logs[logs.length-1].verse=v;
-
-  document.getElementById("startBtn").disabled=false;
-}
-
-/* =========================
-   PDF（Canvas→Image）
-========================= */
-function exportPDF(){
-  if(!logs.length){alert("尚無紀錄");return;}
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF();
-
-  logs.forEach((l,i)=>{
-    if(i>0) pdf.addPage();
-    pdf.setTextColor(0,0,0);
-    pdf.text(`${l.name}｜抽中的經句紅包`,20,30);
-    if(l.verse)
-      pdf.text(`編號 ${String(l.verse).padStart(3,"0")}`,20,50);
-  });
-
-  pdf.save("BlessingCards128.pdf");
-  document.getElementById("pdfBtn").classList.remove("blinking");
-}
-
-/* =========================
-   UI 綁定
-========================= */
-document.getElementById("lockBtn").onclick=()=>{
-  const raw=document.getElementById("nameInput").value.trim();
-  if(!raw) return;
-  const arr=raw.split(/\s+/);
-  if(new Set(arr).size!==arr.length){
-    alert("Oops, 有姓名被重複輸入了唷！");
-    return;
-  }
-  nameList=arr;
-  usedNames=[];
-  locked=true;
-  drawWheel(nameList,0);
-  setStatus(`🔒 新一輪名單已鎖定，共 ${nameList.length} 位`);
+document.getElementById("spin10").onclick = ()=>{
+  let count=0;
+  const run=()=>{
+    if(count>=10) return;
+    spinOnce(()=>{
+      count++;
+      setTimeout(run,300);
+    });
+  };
+  run();
 };
 
-document.getElementById("startBtn").onclick=startRound1;
-document.getElementById("secondBtn").onclick=startRound2;
-document.getElementById("pdfBtn").onclick=exportPDF;
-document.getElementById("resetBtn").onclick=()=>location.reload();
-
-/* 初始 */
-drawWheel([],0);
+parseNames();
+drawWheel();
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
