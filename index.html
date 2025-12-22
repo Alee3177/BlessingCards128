@@ -1,175 +1,244 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<title>祝福經句紅包（應許等您拿）</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BlessingCards128 – MVP Step3 + B4</title>
 
 <style>
-body {
-  font-family: "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont;
-  background: #f6e7d3;
-  text-align: center;
-}
-input {
-  width: 60%;
-  padding: 10px;
-  font-size: 16px;
-}
-button {
-  padding: 10px 18px;
-  margin: 6px;
-  font-size: 16px;
-}
-canvas {
-  margin-top: 20px;
-}
-#result {
-  margin-top: 16px;
-  font-size: 20px;
-}
+  body{
+    font-family: system-ui,-apple-system,"Noto Sans TC",sans-serif;
+    background:#fbf2df;
+    margin:0;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+  }
+  h2{margin:4px 0;color:#5b3a00}
+
+  #panel{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  input{padding:8px;border-radius:8px;border:1px solid #caa26a}
+  button{
+    padding:8px 14px;
+    border-radius:10px;
+    border:1px solid #b58b5a;
+    background:#fff;
+    cursor:pointer;
+  }
+  button:disabled{opacity:.5;cursor:not-allowed}
+
+  #wrap{position:relative;width:360px}
+  canvas{display:block;margin:auto}
+
+  /* 指針（固定向下） */
+  #pointer{
+    position:absolute;
+    left:50%;
+    top:54px;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:14px solid transparent;
+    border-right:14px solid transparent;
+    border-top:22px solid #c40000;
+    filter:drop-shadow(0 1px 0 rgba(0,0,0,.2));
+    z-index:5;
+  }
+
+  #status{
+    min-height:1.4em;
+    color:#5b3a00;
+    font-weight:600;
+  }
 </style>
 </head>
 
 <body>
 
-<h2>🎯 祝福經句紅包（應許等您拿）</h2>
+<h2>BlessingCards128</h2>
 
-<div>
-  <input id="names" value="1 2 3" />
+<div id="panel">
+  <input id="names" placeholder="輸入姓名（以逗號分隔）" value="1,2,3">
+  <button id="lockBtn">鎖定名單</button>
+  <button id="spinBtn" disabled>開始抽姓名</button>
+  <button id="round2Btn" disabled>抽紅包（第二輪）</button>
 </div>
 
-<div>
-  <button id="spinOnce">開始旋轉</button>
-  <button id="spin10">連轉 10 次</button>
+<div id="wrap">
+  <div id="pointer"></div>
+  <canvas id="cv" width="360" height="360"></canvas>
 </div>
 
-<canvas id="cv" width="420" height="420"></canvas>
-
-<div id="result">尚未抽籤</div>
+<div id="status"></div>
 
 <audio id="drum" src="drum.mp3" preload="auto"></audio>
 
 <script>
-/* =========================
-   MVP Step3 核心（唯一）
-   ========================= */
+/* ======================
+   基本設定（Step1–3 鎖死）
+====================== */
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height;
+const CENTER = W/2;
+const RADIUS = 150;
 
-const canvas = document.getElementById("cv");
-const ctx = canvas.getContext("2d");
-const drum = document.getElementById("drum");
-const resultBox = document.getElementById("result");
+const pointerAngle = -Math.PI/2; // 12點方向
+const SPEED_BOOST = 1.35;
+const baseSpins = 4.8;
+const spins = baseSpins * SPEED_BOOST;
 
 let items = [];
-let rotation = 0;
-let spinning = false;
+let locked = false;
+let isSpinning = false;
+let currentRotation = 0;
 
-function parseNames() {
-  items = document.getElementById("names").value
-    .trim()
-    .split(/[\s,]+/)
-    .filter(Boolean);
+let round = 1;
+let firstIndex = null;
+let secondIndex = null;
+
+const drum = document.getElementById("drum");
+
+function norm(a){
+  a %= Math.PI*2;
+  if(a<0) a+=Math.PI*2;
+  return a;
 }
+function easeOutQuint(t){return 1-Math.pow(1-t,5);}
 
-function drawWheel(highlightIndex = null) {
-  const n = items.length;
-  const cx = 210, cy = 210, r = 180;
-  ctx.clearRect(0,0,420,420);
+/* ======================
+   繪製轉盤（姓名 or 空）
+====================== */
+function drawWheel(rotation, drawText=true){
+  ctx.clearRect(0,0,W,H);
+  if(items.length===0) return;
 
-  for (let i=0;i<n;i++){
-    const a0 = rotation + i * 2*Math.PI/n;
-    const a1 = a0 + 2*Math.PI/n;
+  const arc = Math.PI*2/items.length;
+
+  ctx.save();
+  ctx.translate(CENTER,CENTER);
+  ctx.rotate(rotation);
+  ctx.translate(-CENTER,-CENTER);
+
+  for(let i=0;i<items.length;i++){
+    const start = i*arc - Math.PI/2 - arc/2;
+    const end = start + arc;
 
     ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.arc(cx,cy,r,a0,a1);
+    ctx.moveTo(CENTER,CENTER);
+    ctx.arc(CENTER,CENTER,RADIUS,start,end);
     ctx.closePath();
-
-    ctx.fillStyle = (i===highlightIndex) ? "#f5bc00" : "#f9d88a";
+    ctx.fillStyle = (i%2===0) ? "#fde7b5" : "#fcdca0";
     ctx.fill();
-    ctx.strokeStyle = "#fff";
+
+    ctx.strokeStyle="#fff";
+    ctx.lineWidth=2;
     ctx.stroke();
 
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(a0 + Math.PI/n);
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    ctx.fillStyle="#333";
-    ctx.font="16px sans-serif";
-    ctx.fillText(items[i], r*0.65, 0);
-    ctx.restore();
-  }
-
-  // 指針（倒三角，固定）
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.moveTo(cx,cy-r-12);
-  ctx.lineTo(cx-8,cy-r+6);
-  ctx.lineTo(cx+8,cy-r+6);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function spinOnce(callback){
-  if(spinning) return;
-  spinning=true;
-
-  parseNames();
-  if(items.length===0){ spinning=false; return; }
-
-  const n = items.length;
-  const winIndex = Math.floor(Math.random()*n);
-  const slice = 2*Math.PI/n;
-
-  const target =
-    (Math.PI*1.5) -
-    (winIndex*slice + slice/2) +
-    Math.PI*6;
-
-  const start = rotation;
-  const duration = 4200;
-  const t0 = performance.now();
-
-  drum.currentTime = 0;
-  drum.play().catch(()=>{});
-
-  function anim(t){
-    const p = Math.min((t-t0)/duration,1);
-    const ease = 1-Math.pow(1-p,3);
-    rotation = start + (target-start)*ease;
-    drawWheel();
-    if(p<1){
-      requestAnimationFrame(anim);
-    } else {
-      rotation = target;
-      drawWheel(winIndex);
-      drum.onended = ()=>{
-        resultBox.innerHTML = `🎯 抽中：${items[winIndex]}`;
-        spinning=false;
-        if(callback) callback();
-      };
+    if(drawText){
+      ctx.save();
+      ctx.translate(CENTER,CENTER);
+      ctx.rotate(start+arc/2);
+      ctx.textAlign="right";
+      ctx.font="20px 'Noto Sans TC'";
+      ctx.fillStyle="#5b3a00";
+      ctx.fillText(items[i],RADIUS-18,8);
+      ctx.restore();
     }
   }
-  requestAnimationFrame(anim);
+  ctx.restore();
 }
 
-document.getElementById("spinOnce").onclick = ()=> spinOnce();
+/* ======================
+   核心旋轉（裁決唯一來源）
+====================== */
+async function spinToIndex(targetIndex, drawText){
+  if(isSpinning) return;
+  isSpinning=true;
 
-document.getElementById("spin10").onclick = ()=>{
-  let count=0;
-  const run=()=>{
-    if(count>=10) return;
-    spinOnce(()=>{
-      count++;
-      setTimeout(run,300);
-    });
-  };
-  run();
+  const arc = Math.PI*2/items.length;
+  const targetCenter = targetIndex*arc - Math.PI/2;
+  const desiredMod = norm(pointerAngle - targetCenter);
+
+  const startRot = currentRotation;
+  const startMod = norm(startRot);
+
+  let baseDelta = desiredMod - startMod;
+  if(baseDelta>Math.PI) baseDelta-=Math.PI*2;
+  if(baseDelta<-Math.PI) baseDelta+=Math.PI*2;
+
+  const delta = baseDelta - spins*2*Math.PI;
+  const duration = 5200;
+
+  drum.currentTime=0;
+  await drum.play();
+
+  const t0 = performance.now();
+  function frame(now){
+    let t=(now-t0)/duration;
+    if(t>1) t=1;
+    const rot = startRot + delta*easeOutQuint(t);
+    drawWheel(rot,drawText);
+
+    if(t<1){
+      requestAnimationFrame(frame);
+    }else{
+      currentRotation = startRot + delta;
+      drawWheel(currentRotation,drawText);
+      isSpinning=false;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ======================
+   UI 行為
+====================== */
+const status = document.getElementById("status");
+const namesInput = document.getElementById("names");
+const lockBtn = document.getElementById("lockBtn");
+const spinBtn = document.getElementById("spinBtn");
+const round2Btn = document.getElementById("round2Btn");
+
+lockBtn.onclick=()=>{
+  items = namesInput.value.split(",").map(s=>s.trim()).filter(Boolean);
+  if(items.length<2){alert("至少需要兩位");return;}
+  locked=true;
+  round=1;
+  firstIndex=null;
+  secondIndex=null;
+  currentRotation=0;
+  drawWheel(0,true);
+  spinBtn.disabled=false;
+  round2Btn.disabled=true;
+  status.textContent="名單已鎖定，請開始抽姓名";
 };
 
-parseNames();
-drawWheel();
-</script>
+spinBtn.onclick=async()=>{
+  if(round!==1) return;
+  const idx = Math.floor(Math.random()*items.length);
+  firstIndex = idx;
+  status.textContent="🎡 第 1 輪：姓名抽籤中…";
+  await spinToIndex(idx,true);
+  status.textContent=`🎯 第 1 輪完成：抽中「${items[idx]}」`;
+  round=2;
+  spinBtn.disabled=true;
+  round2Btn.disabled=false;
+};
 
+round2Btn.onclick=async()=>{
+  if(round!==2) return;
+  const idx = Math.floor(Math.random()*items.length);
+  secondIndex = idx;
+  status.textContent="🎁 第 2 輪：祝福經句抽籤中…";
+  await spinToIndex(idx,false);
+  status.textContent="🎯 第 2 輪完成：抽中經句";
+  round2Btn.disabled=true;
+};
+
+/* 初始 */
+drawWheel(0,true);
+</script>
 </body>
 </html>
