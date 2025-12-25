@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>抽籤轉盤</title>
+
+<style>
+body{
+  font-family:"Noto Sans TC",system-ui,-apple-system,sans-serif;
+  background:#fbf2df;
+  margin:0;
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+}
+#wrap{position:relative;width:380px}
+canvas{display:block;background:#fff0}
+
+button{
+  padding:8px 14px;
+  border-radius:12px;
+  border:1px solid #b58b5a;
+  background:white;
+}
+#namesView{color:#5b3a00}
+#result{font-size:18px;color:#8b4b00}
+#hint{color:#aa0000;font-size:15px}
+</style>
+</head>
+
+<body>
+
+<h2>抽籤轉盤</h2>
+
+<div>
+  <input id="nameInput" style="width:260px" placeholder="輸入姓名（逗號 或 空白分隔）">
+  <button id="lockBtn">鎖定名單</button>
+</div>
+
+<div id="namesView"></div>
+<div id="hint"></div>
+
+<div id="wrap">
+  <canvas id="cv" width="360" height="360"></canvas>
+</div>
+
+<button id="spinBtn" disabled>開始旋轉</button>
+
+<div id="result"></div>
+
+<audio id="drum" src="drum.mp3"></audio>
+
+<script>
+(() => {
+
+// ====== 基本元件 ======
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const CENTER = cv.width/2;
+const RADIUS = 150;
+
+let nameList = [];
+let locked = false;
+
+let usedNames = [];        // ⭐ 本輪已抽過（不重複）
+let isSpinning = false;
+let currentRotation = 0;
+
+let selectedIndex = null;
+let revealShown = false;
+let blinkPhase = 0;
+
+const nameInput = document.getElementById("nameInput");
+const lockBtn = document.getElementById("lockBtn");
+const namesView = document.getElementById("namesView");
+const resultBox = document.getElementById("result");
+const spinBtn = document.getElementById("spinBtn");
+const hint = document.getElementById("hint");
+const drum = document.getElementById("drum");
+
+// ====== 轉盤繪製 ======
+function drawWheel(rotation){
+  ctx.clearRect(0,0,cv.width,cv.height);
+
+  if(nameList.length===0) return;
+
+  const count = nameList.length;
+  const arc = (Math.PI*2)/count;
+
+  ctx.save();
+  ctx.translate(CENTER,CENTER);
+  ctx.rotate(rotation);
+  ctx.translate(-CENTER,-CENTER);
+
+  for(let i=0;i<count;i++){
+
+    const start = i*arc - Math.PI/2 - arc/2;
+    const end = start + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(CENTER,CENTER);
+    ctx.arc(CENTER,CENTER,RADIUS,start,end);
+    ctx.closePath();
+
+    ctx.fillStyle = (i%2===0) ? "#fde7b5" : "#fcdca0";
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // ⭐ 高亮扇形（持續閃爍，直到下一次旋轉）
+    if(revealShown && selectedIndex === i){
+      const alpha = 0.35 + 0.35*Math.sin(blinkPhase);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#f5bc00";
+      ctx.beginPath();
+      ctx.moveTo(CENTER,CENTER);
+      ctx.arc(CENTER,CENTER,RADIUS,start,end);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 文字
+    ctx.save();
+    ctx.translate(CENTER,CENTER);
+    const mid = start + arc/2;
+    ctx.rotate(mid);
+    ctx.textAlign = "right";
+    ctx.font = "20px 'Noto Sans TC'";
+    ctx.fillStyle = "#5b3a00";
+    ctx.fillText(nameList[i], RADIUS-20, 8);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ====== 閃爍動畫 ======
+function animate(){
+  if(revealShown){
+    blinkPhase += 0.08;
+    drawWheel(currentRotation);
+  }
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+// ====== easing ======
+function easeOutCubic(t){
+  return 1 - Math.pow(1 - t, 3);
+}
+
+// ====== 鎖定名單 ======
+lockBtn.onclick = ()=>{
+
+  if(locked){
+    // 解除鎖定 = 重置
+    locked = false;
+    nameList=[];
+    usedNames=[];
+    spinBtn.disabled=true;
+    nameInput.disabled=false;
+    revealShown=false;
+
+    hint.textContent="";
+    resultBox.textContent="";
+    namesView.textContent="";
+    drawWheel(0);
+    return;
+  }
+
+  let raw = nameInput.value.trim();
+  if(!raw){
+    alert("請輸入姓名");
+    return;
+  }
+
+  nameList = raw
+    .split(/[,，\s]+/)
+    .map(s=>s.trim())
+    .filter(s=>s);
+
+  // ⭐ 重複姓名檢查
+  const s = new Set(nameList);
+  if(s.size !== nameList.length){
+    alert("Oops, 有姓名重複輸入了唷");
+    return;
+  }
+
+  locked = true;
+  usedNames = []; // ⭐ 新一輪
+  nameInput.disabled = true;
+
+  namesView.textContent="名單：" + nameList.join("、");
+  hint.textContent="名單已鎖定，請按「開始旋轉」。";
+
+  drawWheel(0);
+  spinBtn.disabled=false;
+};
+
+// ====== 核心：旋轉 ======
+async function spinOnce(){
+
+  if(!locked){
+    alert("請先鎖定名單");
+    return;
+  }
+
+  if(nameList.length===0){
+    alert("沒有名單可抽");
+    return;
+  }
+
+  if(isSpinning) return;
+
+  // ⭐ 本輪是否已抽完
+  if(usedNames.length === nameList.length){
+    alert("本輪已全部抽完，請重新鎖定名單開始新一輪。");
+    return;
+  }
+
+  isSpinning = true;
+  revealShown = false;
+  resultBox.textContent="旋轉中…";
+
+  // 剩餘可抽
+  const pool = nameList.filter(n => !usedNames.includes(n));
+
+  const winner = pool[Math.floor(Math.random()*pool.length)];
+  selectedIndex = nameList.indexOf(winner);
+
+  usedNames.push(winner);
+
+  // ===== 鼓聲 =====
+  drum.currentTime = 0;
+  drum.play().catch(()=>{});
+
+  // ===== 高亮與結果顯示於 5.5 秒 =====
+  setTimeout(()=>{
+    revealShown = true;
+    resultBox.textContent = "🎯 抽中「" + winner + "」";
+
+    // ⭐ 一輪抽完自動提示
+    if(usedNames.length === nameList.length){
+      hint.textContent = "本輪已完成，全部人都抽過了。";
+    }else{
+      hint.textContent = "";
+    }
+
+  }, 5500);
+
+  // ====== 旋轉動畫 ======
+  const count = nameList.length;
+  const arc = (Math.PI*2)/count;
+
+  const pointerAngle = -Math.PI/2;
+  const targetCenter = selectedIndex*arc - Math.PI/2;
+
+  const SPEED_BOOST = 1.35;
+  const spins = 4.8 * SPEED_BOOST;
+
+  const desired = pointerAngle - targetCenter + spins*2*Math.PI;
+
+  const start = currentRotation;
+  const delta = desired;
+
+  const duration = 7500; // 你要求至少 7 秒以上
+  const t0 = performance.now();
+
+  function frame(now){
+    let t = (now - t0)/duration;
+    if(t>1) t=1;
+
+    const eased = easeOutCubic(t);
+    const rot = start + delta*eased;
+
+    drawWheel(rot);
+
+    if(t<1){
+      requestAnimationFrame(frame);
+    }else{
+      currentRotation = rot;
+      isSpinning = false;
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+spinBtn.onclick = spinOnce;
+
+// 初始
+drawWheel(0);
+
+})();
+</script>
+</body>
+</html>
