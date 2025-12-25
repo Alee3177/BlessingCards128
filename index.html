@@ -7,65 +7,52 @@
 
 <style>
 body{
-  font-family: "Noto Sans TC", system-ui, -apple-system;
   background:#fbf1d6;
+  font-family:"Noto Sans TC",system-ui;
   text-align:center;
-  margin:0;
-  padding:0;
 }
 
 h1{
   color:#9c6b00;
   margin-top:28px;
-  margin-bottom:12px;
 }
 
 #verseImg{
   width:220px;
-  height:auto;
-  border-radius:6px;
-  box-shadow:0 4px 10px rgba(0,0,0,.25);
-  margin:6px auto 10px auto;
+  border-radius:8px;
+  display:none;
 }
 
 input{
-  width:78%;
+  width:80%;
   max-width:520px;
-  font-size:18px;
   padding:8px 10px;
-  border-radius:10px;
-  border:2px solid #d9b571;
-  outline:none;
+  font-size:18px;
+  border-radius:12px;
+  border:2px solid #d7b36b;
   text-align:center;
 }
 
 .btn{
   background:#f3c256;
   border:none;
-  padding:10px 18px;
+  padding:9px 16px;
   border-radius:20px;
-  margin:8px 6px;
-  font-size:16px;
+  margin:6px 6px;
   cursor:pointer;
-  box-shadow:0 2px 4px rgba(0,0,0,.15);
-}
-
-#canvasWrap{
-  margin-top:8px;
 }
 
 #result{
-  font-size:20px;
   margin-top:10px;
+  font-size:18px;
 }
 
 .flash{
   animation:flash 0.9s infinite;
 }
-
 @keyframes flash{
   0%{opacity:1;}
-  50%{opacity:.3;}
+  50%{opacity:.25;}
   100%{opacity:1;}
 }
 </style>
@@ -75,11 +62,11 @@ input{
 
 <h1>祝福經句紅包（應許等您拿）</h1>
 
-<img id="verseImg" src="cover.jpg" alt="verse">
+<img id="verseImg" src="logo3524.png" alt="verse">
 
 <br>
 
-<input id="nameInput" placeholder="請輸入姓名（可用、逗號或空白分隔）">
+<input id="nameInput" placeholder="請輸入姓名（逗號或空白分隔）">
 
 <br>
 
@@ -88,117 +75,123 @@ input{
 <button class="btn" id="resetBtn">全部歸零</button>
 <button class="btn" id="pdfBtn">抽籤紀錄 PDF</button>
 
-<div id="canvasWrap">
- <canvas id="wheel" width="360" height="360"></canvas>
-</div>
+<br>
+
+<canvas id="wheel" width="360" height="360"></canvas>
 
 <div id="result"></div>
 
 <script>
-/* ---------------- 核心狀態（保持穩定，不更動規則） ---------------- */
-let names = [];
-let drawn = new Set();
+let names=[];
+let drawn=new Set();
 let spinning=false;
 let currentRotation=0;
-const SPIN_TIME = 7500;   // ≥7秒
-const HIGHLIGHT_TIME = 5500; // 5.5秒出結果
 
-const canvas = document.getElementById("wheel");
-const ctx = canvas.getContext("2d");
-const r = canvas.width/2;
+const SPIN_TIME=7500;
+const HIGHLIGHT_TIME=5500;
 
-/* ----------------- 畫轉盤 ----------------- */
-function drawWheel(highlightIndex=-1){
+const canvas=document.getElementById("wheel");
+const ctx=canvas.getContext("2d");
+const r=canvas.width/2;
+
+/* ---------- 安全載入圖片 ---------- */
+const img=document.getElementById("verseImg");
+img.onload=()=>{img.style.display="block"};
+img.onerror=()=>{img.style.display="none"};
+
+/* ---------- 畫輪盤 ---------- */
+function drawWheel(highlight=-1){
+
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if(names.length===0) return;
+  if(names.length===0)return;
 
-  const n = names.length;
-  const arc = 2*Math.PI/n;
+  const n=names.length;
+  const arc=2*Math.PI/n;
 
   for(let i=0;i<n;i++){
+
     ctx.beginPath();
     ctx.moveTo(r,r);
     ctx.arc(r,r,r-2,i*arc,(i+1)*arc);
     ctx.closePath();
 
-    ctx.fillStyle = (i===highlightIndex) ? "#ffcc33" : "#f5dca1";
+    ctx.fillStyle=(i===highlight)?"#ffcc33":"#f5dca1";
     ctx.fill();
 
-    ctx.strokeStyle="#ffffff";
+    ctx.strokeStyle="#fff";
     ctx.lineWidth=2;
     ctx.stroke();
 
+    // --------- 姓名置中（修正版本） ---------
     ctx.save();
     ctx.translate(r,r);
     ctx.rotate(i*arc+arc/2);
     ctx.textAlign="center";
     ctx.font="18px sans-serif";
-    ctx.fillStyle="#5c3b00";
-    ctx.fillText(names[i],0,-r*0.65);
+    ctx.fillStyle="#553300";
+    ctx.fillText(names[i],0,-r*0.62);
     ctx.restore();
   }
 }
 
-/* ----------------- 抽選 ----------------- */
+/* ---------- 抽一次 ---------- */
 function spinOnce(){
 
-  if(spinning||names.length===0) return;
+  if(spinning||names.length===0)return;
   spinning=true;
 
-  const n = names.length;
-  const arc = 2*Math.PI/n;
+  const n=names.length;
+  const arc=2*Math.PI/n;
 
-  // 隨機指到其中一格
-  const winnerIndex = Math.floor(Math.random()*n);
+  const winnerIndex=Math.floor(Math.random()*n);
+  const winnerName=names[winnerIndex];
 
-  // 目標角度（中心）
-  const targetAngle = (Math.PI/2) - (winnerIndex*arc + arc/2);
+  const target=(Math.PI/2)-(winnerIndex*arc+arc/2);
+  const fullTurns=4+Math.random()*2;
+  const finalRot=fullTurns*2*Math.PI+target;
 
-  const fullTurns = 4 + Math.random()*2;
-  const finalRotation = fullTurns*2*Math.PI + targetAngle;
+  const start=performance.now();
 
-  const start = performance.now();
-
-  let highlightDone=false;
-  let winnerName = names[winnerIndex];
+  let highlighted=false;
 
   function animate(now){
-    const elapsed = now - start;
 
-    // 高亮與 🎯 同步在 5.5秒
-    if(!highlightDone && elapsed>=HIGHLIGHT_TIME){
+    const t=now-start;
+
+    // 高亮與 🎯 同步：5.5 秒
+    if(!highlighted && t>=HIGHLIGHT_TIME){
       drawWheel(winnerIndex);
-      document.getElementById("result").innerHTML =
-        `🎯 抽中「${winnerName}」<br>✅ 已抽出 ${drawn.size+1}/${names.length}`;
-      highlightDone=true;
+      document.getElementById("result").innerHTML=
+        `🎯 抽中「${winnerName}」<br>
+         ✅ 已抽出 ${drawn.size+1}/${names.length}`;
+      highlighted=true;
     }
 
-    if(elapsed>=SPIN_TIME){
-      currentRotation = finalRotation%(2*Math.PI);
+    if(t>=SPIN_TIME){
+      currentRotation=finalRot%(2*Math.PI);
       drawWheel(winnerIndex);
       drawn.add(winnerName);
 
-      // 完成自動顯示
       if(drawn.size===names.length){
-        document.getElementById("result").innerHTML =
-         `🎯 抽中「${winnerName}」<br>
-          ✅ 已抽出 ${drawn.size}/${names.length}<br>
-          🎉 此輪轉盤已完成所有姓名抽籤`;
+        document.getElementById("result").innerHTML=
+          `🎯 抽中「${winnerName}」<br>
+           ✅ 已抽出 ${drawn.size}/${names.length}<br>
+           🎉 此輪轉盤已完成所有姓名抽籤`;
       }
 
       spinning=false;
       return;
     }
 
-    const t = elapsed/SPIN_TIME;
-    const ease = t<1 ? (--t)*t*t+1 : 1;
+    const p=t/SPIN_TIME;
+    const ease=(--p)*p*p+1;
 
-    const angle = currentRotation + (finalRotation-currentRotation)*ease;
+    const ang=currentRotation+(finalRot-currentRotation)*ease;
 
     ctx.save();
     ctx.translate(r,r);
-    ctx.rotate(angle);
+    ctx.rotate(ang);
     ctx.translate(-r,-r);
     drawWheel(-1);
     ctx.restore();
@@ -209,19 +202,19 @@ function spinOnce(){
   requestAnimationFrame(animate);
 }
 
-/* ----------------- UI 控制 ----------------- */
+/* ---------- 按鈕 ---------- */
+
 document.getElementById("lockBtn").onclick=()=>{
-  const val = document.getElementById("nameInput").value.trim();
 
-  if(!val){
-    alert("請先輸入姓名");
-    return;
-  }
+  let v=document.getElementById("nameInput").value.trim();
+  if(!v){ alert("請輸入姓名"); return; }
 
-  names = val.replace(/,/g," ").split(/\s+/).filter(x=>x);
+  names=v.replace(/,/g," ").split(/\s+/).filter(x=>x);
   drawn.clear();
   currentRotation=0;
+
   drawWheel();
+
   document.getElementById("result").innerHTML="名單已鎖定，請開始旋轉";
 };
 
@@ -235,9 +228,9 @@ document.getElementById("resetBtn").onclick=()=>{
 };
 
 document.getElementById("pdfBtn").onclick=()=>{
-  alert("此版本僅保留 UI，不變更核心；PDF 另版保留");
+  alert("PDF 目前維持原版流程，不在此版改動");
 };
-
 </script>
+
 </body>
 </html>
