@@ -2,158 +2,448 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BlessingCards128｜祝福經句紅包</title>
+<title>祝福經句紅包</title>
+
 <style>
-  body{
-    background:#fff8e7;
-    font-family:"Noto Sans TC", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-    color:#5b3a00;
-    text-align:center;
-    padding:18px;
-  }
-  h1{
-    margin:10px 0 6px;
-    color:#b07500;
-    font-size:22px;
-    font-weight:700;
-  }
-  #line1,#line2{
-    font-size:18px;
-    margin:4px 0;
-    text-align:center;
-  }
-  #cardImg{
-    margin:12px auto 10px;
-    width:min(92vw, 520px);
-    height:auto;
-    display:block;
-    border-radius:14px;
-    box-shadow:0 6px 18px rgba(0,0,0,.12);
-    background:#fff; /* 避免圖片載入前閃動 */
-  }
-  .btn{
-    background:#f7c76c;
-    border:none;
-    padding:12px 18px;
-    border-radius:22px;
-    font-size:18px;
-    color:#5b3a00;
-    cursor:pointer;
-    margin:8px 6px;
-  }
-  .btn:hover{ background:#f3b84f; }
-  #err{
-    margin-top:10px;
-    color:#c0392b;
-    font-weight:700;
-    display:none;
-    white-space:pre-wrap;
-  }
+body{
+  font-family:"Noto Sans TC",system-ui;
+  background:#fbf2df;
+  text-align:center;
+  margin:0;
+  padding:16px;
+  color:#5b3a00;
+}
+
+/* 顯示標題區域 */
+#infoBox{
+  font-size:18px;
+  white-space:pre-line;
+  margin-bottom:10px;
+}
+
+/* 經句圖片（含金邊） */
+#imgVerse{
+  max-width:420px;
+  width:90%;
+  border-radius:18px;
+  display:block;
+  margin:12px auto;
+  border:6px solid gold;
+}
+
+/* 金邊發光＋彈跳 */
+@keyframes glow{
+  0%{ box-shadow:0 0 10px gold; }
+  50%{ box-shadow:0 0 32px gold; }
+  100%{ box-shadow:0 0 10px gold; }
+}
+@keyframes jump{
+  0%{ transform:scale(.8); opacity:.2; }
+  40%{ transform:scale(1.05); opacity:1;}
+  80%{ transform:scale(1.0);}
+  100%{ transform:scale(1.0);}
+}
+.animate{
+  animation:glow 2.2s infinite, jump 1.2s ease-out;
+}
+
+/* 按鈕樣式與 index 一致 */
+.btn{
+  min-width:110px;
+  padding:8px 16px;
+  border-radius:999px;
+  border:none;
+  background:#f4b63a;
+  color:#5b3a00;
+  font-size:15px;
+  font-weight:600;
+  box-shadow:0 3px 0 #d59b25;
+  cursor:pointer;
+  margin:10px 6px 0 6px;
+}
+.btn:disabled{
+  background:#f0ddaa;
+  cursor:default;
+}
+
+/* 抽籤紀錄框 */
+#recordBox{
+  margin-top:18px;
+  max-width:560px;
+  margin-left:auto;
+  margin-right:auto;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  background:#ffffff;
+  box-shadow:0 0 10px rgba(0,0,0,.15);
+  font-size:14px;
+}
+
+/* 彩帶＋金粉畫布（全畫面） */
+#fxCanvas{
+  position:fixed;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+
+#loading{
+  margin: 12px 0;
+  font-size: 15px;
+  color: #8a5a00;
+}
 </style>
+
+<script src="verseRefMap.js?v=20260105"></script>
+
+<!-- PATCH-2：煙火 / 彩帶（canvas-confetti） -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
 </head>
+
 <body>
 
-<h1>祝福經句紅包（應許等您拿）</h1>
+<h2>祝福經句紅包（應許等您拿）</h2>
 
-<div id="line1"></div>
-<div id="line2"></div>
+<div id="infoBox"></div>
 
-<img id="cardImg" alt="Blessing Card">
+<canvas id="fxCanvas"></canvas>
+
+<!-- ✅ 新增：圖片載入提示 -->
+<div id="loading">經句圖片載入中……</div>
+
+<img id="imgVerse" src="" alt="經句圖片載入中……">
 
 <div>
-  <button class="btn" id="downloadBtn">下載經句圖片</button>
-  <button class="btn" id="nextBtn">下一位</button>
+  <button id="btnDownload" class="btn">下載經句圖片</button>
+  <button id="btnNext" class="btn">下一位</button>
 </div>
 
-<div id="err"></div>
+<div id="recordBox">
+  <b>📜 抽籤紀錄</b>
+  <div id="logText"></div>
+</div>
 
-<script src="verseRefMap.js"></script>
 <script>
-(function(){
-  const qs = new URLSearchParams(location.search);
-  const name = (qs.get('name') || '').trim();
-  let verse = (qs.get('verse') || '').trim();
 
-  const line1El = document.getElementById('line1');
-  const line2El = document.getElementById('line2');
-  const img = document.getElementById('cardImg');
-  const err = document.getElementById('err');
+// ==== viewer 圖片下載防重複狀態 ====
+let imageDownloadedThisView = false;
+let imageRepeatCount = 0;
 
-  function pad3(v){
-    const n = String(v).replace(/\D/g,'');
-    return n.padStart(3,'0');
+const ENABLE_DUN_SOUND = false;   // ← 改成 true 就全部恢復
+
+// ⭐ 新增：進場音效選擇
+// 可選："dun" | "dun1" | "dun2"
+const DUN_SOUND_VARIANT = "dun";   // ← 改這一行就好
+
+/* 取得 URL 參數 */
+function getParam(n){
+  const u = new URL(window.location.href);
+  return u.searchParams.get(n);
+}
+
+const verseNo = getParam("no");
+const userName = getParam("name") || "";
+
+/*======== 找出書卷＋章節（用 VERSE_REF_MAP） ========*/
+let refText = "";
+if (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verseNo]) {
+  refText = window.VERSE_REF_MAP[verseNo];
+}
+
+/*======== 上方兩行顯示 ========*/
+document.getElementById("infoBox").textContent =
+`「${userName}」｜抽中的經句紅包
+📜 經句編號: ${verseNo}｜📖 ${refText}`;
+
+/*======== 彩帶＋金粉特效 ========*/
+const fxCanvas = document.getElementById("fxCanvas");
+const fxCtx = fxCanvas.getContext("2d");
+
+function resizeFx(){
+  fxCanvas.width = window.innerWidth;
+  fxCanvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeFx);
+resizeFx();
+
+function launchFx(){
+  const pieces=[];
+  const dots=[];
+  const colors=["#ffd54f","#ffb300","#ffca28","#ffe082","#fff8e1"];
+
+  for(let i=0;i<150;i++){
+    pieces.push({
+      x:Math.random()*fxCanvas.width,
+      y:Math.random()*-80,
+      w:6+Math.random()*6,
+      h:12+Math.random()*10,
+      vx:-1+Math.random()*2,
+      vy:2+Math.random()*3,
+      r:Math.random()*Math.PI,
+      vr:(Math.random()-0.5)*0.25,
+      color:colors[Math.floor(Math.random()*colors.length)]
+    });
   }
-  verse = pad3(verse);
+  for(let i=0;i<90;i++){
+    dots.push({
+      x:fxCanvas.width/2 + (Math.random()-0.5)*260,
+      y:fxCanvas.height/2 + (Math.random()-0.5)*120,
+      r:1+Math.random()*2.8,
+      vy:-0.3-Math.random()*0.6,
+      alpha:0.9,
+      va:-0.012-Math.random()*0.02
+    });
+  }
 
-  const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verse]) ? window.VERSE_REF_MAP[verse] : '';
-  line1El.textContent = `${name}｜抽中的經句紅包`;
-  line2El.textContent = `編號「${verse}」${ref ? `（${ref}）` : ''}`;
+  const start=performance.now();
+  const duration=2000;
 
-  // PNG 路徑：同 repo 根目錄下 cards/001.png
-  img.src = `cards/${verse}.png`;
-  img.onerror = () => {
-    err.style.display = 'block';
-    err.textContent = `PNG 載入失敗：cards/${verse}.png\n請確認 cards 目錄與檔名(001~128).png 存在。`;
-  };
+  function frame(now){
+    const t = now-start;
+    fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
 
-  // 下載：把「兩行」疊在同一張 PNG 上方，並確保背景色一致（以原 PNG 為底）
-  document.getElementById('downloadBtn').addEventListener('click', async () => {
-    try{
-      // 確保圖片載入完成
-      await img.decode();
+    pieces.forEach(p=>{
+      p.x+=p.vx;
+      p.y+=p.vy;
+      p.r+=p.vr;
+      fxCtx.save();
+      fxCtx.translate(p.x,p.y);
+      fxCtx.rotate(p.r);
+      fxCtx.fillStyle=p.color;
+      fxCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      fxCtx.restore();
+    });
 
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
+    dots.forEach(d=>{
+      d.y+=d.vy;
+      d.alpha+=d.va;
+      if(d.alpha<0)d.alpha=0;
+      fxCtx.beginPath();
+      fxCtx.fillStyle=`rgba(255,215,130,${d.alpha})`;
+      fxCtx.arc(d.x,d.y,d.r,0,Math.PI*2);
+      fxCtx.fill();
+    });
 
-      // 上方加一塊文字區（高度依字級給固定值，避免不同手機不一致）
-      const topPad = Math.round(h * 0.16); // 16% 作為文字區
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h + topPad;
-
-      const ctx = canvas.getContext('2d');
-
-      // 先鋪底：取 PNG 左上角像素色作為底色，避免與卡片底色不一致
-      ctx.drawImage(img, 0, 0);
-      const px = ctx.getImageData(2,2,1,1).data;
-      ctx.clearRect(0,0,canvas.width, canvas.height);
-      ctx.fillStyle = `rgb(${px[0]},${px[1]},${px[2]})`;
-      ctx.fillRect(0,0,canvas.width, canvas.height);
-
-      // 再畫 PNG 本體（往下位移）
-      ctx.drawImage(img, 0, topPad);
-
-      // 文字
-      ctx.fillStyle = '#5b3a00';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // 字體大小：跟卡片底部分類字差不多的視覺（依圖片寬度自動縮放）
-      const font1 = Math.max(26, Math.round(w * 0.045));
-      const font2 = Math.max(24, Math.round(w * 0.040));
-
-      ctx.font = `700 ${font1}px "Noto Sans TC", sans-serif`;
-      ctx.fillText(line1El.textContent, w/2, topPad*0.42);
-
-      ctx.font = `700 ${font2}px "Noto Sans TC", sans-serif`;
-      ctx.fillText(line2El.textContent, w/2, topPad*0.74);
-
-      // 下載
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = `${verse}_${name || 'Blessing'}_card.png`;
-      a.click();
-    }catch(e){
-      err.style.display = 'block';
-      err.textContent = '下載失敗：' + (e && e.message ? e.message : e);
+    if(t<duration){
+      requestAnimationFrame(frame);
+    }else{
+      fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
     }
-  });
+  }
+  requestAnimationFrame(frame);
+}
 
-  document.getElementById('nextBtn').addEventListener('click', () => {
-    location.href = 'index.html';
-  });
-})();
+/*======== 取得 img 元件 ========*/
+const img = document.getElementById("imgVerse");
+
+/* 🔒 必須先設定，否則 canvas 會被污染 */
+img.crossOrigin = "anonymous";
+
+/*======== 設定圖片來源 ========*/
+img.src = "cards/" + verseNo + ".png";
+
+/*======== 圖片讀取完成 ========*/
+img.onload = () => {
+
+  // 🛡 防止 onload 被觸發兩次（快取 / src 重設）
+  if (img.dataset.loaded === "1") return;
+  img.dataset.loaded = "1";
+
+  /* ① 關閉 loading（一定要先做） */
+  const loading = document.getElementById("loading");
+  if (loading) {
+    loading.style.display = "none";
+  }
+
+  /* ② 顯示圖片本體（保底） */
+  img.style.display = "block";
+
+  /* ③ 金邊閃爍 */
+  img.classList.add("animate");
+
+  /* ④ 清一次 confetti 狀態（只一次） */
+  if (typeof confetti === "function") {
+    confetti.reset();
+  }
+
+  /* ⑤ 你原本的 canvas 金粉＋彩帶 */
+  launchFx();
+
+  /* ⑥ 煙火 → 彩帶（節奏加快版） */
+  if (typeof confetti === "function") {
+
+    confetti({
+      particleCount: 120,
+      spread: 360,
+      startVelocity: 60,
+      gravity: 0.7,
+      ticks: 180,
+      origin: { x: 0.5, y: 0.32 }
+    });
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 160,
+        spread: 100,
+        startVelocity: 50,
+        gravity: 1.3,
+        ticks: 260,
+        origin: { x: 0.5, y: -0.15 }
+      });
+    }, 200);
+  }
+
+// 🔊 viewer 進場音效（dun / dun1 / dun2）
+if (ENABLE_DUN_SOUND) {
+  try {
+    const dun = document.getElementById("dunSound");
+    if (dun) {
+
+// ⭐ 動態選擇音效檔（防呆：避免變數未定義炸掉）
+const variant = window.DUN_SOUND_VARIANT || "dun";
+dun.src = `${variant}.mp3`;
+
+      dun.currentTime = 0;
+
+      // 等圖片 decode 完再播（你原本的設計）
+      if (img.decode) {
+        img.decode().then(() => {
+          dun.play();
+        }).catch(() => {
+          dun.play();
+        });
+      } else {
+        dun.play();
+      }
+    }
+  } catch (e) {
+    console.warn("dun sound blocked:", e);
+  }
+}
+
+};
+
+/*======== 圖片載入失敗 ========*/
+img.onerror = ()=>{
+  // 若有煙火，先清掉
+
+  const loading = document.getElementById("loading");
+  if(loading){
+    loading.textContent = "⚠ 找不到圖片 cards/" + verseNo + ".png";
+  }
+
+  img.alt = "⚠ 找不到圖片 cards/" + verseNo + ".png";
+  
+  // 🛡 允許下次成功載入時 onload 重新執行
+  delete img.dataset.loaded;
+};
+
+/*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
+document.getElementById("btnDownload").onclick = async ()=>{
+  try{
+
+    // ===== 0️⃣ 防重複下載（同一畫面）=====
+    if (imageDownloadedThisView) {
+      const ok = confirm(
+        "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
+      );
+      if (!ok) return;
+      imageRepeatCount++;
+    } else {
+      imageDownloadedThisView = true;
+      imageRepeatCount = 0;
+    }
+
+    // ===== 1️⃣ 圖片必須已載入成功 =====
+    if(!img || !img.complete || img.naturalWidth === 0){
+      alert("圖片尚未載入完成，請稍後再試一次");
+      return;
+    }
+
+    // ===== 2️⃣ 用 canvas 取得同一張圖的 blob =====
+    const cvs = document.createElement("canvas");
+    cvs.width = img.naturalWidth;
+    cvs.height = img.naturalHeight;
+
+    const c2d = cvs.getContext("2d");
+    c2d.drawImage(img, 0, 0);
+
+    const blob = await new Promise((resolve)=> cvs.toBlob(resolve, "image/png"));
+    if(!blob){
+      alert("圖片下載失敗（toBlob 失敗）");
+      return;
+    }
+
+    // ===== 3️⃣ 檔名規則 =====
+    // verse_no_001.png ~ verse_no_128.png
+    let baseName = `verse_no_${String(verseNo).padStart(3, "0")}`;
+
+    // 重複下載 → 加 -1, -2, -3...
+    let finalName = baseName;
+    if (imageRepeatCount > 0) {
+      finalName = `${baseName}-${imageRepeatCount}`;
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = `${finalName}.png`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+
+  }catch(e){
+    alert("圖片下載失敗（例外）");
+    console.error(e);
+  }
+};
+
+/*======== 下一位：回首頁；由 index 自己根據狀態判斷是否顯示三行 ========*/
+document.getElementById("btnNext").onclick = ()=>{
+
+  // 標記：從 viewer 回到首頁
+  sessionStorage.setItem("showSummaryOnReturn","1");
+  window.location.href = "index.html";
+};
+
+/*======== 抽籤紀錄顯示（Patch 5） ========*/
+/* 來源：index.html 的 appendLog() 寫入 drawLogs */
+const logBox = document.getElementById("logText");
+
+let logs;
+try{
+  logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
+  if(!Array.isArray(logs)) logs = [];
+}catch(e){
+  logs = [];
+}
+
+/* 顯示規則：
+   - 最新一筆放最上面
+   - 格式固定
+*/
+/* 顯示格式：
+   [時間] 「姓名」 → 抽中經句紅包: 書卷章節
+*/
+logBox.innerHTML = logs
+  .slice()          // 不動原資料
+  .reverse()        // 最新在最上
+  .map(l =>
+    `[${l.time}] 「${l.name}」 → 抽中經句紅包: ${l.ref}`
+  )
+  .join("<br>"); 
 </script>
+
+<!-- PATCH-1：viewer 專用音效（新增，不取代任何既有音效） -->
+<audio id="dunSound" preload="auto">
+
+</audio>
+
 </body>
 </html>
