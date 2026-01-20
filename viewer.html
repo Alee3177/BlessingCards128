@@ -148,6 +148,10 @@ function getParam(n){
 const verseNo = getParam("no");
 const userName = getParam("name") || "";
 
+// 🧠 預載紅包圖片，避免顯示延遲
+const preload = new Image();
+preload.src = "cards/" + verseNo + ".png";
+
 /*======== 找出書卷＋章節（用 VERSE_REF_MAP） ========*/
 let refText = "";
 if (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verseNo]) {

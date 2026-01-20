@@ -159,6 +159,53 @@ body{
   <source src="audio/win.mp3" type="audio/mpeg">
 </audio>
 
+<!-- ===============================
+  BlessingCards128 Resource Preloader
+  預載 LOGO / 音效 / 紅包圖片
+================================ -->
+<script>
+(function preloadResources(){
+
+  console.log("🔥 BlessingCards128 資源暖機中...");
+
+  /* ===== 1️⃣ LOGO ===== */
+  const preloadLogo = new Image();
+  preloadLogo.src = "logo3524.png";
+
+  /* ===== 2️⃣ 音效 ===== */
+  const preloadDrum = new Audio();
+  preloadDrum.src = "audio/drum.mp3";
+  preloadDrum.load();
+
+  const preloadWin = new Audio();
+  preloadWin.src = "audio/win.mp3";
+  preloadWin.load();
+
+  /* ===== 3️⃣ 紅包圖片（001–128）===== */
+  const MAX_PRELOAD = 128;
+  const loaded = { count: 0 };
+
+  for (let i = 1; i <= MAX_PRELOAD; i++) {
+    const img = new Image();
+    const no = String(i).padStart(3, "0");
+
+    img.onload = () => {
+      loaded.count++;
+      if (loaded.count === MAX_PRELOAD) {
+        console.log("✅ 所有紅包圖片已暖機完成（001–128）");
+      }
+    };
+
+    img.onerror = () => {
+      console.warn("⚠ 無法預載圖片:", "cards/" + no + ".png");
+    };
+
+    img.src = "cards/" + no + ".png";
+  }
+
+})();
+</script>
+
 <script>
 (function(){
 
@@ -220,6 +267,99 @@ let currentVerse = null;
 let pdfRoundSerial = null;   // 本輪使用的流水號（001~999）
 let pdfRepeatCount = 0;     // 本輪重複下載次數
 let pdfDownloadedThisRound = false;
+
+/* ==== Session 唯一識別（本頁生命週期）==== */
+const SESSION_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+
+/* ==== 系統狀態機 ==== */
+const SYS_STATE = {
+  INIT: "INIT",           // 初始
+  READY: "READY",        // 名單鎖定
+  ROUND1: "ROUND1",      // 第一輪旋轉中
+  ROUND2: "ROUND2",      // 第二輪旋轉中
+  VIEWER: "VIEWER",      // 查看紅包
+  FINISHED: "FINISHED"  // 全部完成
+};
+
+let systemState = SYS_STATE.INIT;
+let lastActionAt = 0;   // 防連點節流用
+
+function canAct(delay = 300) // 所有按鈕 300ms 內只能觸發一次（防雙擊、手機誤觸）
+{
+  const now = Date.now();
+  if (now - lastActionAt < delay) return false;
+  lastActionAt = now;
+  return true;
+}
+
+function audit(action, detail = "") // 每個操作都可追蹤、可匯出、可查責
+{
+  const logs = JSON.parse(localStorage.getItem("auditLogs") || "[]");
+  logs.push({
+    time: new Date().toISOString(),
+    session: SESSION_ID,
+    state: systemState,
+    action,
+    detail
+  });
+  localStorage.setItem("auditLogs", JSON.stringify(logs));
+}
+
+function applyUIState() // 所有按鈕、閃爍、enable/disable、狀態文字，只能從一個地方改
+                        // 避免現在這種「A 段開、B 段又關、C 段又改色」的混亂狀態
+{
+  // 全部先鎖死（安全預設）
+  lockBtn.disabled   = true;
+  spinBtn.disabled   = true;
+  secondBtn.disabled = true;
+  viewBtn.disabled   = true;
+  pdfBtn.disabled    = true;
+
+  lockBtn.classList.remove("blink-btn");
+  spinBtn.classList.remove("blink-btn");
+  secondBtn.classList.remove("blink-btn");
+  viewBtn.classList.remove("blink-btn");
+
+  pdfBtn.classList.remove("btn-pdf-ready");
+  resetBtn.classList.remove("btn-reset-danger");
+
+  switch(systemState) {
+
+    case SYS_STATE.INIT:
+      lockBtn.disabled = false;
+      resetBtn.disabled = false;
+      statusDiv.textContent = "請輸入姓名並鎖定名單";
+      break;
+
+    case SYS_STATE.READY:
+      spinBtn.disabled = false;
+      spinBtn.classList.add("blink-btn");
+      statusDiv.textContent = "請開始第一輪抽籤";
+      break;
+
+    case SYS_STATE.ROUND1:
+      statusDiv.textContent = "旋轉中...";
+      break;
+
+    case SYS_STATE.ROUND2:
+      statusDiv.textContent = "請抽紅包（第二輪）";
+      secondBtn.disabled = false;
+      secondBtn.classList.add("blink-btn");
+      break;
+
+    case SYS_STATE.VIEWER:
+      viewBtn.disabled = false;
+      viewBtn.classList.add("blink-btn");
+      break;
+
+    case SYS_STATE.FINISHED:
+      pdfBtn.disabled = false;
+      pdfBtn.classList.add("btn-pdf-ready");
+      resetBtn.classList.add("btn-reset-danger");
+      statusDiv.textContent = "";
+      break;
+  }
+}
 
 const CENTER = 180;
 const R      = 150;
@@ -438,6 +578,8 @@ function saveState(extra = {}) {
   })();
 
   sessionStorage.setItem("spinState", JSON.stringify({
+    sessionId: SESSION_ID,
+	
     names,
     usedName: [...usedName],
     verseUsed: [...verseUsed],
@@ -484,6 +626,14 @@ if(!raw){
     drawInitialWheel();
     return;
   }
+  
+  /* ===== 分頁鎖檢查（必須在還原資料前） ===== */
+if (s.sessionId && s.sessionId !== SESSION_ID) {
+  alert("偵測到另一個分頁正在操作，已回到安全狀態");
+  sessionStorage.removeItem("spinState");
+  location.reload();
+  return;
+}
 
   /* ===== 還原核心資料 ===== */
 names        = Array.isArray(s.names) ? s.names : [];
@@ -644,6 +794,7 @@ function getNextBlessingPdfSerial(){
 
 /* ========= 鎖定名單 ========= */
 lockBtn.onclick=()=>{
+  if (!canAct()) return;   // ✅ 必須第一行
   unlockAudio();   // 🔓 這一行是關鍵
 
   const arr=nameInput.value
@@ -681,6 +832,7 @@ resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
 
 /* ========= 第一輪 ========= */
 spinBtn.onclick = () => {
+  if (!canAct()) return;   // ✅ 第一行
   unlockAudio();   // 🔓 這一行是關鍵
 
   // ⭐ 1️⃣ 一按就立刻鎖死自己
@@ -747,6 +899,7 @@ spinBtn.classList.remove("blink-btn");
 
 /* ========= 第二輪 ========= */
 secondBtn.onclick=()=>{
+  if (!canAct()) return;   // ✅ 第一行
   unlockAudio();   // 🔓 這一行是關鍵
 
   secondBtn.disabled=true;
@@ -812,7 +965,8 @@ centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
 
 /* ========= 看紅包 ========= */
 viewBtn.onclick = () => {
-
+  if (!canAct()) return;   // ✅ 第一行
+  
   if(!currentVerse) return;
 
   const winnerName = names[lastWinnerIndex] || "";
@@ -826,6 +980,8 @@ viewBtn.onclick = () => {
 
 /* ========= PDF：下載抽籤紀錄（Canvas → Image → PDF 穩定版｜唯一版本） ========= */
 pdfBtn.onclick = async () => {
+  if (!canAct()) return;   // ✅ 必須第一行
+
   try {
     const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
     if (!logs.length) {
@@ -947,6 +1103,7 @@ loadState();
 
 /* ========= 全部歸零（最高優先權 Reset 核心） ========= */
 resetBtn.onclick = () => {
+  if (!canAct()) return;   // ✅ 必須第一行
 
   const msg =
 `資料紀錄將被清空(clear) & 歸零(reset)，
@@ -969,6 +1126,9 @@ resetBtn.onclick = () => {
   pdfRoundSerial = null;
   pdfRepeatCount = 0;
   pdfDownloadedThisRound = false;
+  
+    // ===== Reset 系統狀態機 =====
+  systemState = SYS_STATE.INIT;   // ✅ 必加
 
   /* ===== 2️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
@@ -1004,6 +1164,7 @@ resetBtn.onclick = () => {
   resetBtn.disabled = false;
 
   console.log("🔄 System Reset → INIT");
+  
 };
 
 })(); 
