@@ -128,15 +128,21 @@ body{
 
 <input id="nameInput" placeholder="請輸入姓名，可用空白或逗號分隔">
 
+<!-- 第一行 -->
 <div class="btn-row">
   <button id="lockBtn" class="btn">鎖定名單</button>
   <button id="spinBtn" class="btn" disabled>開始抽姓名＋經句（第一輪）</button>
-  <button id="resetBtn" class="btn">全部歸零</button>
 </div>
 
+<!-- 第二行 -->
 <div class="btn-row">
-  <button id="secondBtn" class="btn" disabled>抽紅包（第二輪）</button>
   <button id="viewBtn" class="btn" disabled>看紅包</button>
+  <button id="secondBtn" class="btn" disabled>抽紅包（第二輪）</button>
+</div>
+
+<!-- 第三行 -->
+<div class="btn-row">
+  <button id="resetBtn" class="btn">全部歸零</button>
   <button id="pdfBtn" class="btn" disabled>抽籤紀錄 PDF</button>
 </div>
 
@@ -287,9 +293,6 @@ let lastActionAt = 0;   // 防連點節流用
 
 function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防雙擊、手機誤觸）
 {
-  // 🫀 操作即心跳
-  lastHeartbeat = Date.now();
-  
   const now = Date.now();
   if (now - lastActionAt < delay) return false;
   lastActionAt = now;
@@ -758,6 +761,7 @@ if (fromViewer) {
 
   /* ===== 情況 B：全部人已抽完 ===== */
   else if (total > 0 && drawn === total) {
+  systemState = SYS_STATE.FINISHED;
   
   statusDiv.textContent = "";   // ✅ 清除「請輸入姓名並鎖定名單」
 
@@ -848,6 +852,7 @@ pdfBtn.classList.remove("btn-pdf-ready"); // 移除 PDF 藍色
 resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
 
   statusDiv.textContent = "名單已鎖定，請開始抽籤";
+  systemState = SYS_STATE.READY;
   
   saveState({ round2Done: false });
 };
@@ -855,7 +860,6 @@ resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
 /* ========= 第一輪 ========= */
 spinBtn.onclick = () => {
   if (!canAct()) return;   // ✅ 第一行
-  audit("ROUND1_START", { remaining: remain.length });
   unlockAudio();   // 🔓 這一行是關鍵
 
   // ⭐ 1️⃣ 一按就立刻鎖死自己
@@ -879,9 +883,8 @@ spinBtn.onclick = () => {
   const remain = names.filter(n => !usedName.has(n));
   if (!remain.length) return;
   
-  // ⭐ PATCH：第一輪一按就立刻鎖死自己
-spinBtn.disabled = true;
-spinBtn.classList.remove("blink-btn");
+  audit("ROUND1_START", { remaining: remain.length });
+  systemState = SYS_STATE.ROUND1;
   
    // 🔴【3️⃣ 必加】第一輪一開始，強制關閉第二輪
   secondBtn.disabled = true;
@@ -923,9 +926,9 @@ spinBtn.classList.remove("blink-btn");
 /* ========= 第二輪 ========= */
 secondBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 第一行
-  audit("ROUND2_START", { remaining: 128 - verseUsed.size });
   unlockAudio();   // 🔓 這一行是關鍵
-
+  systemState = SYS_STATE.ROUND2;
+  
   secondBtn.disabled=true;
   secondBtn.classList.remove("blink-btn");
 
@@ -935,6 +938,13 @@ secondBtn.onclick=()=>{
   const remain=[...Array(128).keys()]
     .map(i=>String(i+1).padStart(3,"0"))
     .filter(v=>!verseUsed.has(v));
+	
+	if (!remain.length) {
+  systemState = SYS_STATE.FINISHED;
+  return;
+}
+	
+	audit("ROUND2_START", { remaining: remain.length });
 
   spin(remain,false,(v)=>{
 
@@ -996,6 +1006,7 @@ viewBtn.onclick = () => {
   const winnerName = names[lastWinnerIndex] || "";
 
   // 僅儲存狀態，不自動轉動
+  systemState = SYS_STATE.VIEWER;
   saveState();
 
   window.location.href =
@@ -1005,7 +1016,6 @@ viewBtn.onclick = () => {
 /* ========= PDF：下載抽籤紀錄（Canvas → Image → PDF 穩定版｜唯一版本） ========= */
 pdfBtn.onclick = async () => {
   if (!canAct()) return;   // ✅ 必須第一行
-  audit("PDF_DOWNLOAD_ATTEMPT", { repeat: pdfDownloadedThisRound, serial: pdfRoundSerial });
 
   try {
     const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
@@ -1025,6 +1035,11 @@ pdfBtn.onclick = async () => {
       pdfDownloadedThisRound = true;
       pdfRepeatCount = 0;
     }
+    audit("PDF_DOWNLOAD_ATTEMPT", {
+      isRepeat: pdfDownloadedThisRound,
+      repeatCount: pdfRepeatCount,
+      serial: pdfRoundSerial
+    });
 
     /* ===== 流水號（本輪只取一次） ===== */
     if (!pdfRoundSerial) {
@@ -1142,7 +1157,6 @@ setInterval(() => {
 /* ========= 全部歸零（最高優先權 Reset 核心） ========= */
 resetBtn.onclick = () => {
   if (!canAct()) return;   // ✅ 必須第一行
-  audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
 
   const msg =
 `資料紀錄將被清空(clear) & 歸零(reset)，
@@ -1151,6 +1165,7 @@ resetBtn.onclick = () => {
 
   // 🔒 防誤觸
   if (!confirm(msg)) return;
+  audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
 
   /* ===== 1️⃣ 清空核心資料 ===== */
   names = [];
