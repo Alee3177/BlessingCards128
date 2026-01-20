@@ -258,6 +258,10 @@ let names = [];
 let usedName = new Set();
 let verseUsed = new Set();
 
+/* ==== 商用級分頁識別 ==== */
+const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+const HEARTBEAT_TTL = 5000; // 5 秒內視為「活躍分頁」
+
 let rotation = 0;
 let rotating = false;
 let lastWinnerIndex = null;
@@ -268,9 +272,6 @@ let pdfRoundSerial = null;   // 本輪使用的流水號（001~999）
 let pdfRepeatCount = 0;     // 本輪重複下載次數
 let pdfDownloadedThisRound = false;
 
-/* ==== Session 唯一識別（本頁生命週期）==== */
-const SESSION_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
-
 /* ==== 系統狀態機 ==== */
 const SYS_STATE = {
   INIT: "INIT",           // 初始
@@ -279,13 +280,16 @@ const SYS_STATE = {
   ROUND2: "ROUND2",      // 第二輪旋轉中
   VIEWER: "VIEWER",      // 查看紅包
   FINISHED: "FINISHED"  // 全部完成
-};
-
+ };
+let lastHeartbeat = Date.now();
 let systemState = SYS_STATE.INIT;
 let lastActionAt = 0;   // 防連點節流用
 
-function canAct(delay = 300) // 所有按鈕 300ms 內只能觸發一次（防雙擊、手機誤觸）
+function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防雙擊、手機誤觸）
 {
+  // 🫀 操作即心跳
+  lastHeartbeat = Date.now();
+  
   const now = Date.now();
   if (now - lastActionAt < delay) return false;
   lastActionAt = now;
@@ -297,7 +301,7 @@ function audit(action, detail = "") // 每個操作都可追蹤、可匯出、�
   const logs = JSON.parse(localStorage.getItem("auditLogs") || "[]");
   logs.push({
     time: new Date().toISOString(),
-    session: SESSION_ID,
+    session: TAB_ID,
     state: systemState,
     action,
     detail
@@ -569,6 +573,7 @@ if (t < 1) {
 
 /* ========= 儲存狀態 ========= */
 function saveState(extra = {}) {
+lastHeartbeat = Date.now();   // 🔄 心跳同步（商用級分頁存活標記）
   const prev = (() => {
     try {
       return JSON.parse(sessionStorage.getItem("spinState")) || {};
@@ -578,15 +583,16 @@ function saveState(extra = {}) {
   })();
 
   sessionStorage.setItem("spinState", JSON.stringify({
-    sessionId: SESSION_ID,
-	
     names,
     usedName: [...usedName],
     verseUsed: [...verseUsed],
     currentVerse,
-
     rotation,          // ✅ 必存
     lastWinnerIndex,  // ✅ 必存
+	
+    // ===== PDF 輪次防呆狀態（必存）=====	
+	pdfRoundSerial,
+    pdfRepeatCount,
 
     // ✅ round2Done 正確繼承邏輯
     round2Done:
@@ -595,6 +601,10 @@ function saveState(extra = {}) {
         : !!prev.round2Done,
 
     finished: (usedName.size === names.length),
+
+  // ⭐ 商用級雙分頁防護（加在這裡）
+  tabId: TAB_ID,
+  heartbeat: Date.now(),
 
     ...extra
   }));
@@ -621,18 +631,23 @@ if(!raw){
   let s;
   try{
     s = JSON.parse(raw);
+	
   }catch(e){
     clearHL();
     drawInitialWheel();
     return;
   }
-  
-  /* ===== 分頁鎖檢查（必須在還原資料前） ===== */
-if (s.sessionId && s.sessionId !== SESSION_ID) {
-  alert("偵測到另一個分頁正在操作，已回到安全狀態");
-  sessionStorage.removeItem("spinState");
-  location.reload();
-  return;
+  	/* ===== 商用級分頁鎖（TAB + 心跳制） ===== */
+const now = Date.now();
+
+if (s.tabId && s.tabId !== TAB_ID) {
+  // 另一分頁存在，但只有在它「還活著」時才攔
+  if (s.heartbeat && now - s.heartbeat < HEARTBEAT_TTL) {
+    alert("偵測到另一個分頁正在操作，已回到安全狀態");
+    sessionStorage.removeItem("spinState");
+    location.reload();
+    return;
+}
 }
 
   /* ===== 還原核心資料 ===== */
@@ -642,6 +657,12 @@ verseUsed    = new Set(s.verseUsed || []);
 currentVerse = s.currentVerse || null;
 rotation     = typeof s.rotation === "number" ? s.rotation : 0;
 lastWinnerIndex = (s.lastWinnerIndex ?? -1);
+
+// ===== 還原 PDF 輪次防呆狀態 =====
+pdfRoundSerial = s.pdfRoundSerial || null;
+pdfRepeatCount = s.pdfRepeatCount || 0;
+pdfDownloadedThisRound = !!pdfRoundSerial;
+
 const round2Done = !!s.round2Done;
 
     // === A-3：還原姓名輸入框內容 ===
@@ -795,6 +816,7 @@ function getNextBlessingPdfSerial(){
 /* ========= 鎖定名單 ========= */
 lockBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 必須第一行
+  audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length });
   unlockAudio();   // 🔓 這一行是關鍵
 
   const arr=nameInput.value
@@ -833,6 +855,7 @@ resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
 /* ========= 第一輪 ========= */
 spinBtn.onclick = () => {
   if (!canAct()) return;   // ✅ 第一行
+  audit("ROUND1_START", { remaining: remain.length });
   unlockAudio();   // 🔓 這一行是關鍵
 
   // ⭐ 1️⃣ 一按就立刻鎖死自己
@@ -900,6 +923,7 @@ spinBtn.classList.remove("blink-btn");
 /* ========= 第二輪 ========= */
 secondBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 第一行
+  audit("ROUND2_START", { remaining: 128 - verseUsed.size });
   unlockAudio();   // 🔓 這一行是關鍵
 
   secondBtn.disabled=true;
@@ -981,6 +1005,7 @@ viewBtn.onclick = () => {
 /* ========= PDF：下載抽籤紀錄（Canvas → Image → PDF 穩定版｜唯一版本） ========= */
 pdfBtn.onclick = async () => {
   if (!canAct()) return;   // ✅ 必須第一行
+  audit("PDF_DOWNLOAD_ATTEMPT", { repeat: pdfDownloadedThisRound, serial: pdfRoundSerial });
 
   try {
     const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
@@ -1101,9 +1126,23 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 /* ========= 初始化 ========= */
 loadState();
 
+setInterval(() => {
+  const raw = sessionStorage.getItem("spinState");
+  if (!raw) return;
+
+  try {
+    const s = JSON.parse(raw);
+    if (s.tabId === TAB_ID) {
+      s.heartbeat = Date.now();
+      sessionStorage.setItem("spinState", JSON.stringify(s));
+    }
+  } catch(e) {}
+}, 2000);
+
 /* ========= 全部歸零（最高優先權 Reset 核心） ========= */
 resetBtn.onclick = () => {
   if (!canAct()) return;   // ✅ 必須第一行
+  audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
 
   const msg =
 `資料紀錄將被清空(clear) & 歸零(reset)，
@@ -1164,6 +1203,7 @@ resetBtn.onclick = () => {
   resetBtn.disabled = false;
 
   console.log("🔄 System Reset → INIT");
+  saveState();   // 🔒 Reset 後立刻註冊本分頁為主控
   
 };
 
