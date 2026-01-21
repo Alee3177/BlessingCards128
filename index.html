@@ -696,12 +696,34 @@ function spin(list,clockwise,callback){
 if (t < 1) {
   requestAnimationFrame(anim);
 } else {
-  try {
-    callback(target, idx);
-  } finally {
-    rotating = false;   // ⭐ 無論 callback 發生什麼，一定解鎖
-	applyUIState();   // 🟡 轉完才回綠燈
+  // 🛡 保命解鎖機制
+  let unlocked = false;
+
+  const safeUnlock = () => {
+    if (unlocked) return;
+    unlocked = true;
+    rotating = false;
+    applyUIState();
+    console.log("🟢 spin unlocked");
+  };
+
+try {
+  const r = callback(target, idx);
+
+  // 🛡 如果 callback 回傳 Promise，也等一下
+  if (r && typeof r.then === "function") {
+    r.catch(e => {
+      console.error("❌ spin callback async crashed:", e);
+    });
   }
+} catch (e) {
+  console.error("❌ spin callback crashed:", e);
+} finally {
+  safeUnlock();
+}
+
+  // 保證非同步炸掉也能復活（保險絲）
+  setTimeout(safeUnlock, 1000);
 }
   })(performance.now());
 }
