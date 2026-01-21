@@ -23,9 +23,10 @@ body{
 
 /* 經句圖片（含金邊） */
 #imgVerse{
-  width: min(92vw, 520px);
-  max-height: 72vh;
-  object-fit: contain;
+  /* 自動適應裝置尺寸（桌機 / 手機） */
+  width: min(98vw, 720px);   /* 原本 520px → 放大約 30% */
+  max-height: 92vh;         /* 原本 72vh → 放大顯示高度 */
+  object-fit: contain;      /* ← 關鍵: 完整顯示、不裁切 */
   border-radius:18px;
   display:block;
   margin:16px auto;
@@ -96,6 +97,15 @@ body{
   font-size: 15px;
   color: #8a5a00;
 }
+
+/* 📱 手機專用放大模式 */
+@media (max-width: 768px) {
+  #imgVerse{
+    width: 98vw;
+    max-height: 90vh;
+  }
+}
+
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -269,6 +279,22 @@ img.onload = () => {
 
   /* ② 顯示圖片本體（保底） */
   img.style.display = "block";
+  
+  // 📱 自動最佳化顯示比例（手機特化）
+if (window.innerWidth < 768) {
+  const vw = window.innerWidth;
+  const ratio = img.naturalWidth / img.naturalHeight;
+
+  if (ratio < 0.8) {
+    // 直式圖 → 高度優先
+    img.style.maxHeight = "95vh";
+    img.style.width = "auto";
+  } else {
+    // 橫式或方形 → 寬度優先
+    img.style.width = "98vw";
+    img.style.maxHeight = "90vh";
+  }
+}
 
   /* ③ 金邊閃爍 */
   img.classList.add("animate");

@@ -2,8 +2,11 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8" />
-<title>祝福經句紅包（應許等您拿）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>祝福經句紅包（應許等您拿）</title>
+
+<!-- 讓 logo 優先載入（改善出現很慢） -->
+<link rel="preload" as="image" href="logo3524.png">
 
 <style>
 body{
@@ -121,6 +124,12 @@ body{
   margin:8px auto 4px auto;
   font-size:14px;
   font-weight:700;
+}
+
+/* 📡 主控狀態燈整體放大 20% */
+.status-bar{
+  transform: scale(1.2);
+  transform-origin: center;
 }
 
 .status-bar .dot{
@@ -353,12 +362,19 @@ function setStatusLight(mode, text){
 
 function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防雙擊、手機誤觸）
 {
-  setStatusLight("warn","操作中…");
-  const now = Date.now();
+setStatusLight("warn","操作中…");
+
+const now = Date.now();
+if (now - lastActionAt < delay) return false;
+
+lastActionAt = now;
+
+// 200ms 後回復綠燈
+setTimeout(() => {
   setStatusLight("ok","系統待命中");
-  if (now - lastActionAt < delay) return false;
-  lastActionAt = now;
-  return true;
+}, 200);
+
+return true;
 }
 
 function audit(action, detail = "") // 每個操作都可追蹤、可匯出、可查責
@@ -697,11 +713,11 @@ function saveState(extra = {}) {
 
     finished: (usedName.size === names.length),
 
-  // ⭐ 商用級雙分頁防護（加在這裡）
-  tabId: TAB_ID,
-  heartbeat: Date.now(),
-
-    ...extra
+    ...extra,   // ← 先展開
+	
+	// ⭐ 商用級雙分頁防護（加在這裡）
+    tabId: TAB_ID,
+    heartbeat: Date.now(),
   }));
 }
 
@@ -732,16 +748,19 @@ if(!raw){
     drawInitialWheel();
     return;
   }
-// ===== 商用級主控鎖（只防真正雙主持人） =====
+// ===== 商用級主控鎖（只擋「活著的另一台設備」）=====
 if (IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
   const now = Date.now();
+
+  // 只有在對方心跳仍活著時才鎖
   if (s.heartbeat && now - s.heartbeat < HEARTBEAT_TTL) {
-    setStatusLight("error","偵測到另一台主控設備");
-    alert("偵測到另一台電腦正在操作此轉盤系統，已回到安全狀態");
+    setStatusLight("error", "偵測到另一台主持設備");
+    alert("偵測到另一台電腦正在主持本場活動，系統已進入安全模式");
     sessionStorage.removeItem("spinState");
     location.reload();
     return;
   }
+  // 否則視為舊設備 / 重整 / viewer 回流 → 放行
 }
 
   /* ===== 還原核心資料 ===== */
