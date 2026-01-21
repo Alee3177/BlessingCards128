@@ -400,41 +400,34 @@ logs.push({
   localStorage.setItem("auditLogs", JSON.stringify(logs));
 }
 
-function applyUIState() // 所有按鈕、閃爍、enable/disable、狀態文字，只能從一個地方改
-                        // 避免現在這種「A 段開、B 段又關、C 段又改色」的混亂狀態
-{
+function applyUIState() {
+  // 狀態燈只「顯示狀態」，不「改狀態」
+  if (rotating) {
+    setStatusLight("warn", "轉盤旋轉中");
+    return;
+  }
 
-// ===== 狀態燈同步（旋轉優先權最高） =====
-if (rotating === true) {
-  setStatusLight("warn", "轉盤旋轉中，請勿操作");
-} else {
-  switch(systemState){
+  switch(systemState) {
     case SYS_STATE.INIT:
       setStatusLight("ok", "系統待命中");
       break;
-
     case SYS_STATE.READY:
-      setStatusLight("ok", "名單已鎖定，準備抽籤");
+      setStatusLight("ok", "名單已鎖定");
       break;
-
     case SYS_STATE.ROUND1:
-      setStatusLight("warn", "第一輪抽籤中");
+      setStatusLight("ok", "第一輪完成");
       break;
-
     case SYS_STATE.ROUND2:
-      setStatusLight("warn", "第二輪抽紅包中");
+      setStatusLight("ok", "第二輪完成");
       break;
-
     case SYS_STATE.VIEWER:
       setStatusLight("warn", "查看紅包中");
       break;
-
     case SYS_STATE.FINISHED:
-      setStatusLight("ok", "本輪完成，可下載 PDF 或重置");
+      setStatusLight("ok", "本輪完成");
       break;
-
     default:
-      setStatusLight("error", "系統狀態異常");
+      setStatusLight("error", "狀態異常");
   }
 }
 
