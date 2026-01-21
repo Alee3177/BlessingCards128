@@ -411,29 +411,39 @@ function applyUIState() // 所有按鈕、閃爍、enable/disable、狀態文字
                         // 避免現在這種「A 段開、B 段又關、C 段又改色」的混亂狀態
 {
 
-  // ===== 狀態燈同步 =====
+// ===== 狀態燈同步（旋轉優先權最高） =====
+if (rotating === true) {
+  setStatusLight("warn", "轉盤旋轉中，請勿操作");
+} else {
   switch(systemState){
     case SYS_STATE.INIT:
-      setStatusLight("ok","系統待命中");
+      setStatusLight("ok", "系統待命中");
       break;
+
     case SYS_STATE.READY:
-      setStatusLight("ok","名單已鎖定，準備抽籤");
+      setStatusLight("ok", "名單已鎖定，準備抽籤");
       break;
+
     case SYS_STATE.ROUND1:
-      setStatusLight("warn","第一輪抽籤中");
+      setStatusLight("warn", "第一輪抽籤中");
       break;
+
     case SYS_STATE.ROUND2:
-      setStatusLight("warn","第二輪抽紅包中");
+      setStatusLight("warn", "第二輪抽紅包中");
       break;
+
     case SYS_STATE.VIEWER:
-      setStatusLight("warn","查看紅包中");
+      setStatusLight("warn", "查看紅包中");
       break;
+
     case SYS_STATE.FINISHED:
-      setStatusLight("ok","本輪完成，可下載 PDF 或重置");
+      setStatusLight("ok", "本輪完成，可下載 PDF 或重置");
       break;
+
     default:
-      setStatusLight("error","系統狀態異常");
+      setStatusLight("error", "系統狀態異常");
   }
+}
 
   // 全部先鎖死（安全預設）
   lockBtn.disabled   = true;
@@ -948,6 +958,13 @@ function getNextBlessingPdfSerial(){
 lockBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 必須第一行
   audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length });
+  
+    // 🔒 商用防呆：上一輪已完成但未 Reset / 未 PDF → 禁止直接開新局
+  if (systemState === SYS_STATE.FINISHED) {
+    alert("上一輪尚未完成歸檔，請先下載 PDF 或按「全部歸零」再開始新一輪");
+    return;
+  }
+  
   unlockAudio();   // 🔓 這一行是關鍵
 
   const arr=nameInput.value
