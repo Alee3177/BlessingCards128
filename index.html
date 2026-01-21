@@ -401,37 +401,47 @@ logs.push({
 }
 
 function applyUIState() {
-  // 狀態燈只「顯示狀態」，不「改狀態」
+  // =========================
+  // 0. 狀態燈最高優先權
+  // =========================
   if (rotating) {
     setStatusLight("warn", "轉盤旋轉中");
-    return;
+  } else {
+    switch (systemState) {
+      case SYS_STATE.INIT:
+        setStatusLight("ok", "系統待命中");
+        break;
+
+      case SYS_STATE.READY:
+        setStatusLight("ok", "名單已鎖定，準備抽籤");
+        break;
+
+      case SYS_STATE.ROUND1:
+        setStatusLight("warn", "第一輪抽籤中");
+        break;
+
+      case SYS_STATE.ROUND2:
+        setStatusLight("warn", "第二輪抽紅包中");
+        break;
+
+      case SYS_STATE.VIEWER:
+        setStatusLight("warn", "查看紅包中");
+        break;
+
+      case SYS_STATE.FINISHED:
+        setStatusLight("ok", "本輪完成，可下載 PDF 或重置");
+        break;
+
+      default:
+        console.warn("⚠️ Unknown systemState:", systemState);
+        setStatusLight("error", "系統狀態異常");
+        break;
+    }
   }
 
-  switch(systemState) {
-    case SYS_STATE.INIT:
-      setStatusLight("ok", "系統待命中");
-      break;
-    case SYS_STATE.READY:
-      setStatusLight("ok", "名單已鎖定");
-      break;
-    case SYS_STATE.ROUND1:
-      setStatusLight("ok", "第一輪完成");
-      break;
-    case SYS_STATE.ROUND2:
-      setStatusLight("ok", "第二輪完成");
-      break;
-    case SYS_STATE.VIEWER:
-      setStatusLight("warn", "查看紅包中");
-      break;
-    case SYS_STATE.FINISHED:
-      setStatusLight("ok", "本輪完成");
-      break;
-    default:
-      setStatusLight("error", "狀態異常");
-  }
-}
-
-  // 全部先鎖死（安全預設）
+  // =========================
+  // 1. 安全預設：全部鎖死
+  // =========================
   lockBtn.disabled   = true;
   spinBtn.disabled   = true;
   secondBtn.disabled = true;
@@ -446,7 +456,10 @@ function applyUIState() {
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
 
-  switch(systemState) {
+  // =========================
+  // 2. 狀態 → UI 對應
+  // =========================
+  switch (systemState) {
 
     case SYS_STATE.INIT:
       lockBtn.disabled = false;
@@ -465,14 +478,15 @@ function applyUIState() {
       break;
 
     case SYS_STATE.ROUND2:
-      statusDiv.textContent = "請抽紅包（第二輪）";
       secondBtn.disabled = false;
       secondBtn.classList.add("blink-btn");
+      statusDiv.textContent = "請抽紅包（第二輪）";
       break;
 
     case SYS_STATE.VIEWER:
       viewBtn.disabled = false;
       viewBtn.classList.add("blink-btn");
+      statusDiv.textContent = "查看紅包中";
       break;
 
     case SYS_STATE.FINISHED:
@@ -480,6 +494,10 @@ function applyUIState() {
       pdfBtn.classList.add("btn-pdf-ready");
       resetBtn.classList.add("btn-reset-danger");
       statusDiv.textContent = "";
+      break;
+
+    default:
+      // 已在上方狀態燈處理
       break;
   }
 }
