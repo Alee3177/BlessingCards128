@@ -112,6 +112,43 @@ body{
   box-shadow:0 3px 0 #B71C1C;
 }
 
+/* ===== 主控狀態燈 ===== */
+.status-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:8px auto 4px auto;
+  font-size:14px;
+  font-weight:700;
+}
+
+.status-bar .dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#999;
+  box-shadow:0 0 4px rgba(0,0,0,.3);
+}
+
+/* 綠：主控正常 */
+.status-ok .dot{
+  background:#2e7d32;
+  box-shadow:0 0 8px rgba(46,125,50,.8);
+}
+
+/* 黃：操作中 */
+.status-warn .dot{
+  background:#f9a825;
+  box-shadow:0 0 8px rgba(249,168,37,.8);
+}
+
+/* 紅：鎖定 / 雙主持 / 錯誤 */
+.status-error .dot{
+  background:#c62828;
+  box-shadow:0 0 8px rgba(198,40,40,.8);
+}
+
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -125,6 +162,11 @@ body{
 
 <img src="logo3524.png" class="logo" />
 <h2>祝福經句紅包（應許等您拿）</h2>
+
+<div id="masterStatus" class="status-bar">
+  <span class="dot"></span>
+  <span class="label">系統初始化中</span>
+</div>
 
 <input id="nameInput" placeholder="請輸入姓名，可用空白或逗號分隔">
 
@@ -259,6 +301,9 @@ function unlockAudio() {
   }
 }
 
+/* ==== 主控旗標 ==== */
+const IS_MASTER = true;
+
 /* ==== 狀態變數 ==== */
 let names = [];
 let usedName = new Set();
@@ -291,9 +336,26 @@ let lastHeartbeat = Date.now();
 let systemState = SYS_STATE.INIT;
 let lastActionAt = 0;   // 防連點節流用
 
+const statusBar = document.getElementById("masterStatus");
+
+function setStatusLight(mode, text){
+  if(!statusBar) return;
+
+  statusBar.classList.remove("status-ok","status-warn","status-error");
+
+  if(mode === "ok")    statusBar.classList.add("status-ok");
+  if(mode === "warn")  statusBar.classList.add("status-warn");
+  if(mode === "error") statusBar.classList.add("status-error");
+
+  const label = statusBar.querySelector(".label");
+  if(label) label.textContent = text;
+}
+
 function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防雙擊、手機誤觸）
 {
+  setStatusLight("warn","操作中…");
   const now = Date.now();
+  setStatusLight("ok","系統待命中");
   if (now - lastActionAt < delay) return false;
   lastActionAt = now;
   return true;
@@ -301,6 +363,8 @@ function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防�
 
 function audit(action, detail = "") // 每個操作都可追蹤、可匯出、可查責
 {
+  if (!IS_MASTER) return;   // 🔒 只有主控台能寫稽核紀錄
+
   const logs = JSON.parse(localStorage.getItem("auditLogs") || "[]");
   logs.push({
     time: new Date().toISOString(),
@@ -315,6 +379,31 @@ function audit(action, detail = "") // 每個操作都可追蹤、可匯出、�
 function applyUIState() // 所有按鈕、閃爍、enable/disable、狀態文字，只能從一個地方改
                         // 避免現在這種「A 段開、B 段又關、C 段又改色」的混亂狀態
 {
+
+  // ===== 狀態燈同步 =====
+  switch(systemState){
+    case SYS_STATE.INIT:
+      setStatusLight("ok","系統待命中");
+      break;
+    case SYS_STATE.READY:
+      setStatusLight("ok","名單已鎖定，準備抽籤");
+      break;
+    case SYS_STATE.ROUND1:
+      setStatusLight("warn","第一輪抽籤中");
+      break;
+    case SYS_STATE.ROUND2:
+      setStatusLight("warn","第二輪抽紅包中");
+      break;
+    case SYS_STATE.VIEWER:
+      setStatusLight("warn","查看紅包中");
+      break;
+    case SYS_STATE.FINISHED:
+      setStatusLight("ok","本輪完成，可下載 PDF 或重置");
+      break;
+    default:
+      setStatusLight("error","系統狀態異常");
+  }
+
   // 全部先鎖死（安全預設）
   lockBtn.disabled   = true;
   spinBtn.disabled   = true;
@@ -576,7 +665,10 @@ if (t < 1) {
 
 /* ========= 儲存狀態 ========= */
 function saveState(extra = {}) {
-lastHeartbeat = Date.now();   // 🔄 心跳同步（商用級分頁存活標記）
+  if (!IS_MASTER) return;      // 🔒 非主控頁禁止寫狀態（一定要第一行）
+
+  lastHeartbeat = Date.now(); // 🔄 心跳同步（商用級分頁存活標記）
+
   const prev = (() => {
     try {
       return JSON.parse(sessionStorage.getItem("spinState")) || {};
@@ -640,17 +732,16 @@ if(!raw){
     drawInitialWheel();
     return;
   }
-  	/* ===== 商用級分頁鎖（TAB + 心跳制） ===== */
-const now = Date.now();
-
-if (s.tabId && s.tabId !== TAB_ID) {
-  // 另一分頁存在，但只有在它「還活著」時才攔
+// ===== 商用級主控鎖（只防真正雙主持人） =====
+if (IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
+  const now = Date.now();
   if (s.heartbeat && now - s.heartbeat < HEARTBEAT_TTL) {
-    alert("偵測到另一個分頁正在操作，已回到安全狀態");
+    setStatusLight("error","偵測到另一台主控設備");
+    alert("偵測到另一台電腦正在操作此轉盤系統，已回到安全狀態");
     sessionStorage.removeItem("spinState");
     location.reload();
     return;
-}
+  }
 }
 
   /* ===== 還原核心資料 ===== */
@@ -762,6 +853,7 @@ if (fromViewer) {
   /* ===== 情況 B：全部人已抽完 ===== */
   else if (total > 0 && drawn === total) {
   systemState = SYS_STATE.FINISHED;
+  applyUIState();
   
   statusDiv.textContent = "";   // ✅ 清除「請輸入姓名並鎖定名單」
 
@@ -853,7 +945,7 @@ resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
 
   statusDiv.textContent = "名單已鎖定，請開始抽籤";
   systemState = SYS_STATE.READY;
-  
+  applyUIState();
   saveState({ round2Done: false });
 };
 
@@ -885,6 +977,7 @@ spinBtn.onclick = () => {
   
   audit("ROUND1_START", { remaining: remain.length });
   systemState = SYS_STATE.ROUND1;
+  applyUIState();
   
    // 🔴【3️⃣ 必加】第一輪一開始，強制關閉第二輪
   secondBtn.disabled = true;
@@ -928,6 +1021,7 @@ secondBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 第一行
   unlockAudio();   // 🔓 這一行是關鍵
   systemState = SYS_STATE.ROUND2;
+  applyUIState();
   
   secondBtn.disabled=true;
   secondBtn.classList.remove("blink-btn");
@@ -1007,6 +1101,7 @@ viewBtn.onclick = () => {
 
   // 僅儲存狀態，不自動轉動
   systemState = SYS_STATE.VIEWER;
+  applyUIState();
   saveState();
 
   window.location.href =
@@ -1141,18 +1236,21 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 /* ========= 初始化 ========= */
 loadState();
 
-setInterval(() => {
-  const raw = sessionStorage.getItem("spinState");
-  if (!raw) return;
+// ==== 主控頁才允許送心跳 ====
+if (IS_MASTER) {
+  setInterval(() => {
+    const raw = sessionStorage.getItem("spinState");
+    if (!raw) return;
 
-  try {
-    const s = JSON.parse(raw);
-    if (s.tabId === TAB_ID) {
-      s.heartbeat = Date.now();
-      sessionStorage.setItem("spinState", JSON.stringify(s));
-    }
-  } catch(e) {}
-}, 2000);
+    try {
+      const s = JSON.parse(raw);
+      if (s.tabId === TAB_ID) {
+        s.heartbeat = Date.now();
+        sessionStorage.setItem("spinState", JSON.stringify(s));
+      }
+    } catch(e) {}
+  }, 2000);
+}
 
 /* ========= 全部歸零（最高優先權 Reset 核心） ========= */
 resetBtn.onclick = () => {
@@ -1183,6 +1281,7 @@ resetBtn.onclick = () => {
   
     // ===== Reset 系統狀態機 =====
   systemState = SYS_STATE.INIT;   // ✅ 必加
+  applyUIState();
 
   /* ===== 2️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
