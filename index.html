@@ -1045,7 +1045,6 @@ spinBtn.onclick = () => {
   
   audit("ROUND1_START", { remaining: remain.length });
   systemState = SYS_STATE.ROUND1;
-  applyUIState();
   
    // 🔴【3️⃣ 必加】第一輪一開始，強制關閉第二輪
   secondBtn.disabled = true;
@@ -1089,7 +1088,6 @@ secondBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 第一行
   unlockAudio();   // 🔓 這一行是關鍵
   systemState = SYS_STATE.ROUND2;
-  applyUIState();
   
   secondBtn.disabled=true;
   secondBtn.classList.remove("blink-btn");
