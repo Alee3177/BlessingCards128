@@ -669,6 +669,8 @@ function launchConfetti(){
   requestAnimationFrame(frame);
 }
 
+let animId = null; // ⭐ 全域動畫控制器
+
 function spin(list, clockwise, callback) {
   if (rotating || !list.length) return;
 
@@ -686,18 +688,24 @@ function spin(list, clockwise, callback) {
   const idx = list.indexOf(target);
 
   const base = rotation;
-  const delta = (clockwise ? 1 : -1) *
+  const delta =
+    (clockwise ? 1 : -1) *
     (6 * Math.PI + idx * (2 * Math.PI / list.length));
   const end = base + delta;
 
   const start = performance.now();
-  const hardStopAt = start + DURATION + 300; // 🛡 絕對硬停保險絲
+  const hardStopAt = start + DURATION + 500; // 🛡 絕對保險絲
 
   let finished = false;
 
   function finish() {
     if (finished) return;
     finished = true;
+
+    if (animId) {
+      cancelAnimationFrame(animId);
+      animId = null;
+    }
 
     rotation = end;
     drawWheel(rotation);
@@ -713,7 +721,7 @@ function spin(list, clockwise, callback) {
     console.log("🟢 spin hard-stopped");
   }
 
-  (function anim(now) {
+  function anim(now) {
     if (finished) return;
 
     // 🛡 硬時間保險絲
@@ -724,7 +732,6 @@ function spin(list, clockwise, callback) {
 
     let t = (now - start) / DURATION;
 
-    // 🛡 防止時間回跳 / 溢位
     if (t < 0) t = 0;
     if (t >= 1) {
       finish();
@@ -734,8 +741,10 @@ function spin(list, clockwise, callback) {
     rotation = base + delta * ease(t);
     drawWheel(rotation);
 
-    requestAnimationFrame(anim);
-  })(start);
+    animId = requestAnimationFrame(anim);
+  }
+
+  animId = requestAnimationFrame(anim);
 }
 
 /* ========= 儲存狀態 ========= */
