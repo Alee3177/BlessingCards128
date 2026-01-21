@@ -376,17 +376,10 @@ function setStatusLight(mode, text){
 
 function canAct(delay = 500) // 所有按鈕 500ms 內只能觸發一次（防雙擊、手機誤觸）
 {
-setStatusLight("warn","操作中…");
-
 const now = Date.now();
 if (now - lastActionAt < delay) return false;
 
 lastActionAt = now;
-
-// 200ms 後回復綠燈
-setTimeout(() => {
-  setStatusLight("ok","系統待命中");
-}, 200);
 
 return true;
 }
