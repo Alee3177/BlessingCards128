@@ -670,6 +670,7 @@ function spin(list,clockwise,callback){
   if(rotating||!list.length)return;
 
   rotating=true;
+  applyUIState();   // 🟡 轉盤一動就變黃燈
 
   statusDiv.textContent="旋轉中……";
   resultDiv.textContent="";
@@ -699,6 +700,7 @@ if (t < 1) {
     callback(target, idx);
   } finally {
     rotating = false;   // ⭐ 無論 callback 發生什麼，一定解鎖
+	applyUIState();   // 🟡 轉完才回綠燈
   }
 }
   })(performance.now());
