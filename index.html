@@ -651,67 +651,73 @@ function launchConfetti(){
   requestAnimationFrame(frame);
 }
 
-/* ========= 旋轉動畫 ========= */
-function spin(list,clockwise,callback){
-  if(rotating||!list.length)return;
+function spin(list, clockwise, callback) {
+  if (rotating || !list.length) return;
 
-  rotating=true;
-  applyUIState();   // 🟡 轉盤一動就變黃燈
+  rotating = true;
+  applyUIState(); // 🟡 黃燈
 
-  statusDiv.textContent="旋轉中……";
-  resultDiv.textContent="";
-  centerText.textContent="";
-  summaryBox.textContent="";
+  statusDiv.textContent = "旋轉中……";
+  resultDiv.textContent = "";
+  centerText.textContent = "";
+  summaryBox.textContent = "";
 
-  try{drum.currentTime=0;drum.play();}catch(e){}
+  try { drum.currentTime = 0; drum.play(); } catch(e) {}
 
-  const target=list[Math.floor(Math.random()*list.length)];
-  const idx=list.indexOf(target);
+  const target = list[Math.floor(Math.random() * list.length)];
+  const idx = list.indexOf(target);
 
-  const base=rotation;
-  const end=base+(clockwise?1:-1)*(6*Math.PI+idx*(2*Math.PI/list.length));
-  const start=performance.now();
+  const base = rotation;
+  const delta = (clockwise ? 1 : -1) *
+    (6 * Math.PI + idx * (2 * Math.PI / list.length));
+  const end = base + delta;
 
-  (function anim(now){
-    let t=(now-start)/DURATION;
-    if(t>1)t=1;
+  const start = performance.now();
+  const hardStopAt = start + DURATION + 300; // 🛡 絕對硬停保險絲
 
-    rotation=base+(end-base)*ease(t);
+  let finished = false;
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+
+    rotation = end;
     drawWheel(rotation);
 
-if (t < 1) {
-  requestAnimationFrame(anim);
-} else {
-  // 🛡 保命解鎖機制
-  let unlocked = false;
+    try {
+      callback(target, idx);
+    } catch (e) {
+      console.error("❌ spin callback crashed:", e);
+    }
 
-  const safeUnlock = () => {
-    if (unlocked) return;
-    unlocked = true;
     rotating = false;
-    applyUIState();
-    console.log("🟢 spin unlocked");
-  };
-
-try {
-  const r = callback(target, idx);
-
-  // 🛡 如果 callback 回傳 Promise，也等一下
-  if (r && typeof r.then === "function") {
-    r.catch(e => {
-      console.error("❌ spin callback async crashed:", e);
-    });
+    applyUIState(); // 🟢 回綠燈
+    console.log("🟢 spin hard-stopped");
   }
-} catch (e) {
-  console.error("❌ spin callback crashed:", e);
-} finally {
-  safeUnlock();
-}
 
-  // 保證非同步炸掉也能復活（保險絲）
-  setTimeout(safeUnlock, 1000);
-}
-  })(performance.now());
+  (function anim(now) {
+    if (finished) return;
+
+    // 🛡 硬時間保險絲
+    if (now >= hardStopAt) {
+      finish();
+      return;
+    }
+
+    let t = (now - start) / DURATION;
+
+    // 🛡 防止時間回跳 / 溢位
+    if (t < 0) t = 0;
+    if (t >= 1) {
+      finish();
+      return;
+    }
+
+    rotation = base + delta * ease(t);
+    drawWheel(rotation);
+
+    requestAnimationFrame(anim);
+  })(start);
 }
 
 /* ========= 儲存狀態 ========= */
