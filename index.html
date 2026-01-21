@@ -313,6 +313,9 @@ function unlockAudio() {
 /* ==== 主控旗標 ==== */
 const IS_MASTER = true;
 
+/* ==== 開發 / 現場控制 ==== */
+const DISABLE_MASTER_LOCK = true;
+
 /* ==== 狀態變數 ==== */
 let names = [];
 let usedName = new Set();
@@ -346,6 +349,17 @@ let systemState = SYS_STATE.INIT;
 let lastActionAt = 0;   // 防連點節流用
 
 const statusBar = document.getElementById("masterStatus");
+
+/* ========= 工具函式 ========= */
+// ⏰ 時間格式統一工具（PDF / 紀錄 / UI 共用）
+function formatTime2(date = new Date()) {
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
+  const s = String(date.getSeconds()).padStart(2, "0");
+
+  const isPM = date.getHours() >= 12;
+  return `${isPM ? "下午" : "上午"} ${h}:${m}:${s}`;
+}
 
 function setStatusLight(mode, text){
   if(!statusBar) return;
@@ -382,13 +396,14 @@ function audit(action, detail = "") // 每個操作都可追蹤、可匯出、�
   if (!IS_MASTER) return;   // 🔒 只有主控台能寫稽核紀錄
 
   const logs = JSON.parse(localStorage.getItem("auditLogs") || "[]");
-  logs.push({
-    time: new Date().toISOString(),
-    session: TAB_ID,
-    state: systemState,
-    action,
-    detail
-  });
+logs.push({
+  timeISO: new Date().toISOString(),        // 🔒 系統稽核用（不可改）
+  timeDisplay: formatTime2(new Date()),    // 👁 人類可讀（下午 03:57:30）
+  session: TAB_ID,
+  state: systemState,
+  action,
+  detail
+});
   localStorage.setItem("auditLogs", JSON.stringify(logs));
 }
 
@@ -748,8 +763,8 @@ if(!raw){
     drawInitialWheel();
     return;
   }
-// ===== 商用級主控鎖（只擋「活著的另一台設備」）=====
-if (IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
+// ===== 商用級主控鎖（只擋「活著的另一台設備」）（目前先停用）=====
+if (!DISABLE_MASTER_LOCK && IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
   const now = Date.now();
 
   // 只有在對方心跳仍活著時才鎖
@@ -908,8 +923,9 @@ resetBtn.classList.add("btn-reset-danger");
 /* ========= 抽籤紀錄寫入 localStorage ========= */
 function appendLog(name, no, ref){
   let logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-  const now = new Date();
-  const timeStr = now.toLocaleString("zh-TW");
+  
+  // ⏰ 統一時間格式（下午 03:57:30）
+  const timeStr = formatTime2(new Date());
   logs.push({
     time: timeStr,
     name,
