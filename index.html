@@ -158,6 +158,40 @@ body{
   box-shadow:0 0 8px rgba(198,40,40,.8);
 }
 
+/* ===== 主持機 / 觀眾狀態面板 ===== */
+#hostPanel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  z-index: 9999;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+#hostStatus.ok {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+#hostStatus.warn {
+  color: #ffb300;
+  font-weight: bold;
+}
+
+#viewerStatus.ok {
+  color: #03a9f4;
+}
+
+#viewerStatus.warn {
+  color: #aaa;
+}
+
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -208,6 +242,11 @@ body{
 <div id="result"></div>
 <div id="summaryBox"></div>
 
+<div id="hostPanel">
+  <div id="hostStatus">🎤 主持機離線</div>
+  <div id="viewerStatus">👥 尚無觀眾</div>
+</div>
+
 <audio id="drum" preload="auto" playsinline>
   <source src="audio/drum.mp3" type="audio/mpeg">
 </audio>
@@ -221,6 +260,38 @@ body{
   預載 LOGO / 音效 / 紅包圖片
 ================================ -->
 <script>
+
+/* ==== 主持機鎖定識別（防多主持） ==== */
+const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+const HEARTBEAT_TTL = 30000; // 30 秒內視為「活躍主持機」
+
+const MASTER_KEY = "BLESSING_MASTER";
+
+function claimMaster() {
+  const now = Date.now();
+  const current = JSON.parse(localStorage.getItem(MASTER_KEY) || "null");
+
+  if (!current || now - current.heartbeat > HEARTBEAT_TTL) {
+    localStorage.setItem(MASTER_KEY, JSON.stringify({
+      tabId: TAB_ID,
+      heartbeat: now
+    }));
+    return true;
+  }
+
+  return current.tabId === TAB_ID;
+}
+
+function heartbeatMaster() {
+  if (!IS_MASTER) return;
+  localStorage.setItem(MASTER_KEY, JSON.stringify({
+    tabId: TAB_ID,
+    heartbeat: Date.now()
+  }));
+}
+
+setInterval(heartbeatMaster, 2000);
+
 (function preloadResources(){
 
   console.log("🔥 BlessingCards128 資源暖機中...");
@@ -266,7 +337,28 @@ body{
 <script>
 (function(){
 
+// =============================
+// 🔒 防作弊：禁止鍵盤 + 右鍵
+// =============================
+(function lockInputCheat(){
+  document.addEventListener("keydown", function(e) {
+    e.preventDefault();
+    return false;
+  }, true); // ← capture 階段攔截，優先權最高
+
+  document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+    return false;
+  }, true);
+})();
+
 let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
+
+// 🔒 主持機搶鎖
+if (!claimMaster()) {
+  alert("此轉盤系統已被另一台主持機鎖定");
+  setStatusLight("error", "主持機已被佔用");
+}
 
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
@@ -323,10 +415,6 @@ let names = [];
 let usedName = new Set();
 let verseUsed = new Set();
 let round2Started = false; // ✅ 第二輪是否已經被按過
-
-/* ==== 商用級分頁識別 ==== */
-const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
-const HEARTBEAT_TTL = 5000; // 5 秒內視為「活躍分頁」
 
 let rotation = 0;
 let rotating = false;
@@ -1211,6 +1299,13 @@ secondBtn.onclick = () => {
       (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
         ? window.VERSE_REF_MAP[v]
         : "";
+		
+	// ⭐ 廣播給所有 Viewer：最後抽中的經句
+  localStorage.setItem("LAST_VERSE", JSON.stringify({
+    verse: v,
+    ref: ref,
+    time: Date.now()
+  }));	
 
     // UI 顯示
     statusDiv.textContent = "";
@@ -1400,6 +1495,11 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 
 /* ========= 初始化 ========= */
 loadState();
+
+if (!claimMaster()) {
+  alert("此轉盤系統已被另一台主持機鎖定");
+  setStatusLight("error", "主持機已被佔用");
+}
 
 // ==== 主控頁才允許送心跳 ====
 if (IS_MASTER) {

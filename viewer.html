@@ -140,11 +140,63 @@ body{
 
 <script>
 
+const IS_MASTER = false;
+
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
 let lastVerseNo = null; // ✅ 記住目前顯示的經句編號，防止跨經句誤判重複下載
 let downloading = false; // ✅ 防止連續狂點下載
+
+// =============================
+// 👥 Viewer 心跳回報主持機
+// =============================
+const VIEWER_KEY = "BLESSING_VIEWERS";
+const VIEWER_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,6);
+const VIEWER_TTL = 30000; // 30 秒存活
+
+function heartbeatViewer() {
+  const now = Date.now();
+  let viewers = {};
+
+  try {
+    viewers = JSON.parse(localStorage.getItem(VIEWER_KEY) || "{}");
+  } catch {
+    viewers = {};
+  }
+
+  viewers[VIEWER_ID] = now;
+  localStorage.setItem(VIEWER_KEY, JSON.stringify(viewers));
+}
+
+// 每 5 秒報到一次
+setInterval(heartbeatViewer, 5000);
+heartbeatViewer();
+
+// =============================
+// 🔒 防作弊（安全版）
+// =============================
+(function lockInputCheat(){
+  document.addEventListener("keydown", function(e) {
+
+    // ✅ 允許系統與下載相關操作
+    if (
+      e.ctrlKey || e.metaKey || e.altKey ||   // 快捷鍵
+      e.key === "F5" ||                       // 重新整理
+      e.key === "Escape" ||                  // 返回
+      e.key === "Tab"
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+  }, true);
+
+  // 右鍵全擋（保留）
+  document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+  }, true);
+})();
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
@@ -502,6 +554,41 @@ logBox.innerHTML = logs
     `[${l.time}] 「${l.name}」 → 抽中經句紅包: ${l.ref}`
   )
   .join("<br>"); 
+  
+  // =============================
+// 🔁 Viewer 自動同步主持機（每秒檢查）
+// =============================
+window.lastSeenVerse = null;
+
+function syncFromMaster() {
+  const raw = localStorage.getItem("LAST_VERSE");
+  if (!raw) return;
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  if (!data.verse) return;
+
+  // 已經顯示過就不再刷新
+  if (window.lastSeenVerse === data.verse) return;
+  window.lastSeenVerse = data.verse;
+
+  console.log("🔁 同步主持機經句:", data.verse);
+
+  // ⭐ 強制跳轉本頁（完整重跑動畫 / 音效 / 防呆 / 下載系統）
+  const url = new URL(window.location.href);
+  url.searchParams.set("no", data.verse);
+  url.searchParams.set("name", ""); // Viewer 不需要名字也沒關係
+  window.location.href = url.toString();
+}
+
+// 每 1 秒同步一次主持機
+setInterval(syncFromMaster, 1000);
+  
 </script>
 
 <!-- PATCH-1：viewer 專用音效（新增，不取代任何既有音效） -->
