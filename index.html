@@ -808,21 +808,24 @@ function saveState(extra = {}) {
 	pdfRoundSerial,
     pdfRepeatCount,
 
-    // ✅ round2Done 正確繼承邏輯
-    round2Done:
-      typeof extra.round2Done === "boolean"
-        ? extra.round2Done
-        : !!prev.round2Done,
+// ✅ round2Done 正確繼承邏輯
+round2Done:
+  typeof extra.round2Done === "boolean"
+    ? extra.round2Done
+    : !!prev.round2Done,
 
 // 🔒 finished 商用級控制權（可手動覆寫）
 finished:
   typeof extra.finished === "boolean"
     ? extra.finished
     : (usedName.size === names.length),
-	
-	// ⭐ 商用級雙分頁防護（加在這裡）
-    tabId: TAB_ID,
-    heartbeat: Date.now(),
+
+// ⭐ 先展開流程控制（允許 round2Done / finished 被改）
+...extra,
+
+// 🔐 最後才寫主控權（永遠不可被覆蓋）
+tabId: TAB_ID,
+heartbeat: Date.now(),
   }));
 }
 
