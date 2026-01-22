@@ -266,6 +266,8 @@ body{
 <script>
 (function(){
 
+let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
+
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
 const ctx   = wheel.getContext("2d");
@@ -669,10 +671,14 @@ function launchConfetti(){
   requestAnimationFrame(frame);
 }
 
-let animId = null; // ⭐ 全域動畫控制器
-
 function spin(list, clockwise, callback) {
   if (rotating || !list.length) return;
+
+  // 🔴 先停掉任何殘留動畫
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
 
   rotating = true;
   applyUIState(); // 🟡 黃燈
@@ -682,7 +688,10 @@ function spin(list, clockwise, callback) {
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-  try { drum.currentTime = 0; drum.play(); } catch(e) {}
+  try {
+    drum.currentTime = 0;
+    drum.play();
+  } catch (e) {}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -694,7 +703,7 @@ function spin(list, clockwise, callback) {
   const end = base + delta;
 
   const start = performance.now();
-  const hardStopAt = start + DURATION + 500; // 🛡 絕對保險絲
+  const hardStopAt = start + DURATION + 300; // 🛡 最終保險絲
 
   let finished = false;
 
@@ -716,23 +725,30 @@ function spin(list, clockwise, callback) {
       console.error("❌ spin callback crashed:", e);
     }
 
+    // ⭐⭐⭐ 系統狀態推進（這段一定要有）⭐⭐⭐
+    if (systemState === SYS_STATE.ROUND1) {
+      systemState = SYS_STATE.ROUND2;
+    } else if (systemState === SYS_STATE.ROUND2) {
+      systemState = SYS_STATE.VIEWER;
+    }
+
     rotating = false;
     applyUIState(); // 🟢 回綠燈
-    console.log("🟢 spin hard-stopped");
+    console.log("🟢 spin finished, state =", systemState);
   }
 
-  function anim(now) {
+  function frame(now) {
     if (finished) return;
 
-    // 🛡 硬時間保險絲
+    // 🛡 硬停保險
     if (now >= hardStopAt) {
       finish();
       return;
     }
 
     let t = (now - start) / DURATION;
-
     if (t < 0) t = 0;
+
     if (t >= 1) {
       finish();
       return;
@@ -741,10 +757,10 @@ function spin(list, clockwise, callback) {
     rotation = base + delta * ease(t);
     drawWheel(rotation);
 
-    animId = requestAnimationFrame(anim);
+    animId = requestAnimationFrame(frame);
   }
 
-  animId = requestAnimationFrame(anim);
+  animId = requestAnimationFrame(frame);
 }
 
 /* ========= 儲存狀態 ========= */
