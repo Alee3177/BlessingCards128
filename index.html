@@ -752,13 +752,6 @@ function spin(list, clockwise, callback) {
       console.error("❌ spin callback crashed:", e);
     }
 
-    // ⭐⭐⭐ 系統狀態推進（這段一定要有）⭐⭐⭐
-    if (systemState === SYS_STATE.ROUND1) {
-      systemState = SYS_STATE.ROUND2;
-    } else if (systemState === SYS_STATE.ROUND2) {
-      systemState = SYS_STATE.VIEWER;
-    }
-
     rotating = false;
     applyUIState(); // 🟢 回綠燈
     console.log("🟢 spin finished, state =", systemState);
@@ -1060,77 +1053,80 @@ function getNextBlessingPdfSerial(){
 }
 
 /* ========= 鎖定名單 ========= */
-lockBtn.onclick=()=>{
-  if (!canAct()) return;   // ✅ 必須第一行
-  audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length }); 
-  unlockAudio();   // 🔓 這一行是關鍵
-  
-// 🟢 新一輪直接開局（不論是否 FINISHED）
-systemState = SYS_STATE.INIT;
+lockBtn.onclick = () => {
+  if (!canAct()) return;
+  audit("LOCK_LIST", {
+    count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length
+  });
+  unlockAudio();
 
-// 重置本輪狀態
-usedName.clear();
-verseUsed.clear();
-currentVerse = null;
-lastWinnerIndex = -1;
-rotation = 0;
-rotating = false;
+  // 🟢 新一輪強制初始化
+  systemState = SYS_STATE.INIT;
 
-// 重置 PDF 防呆
-pdfRoundSerial = null;
-pdfRepeatCount = 0;
-pdfDownloadedThisRound = false;
-
-  const arr=nameInput.value
-    .split(/[\s,，、]+/)
-    .map(x=>x.trim())
-    .filter(Boolean);
-
-  if(arr.length<2){alert("至少兩位姓名");return;}
-  if(new Set(arr).size!==arr.length){
-    alert("Oops, 有姓名重複輸入了唷!");return;
-  }
-
-  names=arr;
   usedName.clear();
   verseUsed.clear();
-  rotation=0;
-  currentVerse=null;
+  currentVerse = null;
+  lastWinnerIndex = -1;
+  rotation = 0;
+  rotating = false;
+
+  pdfRoundSerial = null;
+  pdfRepeatCount = 0;
+  pdfDownloadedThisRound = false;
+  round2Started = false; // ⭐ 新一輪一定要重置第二輪鎖
+
+  const arr = nameInput.value
+    .split(/[\s,，、]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  if (arr.length < 2) {
+    alert("至少兩位姓名");
+    return;
+  }
+  if (new Set(arr).size !== arr.length) {
+    alert("Oops, 有姓名重複輸入了唷!");
+    return;
+  }
+
+  names = arr;
+  usedName.clear();
+  verseUsed.clear();
+  rotation = 0;
+  currentVerse = null;
 
   clearHL();
   drawWheel(0);
 
-  lockBtn.disabled=true;
-  spinBtn.disabled=false;
+  lockBtn.disabled = true;
+  spinBtn.disabled = false;
 
-  // === PATCH A-6：鎖定名單時，清除完成提示三行 ===
   summaryBox.textContent = "";
 
-pdfBtn.classList.remove("btn-pdf-ready"); // 移除 PDF 藍色
-resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
+  pdfBtn.classList.remove("btn-pdf-ready");
+  resetBtn.classList.remove("btn-reset-danger");
 
   statusDiv.textContent = "名單已鎖定，請開始抽籤";
   systemState = SYS_STATE.READY;
   applyUIState();
-  saveState({ 
-  round2Done: false,
-  finished: false   // 🔒 強制宣告新一輪開始
-});
+
+  saveState({
+    round2Done: false,
+    finished: false
+  });
 };
 
 /* ========= 第一輪 ========= */
 spinBtn.onclick = () => {
-  if (!canAct()) return;   // ✅ 第一行
-  unlockAudio();   // 🔓 這一行是關鍵
+  if (!canAct()) return;
+  if (rotating) return;
+  unlockAudio();
 
-  // ⭐ 1️⃣ 一按就立刻鎖死自己
   spinBtn.disabled = true;
   spinBtn.classList.remove("blink-btn");
 
-  // ⭐ 2️⃣ 下方文字立刻改為「旋轉中...」
   statusDiv.textContent = "旋轉中...";
 
-  // ⭐ 3️⃣ 同時保險關閉其他入口
   secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
 
@@ -1143,63 +1139,52 @@ spinBtn.onclick = () => {
 
   const remain = names.filter(n => !usedName.has(n));
   if (!remain.length) return;
-  
+
   audit("ROUND1_START", { remaining: remain.length });
   systemState = SYS_STATE.ROUND1;
-  
-   // 🔴【3️⃣ 必加】第一輪一開始，強制關閉第二輪
-  secondBtn.disabled = true;
-  secondBtn.classList.remove("blink-btn");
+  applyUIState();
 
-  viewBtn.disabled = true;
-  viewBtn.classList.remove("blink-btn");
-  
-  // === Patch 1：第一輪開始即清空 round2Done ===
-  saveState({ round2Done: false });
-  
-  // 🔒 第一輪開始，鎖死 PDF / 鎖定名單
   pdfBtn.disabled = true;
   lockBtn.disabled = true;
 
-  // ✅ 第一輪一定是順時針（true）
-spin(remain, true, (winner) => {
+  spin(remain, true, (winner) => {
+    usedName.add(winner);
+    lastWinnerIndex = names.indexOf(winner);
 
-  usedName.add(winner);
-  lastWinnerIndex = names.indexOf(winner);
+    clearHL();
+    showHL(lastWinnerIndex);
 
-  clearHL();
-  showHL(lastWinnerIndex);
+    const drawnCount = usedName.size;
+    const totalCount = names.length;
 
-  const drawnCount = usedName.size;
-  const totalCount = names.length;
+    statusDiv.textContent = "";
+    resultDiv.textContent =
+      `🎯 抽中「${winner}」\n（第 ${drawnCount} 位／共 ${totalCount} 位）`;
 
-  statusDiv.textContent = "";
-  resultDiv.textContent =
-    `🎯 抽中「${winner}」\n（第 ${drawnCount} 位／共 ${totalCount} 位）`;
+    // 🟢 開放第二輪
+    round2Started = false;
+    systemState = SYS_STATE.ROUND2;
+    applyUIState();
 
-  // 🟢 狀態推進（關鍵）
-  round2Started = false; // ✅ 開放第二輪一次
-  systemState = SYS_STATE.ROUND2;
-  applyUIState();
+    secondBtn.disabled = false;
+    secondBtn.classList.add("blink-btn");
 
-  // UI 行為只當輔助
-  secondBtn.disabled = false;
-  secondBtn.classList.add("blink-btn");
-
-  saveState();
-});
+    saveState({ round2Done: false });
+  });
 };
 
 /* ========= 第二輪 ========= */
 secondBtn.onclick = () => {
   if (!canAct()) return;
+  if (rotating) return;
+  if (round2Started) return; // 🔒 防重複
+  round2Started = true;
+
   unlockAudio();
 
-  // 🔒 一按就永久鎖死
   secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
 
-  // 🔒 狀態推進
   systemState = SYS_STATE.ROUND2;
   applyUIState();
 
@@ -1222,57 +1207,49 @@ secondBtn.onclick = () => {
     verseUsed.add(v);
     currentVerse = v;
 
-    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
-      ? window.VERSE_REF_MAP[v]
-      : "";
+    const ref =
+      (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
+        ? window.VERSE_REF_MAP[v]
+        : "";
 
+    // UI 顯示
     statusDiv.textContent = "";
-    resultDiv.textContent = `📜 抽中經句紅包\n${v} ${ref}`;
+    resultDiv.textContent =
+      `第二輪完成：抽中經句「${v}」`;
 
-    // 🟢 第二輪結束 → 進 Viewer 狀態
-    systemState = SYS_STATE.VIEWER;
-    applyUIState();
+    centerText.textContent =
+      `📜 抽中經句「${v}」\n📖 ${ref}`;
 
-    saveState();
-  });
-};
-
-// 本次抽籤結果
-resultDiv.textContent = `第二輪完成：抽中經句「${v}」`;
-
-// 中央顯示（視覺）
-centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
-
-    // 🔊 win.mp3（✔ 正確、位置也對）
-    try{
+    // 🔊 音效
+    try {
       winSound.currentTime = 0;
       winSound.play();
-    }catch(e){
-      console.log("win mp3 blocked:", e);
-    }
+    } catch (e) {}
 
-    // 🎉 彩帶（✔ 有）
+    // 🎉 彩帶
     launchConfetti();
-	
-    clearHL();                 // ← 已有，正確
-    showHL(lastWinnerIndex);
 
-    // === A-1：看紅包閃爍期間，鎖定所有抽籤按鈕 ===
+    // 🔒 鎖死抽籤鍵
     spinBtn.disabled = true;
     secondBtn.disabled = true;
     spinBtn.classList.remove("blink-btn");
     secondBtn.classList.remove("blink-btn");
 
-    // 啟用「看紅包」
+    // 👁 啟用 Viewer
     viewBtn.disabled = false;
     viewBtn.classList.add("blink-btn");
 
-    // ✔ 寫入抽籤紀錄
+    // ✔ 紀錄
     appendLog(names[lastWinnerIndex], v, ref);
 
-    // ✔ 儲存狀態（注意：這裡我也順便幫你修正）
+    // 🟢 進 Viewer 狀態
+    systemState = SYS_STATE.VIEWER;
+    applyUIState();
+
     saveState({ round2Done: true });
   });
+};
+
 };
 
 /* ========= 看紅包 ========= */
