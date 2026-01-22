@@ -144,6 +144,7 @@ body{
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
 let lastVerseNo = null; // ✅ 記住目前顯示的經句編號，防止跨經句誤判重複下載
+let downloading = false; // ✅ 防止連續狂點下載
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
@@ -386,8 +387,17 @@ img.onerror = ()=>{
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
 document.getElementById("btnDownload").onclick = async () => {
   try {
+    // 🔒 防止狂點（500ms 內只能進來一次）
+    if (downloading) return;
+    downloading = true;
+	
     // 目前顯示的經句編號
-    const verseNo = new URLSearchParams(location.search).get("no");
+    const verseNo = window.verseNo;
+	if (!verseNo) {
+  alert("經句編號遺失，請返回重新打開紅包");
+  downloading = false;   // 🔓 保命解鎖
+  return;
+}
 
     // ===== 0️⃣ 防重複下載（只擋「同一經句」）=====
     if (lastVerseNo === verseNo && imageDownloadedThisView) {
@@ -411,7 +421,7 @@ document.getElementById("btnDownload").onclick = async () => {
     filename += `.png`;
 
     // ===== 2️⃣ 取圖 =====
-    const img = document.getElementById("img");
+    const img = document.getElementById("imgVerse");
     if (!img || !img.complete) {
       alert("圖片尚未載入完成，請稍候再試");
       return;
@@ -424,20 +434,35 @@ document.getElementById("btnDownload").onclick = async () => {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
 
-    ctx.drawImage(img, 0, 0);
+    if (img.decode) {
+  await img.decode();
+}
+ctx.drawImage(img, 0, 0);
 
-    // ===== 4️⃣ 觸發下載 =====
-    canvas.toBlob(blob => {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-    });
+// ===== 4️⃣ 觸發下載（保命版）=====
+canvas.toBlob(blob => {
+  if (!blob) {
+    alert("瀏覽器不支援圖片下載，請改用截圖");
+    downloading = false;   // 🔓 失敗也要解鎖
+    return;
+  }
+
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  downloading = false;   // 🔓 成功下載後解鎖
+});
 
   } catch (e) {
+    downloading = false; // 🔓 出錯也要解鎖
     console.error("❌ PNG download failed:", e);
     alert("圖片下載失敗，請查看 console");
   }
