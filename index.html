@@ -322,6 +322,7 @@ const DISABLE_MASTER_LOCK = true;
 let names = [];
 let usedName = new Set();
 let verseUsed = new Set();
+let round2Started = false; // ✅ 第二輪是否已經被按過
 
 /* ==== 商用級分頁識別 ==== */
 const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
@@ -479,11 +480,18 @@ function applyUIState() {
       statusDiv.textContent = "旋轉中...";
       break;
 
-    case SYS_STATE.ROUND2:
-      secondBtn.disabled = false;
-      secondBtn.classList.add("blink-btn");
-      statusDiv.textContent = "請抽紅包（第二輪）";
-      break;
+case SYS_STATE.ROUND2:
+  statusDiv.textContent = "請抽紅包（第二輪）";
+
+  // 只允許「尚未開始第二輪」時才可按
+  if (!round2Started && !rotating) {
+    secondBtn.disabled = false;
+    secondBtn.classList.add("blink-btn");
+  } else {
+    secondBtn.disabled = true;
+    secondBtn.classList.remove("blink-btn");
+  }
+  break;
 
     case SYS_STATE.VIEWER:
       viewBtn.disabled = false;
@@ -1170,6 +1178,7 @@ spin(remain, true, (winner) => {
     `🎯 抽中「${winner}」\n（第 ${drawnCount} 位／共 ${totalCount} 位）`;
 
   // 🟢 狀態推進（關鍵）
+  round2Started = false; // ✅ 開放第二輪一次
   systemState = SYS_STATE.ROUND2;
   applyUIState();
 
@@ -1185,11 +1194,13 @@ spin(remain, true, (winner) => {
 secondBtn.onclick = () => {
   if (!canAct()) return;
   unlockAudio();
-  systemState = SYS_STATE.ROUND2;
 
-  // 🔒 一按就鎖死
+  // 🔒 一按就永久鎖死
   secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
+
+  // 🔒 狀態推進
+  systemState = SYS_STATE.ROUND2;
   applyUIState();
 
   clearHL();
@@ -1208,8 +1219,6 @@ secondBtn.onclick = () => {
   audit("ROUND2_START", { remaining: remain.length });
 
   spin(remain, false, (v) => {
-    statusDiv.textContent = "";
-
     verseUsed.add(v);
     currentVerse = v;
 
@@ -1217,12 +1226,14 @@ secondBtn.onclick = () => {
       ? window.VERSE_REF_MAP[v]
       : "";
 
-    // 👁 開放看紅包
-    viewBtn.disabled = false;
-    viewBtn.classList.add("blink-btn");
+    statusDiv.textContent = "";
+    resultDiv.textContent = `📜 抽中經句紅包\n${v} ${ref}`;
 
+    // 🟢 第二輪結束 → 進 Viewer 狀態
     systemState = SYS_STATE.VIEWER;
     applyUIState();
+
+    saveState();
   });
 };
 

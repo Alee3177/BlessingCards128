@@ -143,6 +143,7 @@ body{
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
+let lastVerseNo = null; // ✅ 記住目前顯示的經句編號，防止跨經句誤判重複下載
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
@@ -271,6 +272,12 @@ img.onload = () => {
   if (img.dataset.loaded === "1") return;
   img.dataset.loaded = "1";
 
+  // 🔄 換新經句 → 重置下載防呆
+  const verseNo = new URLSearchParams(location.search).get("no");
+  imageDownloadedThisView = false;
+  imageRepeatCount = 0;
+  lastVerseNo = verseNo;
+
   /* ① 關閉 loading（一定要先做） */
   const loading = document.getElementById("loading");
   if (loading) {
@@ -377,64 +384,62 @@ img.onerror = ()=>{
 };
 
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
-document.getElementById("btnDownload").onclick = async ()=>{
-  try{
+document.getElementById("btnDownload").onclick = async () => {
+  try {
+    // 目前顯示的經句編號
+    const verseNo = new URLSearchParams(location.search).get("no");
 
-    // ===== 0️⃣ 防重複下載（同一畫面）=====
-    if (imageDownloadedThisView) {
+    // ===== 0️⃣ 防重複下載（只擋「同一經句」）=====
+    if (lastVerseNo === verseNo && imageDownloadedThisView) {
       const ok = confirm(
         "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
       );
       if (!ok) return;
       imageRepeatCount++;
     } else {
+      // 新經句 → 視為第一次下載
       imageDownloadedThisView = true;
       imageRepeatCount = 0;
+      lastVerseNo = verseNo;
     }
 
-    // ===== 1️⃣ 圖片必須已載入成功 =====
-    if(!img || !img.complete || img.naturalWidth === 0){
-      alert("圖片尚未載入完成，請稍後再試一次");
-      return;
-    }
-
-    // ===== 2️⃣ 用 canvas 取得同一張圖的 blob =====
-    const cvs = document.createElement("canvas");
-    cvs.width = img.naturalWidth;
-    cvs.height = img.naturalHeight;
-
-    const c2d = cvs.getContext("2d");
-    c2d.drawImage(img, 0, 0);
-
-    const blob = await new Promise((resolve)=> cvs.toBlob(resolve, "image/png"));
-    if(!blob){
-      alert("圖片下載失敗（toBlob 失敗）");
-      return;
-    }
-
-    // ===== 3️⃣ 檔名規則 =====
-    // verse_no_001.png ~ verse_no_128.png
-    let baseName = `verse_no_${String(verseNo).padStart(3, "0")}`;
-
-    // 重複下載 → 加 -1, -2, -3...
-    let finalName = baseName;
+    // ===== 1️⃣ 檔名規則 =====
+    let filename = `verse_no_${verseNo}`;
     if (imageRepeatCount > 0) {
-      finalName = `${baseName}-${imageRepeatCount}`;
+      filename += `-${imageRepeatCount}`;
+    }
+    filename += `.png`;
+
+    // ===== 2️⃣ 取圖 =====
+    const img = document.getElementById("img");
+    if (!img || !img.complete) {
+      alert("圖片尚未載入完成，請稍候再試");
+      return;
     }
 
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = `${finalName}.png`;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
+    // ===== 3️⃣ Canvas 轉 PNG =====
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-  }catch(e){
-    alert("圖片下載失敗（例外）");
-    console.error(e);
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+
+    ctx.drawImage(img, 0, 0);
+
+    // ===== 4️⃣ 觸發下載 =====
+    canvas.toBlob(blob => {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    });
+
+  } catch (e) {
+    console.error("❌ PNG download failed:", e);
+    alert("圖片下載失敗，請查看 console");
   }
 };
 
