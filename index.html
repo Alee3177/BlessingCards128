@@ -1154,63 +1154,77 @@ spinBtn.onclick = () => {
   lockBtn.disabled = true;
 
   // ✅ 第一輪一定是順時針（true）
-  spin(remain, true, (winner) => {
+spin(remain, true, (winner) => {
 
-    usedName.add(winner);
-    lastWinnerIndex = names.indexOf(winner);
+  usedName.add(winner);
+  lastWinnerIndex = names.indexOf(winner);
 
-    clearHL();
-    showHL(lastWinnerIndex);
+  clearHL();
+  showHL(lastWinnerIndex);
 
-    const drawnCount = usedName.size;
-    const totalCount = names.length;
+  const drawnCount = usedName.size;
+  const totalCount = names.length;
 
-    statusDiv.textContent = "";
-    resultDiv.textContent =
-      `🎯 抽中「${winner}」\n（第 ${drawnCount} 位／共 ${totalCount} 位）`;
+  statusDiv.textContent = "";
+  resultDiv.textContent =
+    `🎯 抽中「${winner}」\n（第 ${drawnCount} 位／共 ${totalCount} 位）`;
 
-    secondBtn.disabled = false;
-    secondBtn.classList.add("blink-btn");
+  // 🟢 狀態推進（關鍵）
+  systemState = SYS_STATE.ROUND2;
+  applyUIState();
 
-    saveState();
-  });
+  // UI 行為只當輔助
+  secondBtn.disabled = false;
+  secondBtn.classList.add("blink-btn");
+
+  saveState();
+});
 };
 
 /* ========= 第二輪 ========= */
-secondBtn.onclick=()=>{
-  if (!canAct()) return;   // ✅ 第一行
-  unlockAudio();   // 🔓 這一行是關鍵
+secondBtn.onclick = () => {
+  if (!canAct()) return;
+  unlockAudio();
   systemState = SYS_STATE.ROUND2;
-  
-  secondBtn.disabled=true;
+
+  // 🔒 一按就鎖死
+  secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
+  applyUIState();
 
   clearHL();
-  centerText.textContent="";
+  centerText.textContent = "";
 
-  const remain=[...Array(128).keys()]
-    .map(i=>String(i+1).padStart(3,"0"))
-    .filter(v=>!verseUsed.has(v));
-	
-	if (!remain.length) {
-  systemState = SYS_STATE.FINISHED;
-  return;
-}
-	
-	audit("ROUND2_START", { remaining: remain.length });
+  const remain = [...Array(128).keys()]
+    .map(i => String(i + 1).padStart(3, "0"))
+    .filter(v => !verseUsed.has(v));
 
-  spin(remain,false,(v)=>{
+  if (!remain.length) {
+    systemState = SYS_STATE.FINISHED;
+    applyUIState();
+    return;
+  }
 
-  // ✅【這一行就放在這裡】
-  statusDiv.textContent = "";
+  audit("ROUND2_START", { remaining: remain.length });
+
+  spin(remain, false, (v) => {
+    statusDiv.textContent = "";
 
     verseUsed.add(v);
-    currentVerse=v;
+    currentVerse = v;
 
-    const ref=(window.VERSE_REF_MAP&&window.VERSE_REF_MAP[v])
+    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
       ? window.VERSE_REF_MAP[v]
       : "";
 
+    // 👁 開放看紅包
+    viewBtn.disabled = false;
+    viewBtn.classList.add("blink-btn");
+
+    systemState = SYS_STATE.VIEWER;
+    applyUIState();
+  });
+};
 
 // 本次抽籤結果
 resultDiv.textContent = `第二輪完成：抽中經句「${v}」`;
