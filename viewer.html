@@ -392,7 +392,7 @@ document.getElementById("btnDownload").onclick = async () => {
     downloading = true;
 	
     // 目前顯示的經句編號
-    const verseNo = window.verseNo;
+    const verseNo = new URLSearchParams(window.location.search).get("no");
 	if (!verseNo) {
   alert("經句編號遺失，請返回重新打開紅包");
   downloading = false;   // 🔓 保命解鎖
