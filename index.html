@@ -336,7 +336,6 @@ let currentVerse = null;
 let pdfRoundSerial = null;   // 本輪使用的流水號（001~999）
 let pdfRepeatCount = 0;     // 本輪重複下載次數
 let pdfDownloadedThisRound = false;
-let roundClosed = false; // ✅ 本輪是否已按過 PDF 或 Reset（結案）
 
 /* ==== 系統狀態機 ==== */
 const SYS_STATE = {
@@ -492,12 +491,31 @@ function applyUIState() {
       statusDiv.textContent = "查看紅包中";
       break;
 
-    case SYS_STATE.FINISHED:
-      pdfBtn.disabled = false;
-      pdfBtn.classList.add("btn-pdf-ready");
-      resetBtn.classList.add("btn-reset-danger");
-      statusDiv.textContent = "";
-      break;
+case SYS_STATE.FINISHED:
+
+  // ✅ 允許結案操作
+  pdfBtn.disabled = false;
+  pdfBtn.classList.add("btn-pdf-ready");
+
+  resetBtn.disabled = false;
+  resetBtn.classList.add("btn-reset-danger");
+
+  // ✅ 允許直接開新一輪（改名 → 鎖定名單）
+  lockBtn.disabled = false;
+
+  // 🔒 所有抽籤入口鎖死
+  spinBtn.disabled   = true;
+  secondBtn.disabled = true;
+  viewBtn.disabled   = true;
+
+  spinBtn.classList.remove("blink-btn");
+  secondBtn.classList.remove("blink-btn");
+  viewBtn.classList.remove("blink-btn");
+
+  // 📢 清楚提示使用者下一步
+  statusDiv.textContent = "本輪已完成，可下載 PDF 或直接改名並鎖定名單開始新一輪";
+
+  break;
 
     default:
       // 已在上方狀態燈處理
@@ -828,6 +846,16 @@ if(!raw){
   try{
     s = JSON.parse(raw);
 	
+	// ===== FINISHED 防回跳保護 =====
+// 若名單已被修改，視為新一輪，禁止回到 FINISHED
+if (
+  Array.isArray(s.names) &&
+  nameInput &&
+  s.names.join(" ") !== nameInput.value.trim()
+) {
+  systemState = SYS_STATE.INIT;
+}
+	
   }catch(e){
     clearHL();
     drawInitialWheel();
@@ -1017,15 +1045,24 @@ function getNextBlessingPdfSerial(){
 /* ========= 鎖定名單 ========= */
 lockBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 必須第一行
-  audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length });
-  
-// 🔒 商用防呆：上一輪已完成但未結案 → 禁止直接開新局
-if (systemState === SYS_STATE.FINISHED && !roundClosed) {
-  alert("上一輪尚未完成歸檔，請先下載 PDF 或按「全部歸零」再開始新一輪");
-  return;
-}
-  
+  audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length }); 
   unlockAudio();   // 🔓 這一行是關鍵
+  
+// 🟢 新一輪直接開局（不論是否 FINISHED）
+systemState = SYS_STATE.INIT;
+
+// 重置本輪狀態
+usedName.clear();
+verseUsed.clear();
+currentVerse = null;
+lastWinnerIndex = -1;
+rotation = 0;
+rotating = false;
+
+// 重置 PDF 防呆
+pdfRoundSerial = null;
+pdfRepeatCount = 0;
+pdfDownloadedThisRound = false;
 
   const arr=nameInput.value
     .split(/[\s,，、]+/)
@@ -1058,7 +1095,10 @@ resetBtn.classList.remove("btn-reset-danger"); // 移除 Reset 紅色
   statusDiv.textContent = "名單已鎖定，請開始抽籤";
   systemState = SYS_STATE.READY;
   applyUIState();
-  saveState({ round2Done: false });
+  saveState({ 
+  round2Done: false,
+  finished: false   // 🔒 強制宣告新一輪開始
+});
 };
 
 /* ========= 第一輪 ========= */
@@ -1319,9 +1359,11 @@ logs.slice().reverse().forEach(l => {
     pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
     pdf.save(filename);
 	
-	// ✅ 本輪正式結案
-roundClosed = true;
+// ✅ 本輪正式結案
+systemState = SYS_STATE.FINISHED;
+saveState({ finished: true });
 audit("ROUND_CLOSED_BY_PDF", { serial: pdfRoundSerial });
+applyUIState();
 
   } catch (e) {
     console.error(e);
@@ -1378,10 +1420,14 @@ resetBtn.onclick = () => {
   // 🔒 防誤觸
   if (!confirm(msg)) return;
   
-  // ✅ 本輪正式結案
-roundClosed = true;
-audit("ROUND_CLOSED_BY_RESET", { state: systemState });  
-  audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
+// ✅ 本輪正式結案
+systemState = SYS_STATE.INIT;
+saveState({ finished: false });
+
+audit("ROUND_CLOSED_BY_RESET", { state: systemState });
+audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
+
+applyUIState();
 
   /* ===== 1️⃣ 清空核心資料 ===== */
   names = [];
