@@ -336,6 +336,7 @@ let currentVerse = null;
 let pdfRoundSerial = null;   // 本輪使用的流水號（001~999）
 let pdfRepeatCount = 0;     // 本輪重複下載次數
 let pdfDownloadedThisRound = false;
+let roundClosed = false; // ✅ 本輪是否已按過 PDF 或 Reset（結案）
 
 /* ==== 系統狀態機 ==== */
 const SYS_STATE = {
@@ -1018,11 +1019,11 @@ lockBtn.onclick=()=>{
   if (!canAct()) return;   // ✅ 必須第一行
   audit("LOCK_LIST", { count: nameInput.value.trim().split(/[\s,，、]+/).filter(Boolean).length });
   
-    // 🔒 商用防呆：上一輪已完成但未 Reset / 未 PDF → 禁止直接開新局
-  if (systemState === SYS_STATE.FINISHED) {
-    alert("上一輪尚未完成歸檔，請先下載 PDF 或按「全部歸零」再開始新一輪");
-    return;
-  }
+// 🔒 商用防呆：上一輪已完成但未結案 → 禁止直接開新局
+if (systemState === SYS_STATE.FINISHED && !roundClosed) {
+  alert("上一輪尚未完成歸檔，請先下載 PDF 或按「全部歸零」再開始新一輪");
+  return;
+}
   
   unlockAudio();   // 🔓 這一行是關鍵
 
@@ -1317,6 +1318,10 @@ logs.slice().reverse().forEach(l => {
 
     pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
     pdf.save(filename);
+	
+	// ✅ 本輪正式結案
+roundClosed = true;
+audit("ROUND_CLOSED_BY_PDF", { serial: pdfRoundSerial });
 
   } catch (e) {
     console.error(e);
@@ -1372,6 +1377,10 @@ resetBtn.onclick = () => {
 
   // 🔒 防誤觸
   if (!confirm(msg)) return;
+  
+  // ✅ 本輪正式結案
+roundClosed = true;
+audit("ROUND_CLOSED_BY_RESET", { state: systemState });  
   audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
 
   /* ===== 1️⃣ 清空核心資料 ===== */
