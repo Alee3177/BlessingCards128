@@ -814,9 +814,11 @@ function saveState(extra = {}) {
         ? extra.round2Done
         : !!prev.round2Done,
 
-    finished: (usedName.size === names.length),
-
-    ...extra,   // ← 先展開
+// 🔒 finished 商用級控制權（可手動覆寫）
+finished:
+  typeof extra.finished === "boolean"
+    ? extra.finished
+    : (usedName.size === names.length),
 	
 	// ⭐ 商用級雙分頁防護（加在這裡）
     tabId: TAB_ID,
@@ -845,16 +847,20 @@ if(!raw){
   let s;
   try{
     s = JSON.parse(raw);
-	
-	// ===== FINISHED 防回跳保護 =====
-// 若名單已被修改，視為新一輪，禁止回到 FINISHED
-if (
-  Array.isArray(s.names) &&
-  nameInput &&
-  s.names.join(" ") !== nameInput.value.trim()
-) {
-  systemState = SYS_STATE.INIT;
-}
+
+// ===== 還原系統狀態（只還原，不判斷）=====
+systemState = s.finished
+  ? SYS_STATE.FINISHED
+  : (s.round2Done
+      ? SYS_STATE.VIEWER
+      : (s.lastWinnerIndex >= 0
+          ? SYS_STATE.ROUND2
+          : (s.names && s.names.length
+              ? SYS_STATE.READY
+              : SYS_STATE.INIT
+            )
+        )
+    );
 	
   }catch(e){
     clearHL();
@@ -1419,15 +1425,10 @@ resetBtn.onclick = () => {
 
   // 🔒 防誤觸
   if (!confirm(msg)) return;
-  
-// ✅ 本輪正式結案
-systemState = SYS_STATE.INIT;
-saveState({ finished: false });
 
-audit("ROUND_CLOSED_BY_RESET", { state: systemState });
-audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
-
-applyUIState();
+  // 📋 稽核：記錄「重置發生時的狀態」
+  audit("ROUND_CLOSED_BY_RESET", { state: systemState });
+  audit("SYSTEM_RESET_ATTEMPT", { state: systemState });
 
   /* ===== 1️⃣ 清空核心資料 ===== */
   names = [];
@@ -1437,23 +1438,22 @@ applyUIState();
   lastWinnerIndex = -1;
   rotation = 0;
   rotating = false;
-  
-  // ===== Reset PDF 本輪防呆狀態 =====
+
+  /* ===== Reset PDF 本輪防呆狀態 ===== */
   pdfRoundSerial = null;
   pdfRepeatCount = 0;
   pdfDownloadedThisRound = false;
-  
-    // ===== Reset 系統狀態機 =====
-  systemState = SYS_STATE.INIT;   // ✅ 必加
-  applyUIState();
 
-  /* ===== 2️⃣ 清 Storage ===== */
+  /* ===== 2️⃣ 系統狀態機歸零 ===== */
+  systemState = SYS_STATE.INIT;
+
+  /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
   localStorage.removeItem("pdfSerial");
   sessionStorage.removeItem("spinState");
   sessionStorage.removeItem("showSummaryOnReturn");
 
-  /* ===== 3️⃣ 清畫面 ===== */
+  /* ===== 4️⃣ 清畫面 ===== */
   clearHL();
   drawInitialWheel();
 
@@ -1463,7 +1463,7 @@ applyUIState();
   summaryBox.textContent = "";
   statusDiv.textContent = "請輸入姓名並鎖定名單";
 
-  /* ===== 4️⃣ 還原所有按鈕狀態（INIT） ===== */
+  /* ===== 5️⃣ 還原所有按鈕狀態（INIT） ===== */
   lockBtn.disabled = false;
   spinBtn.disabled = true;
   secondBtn.disabled = true;
@@ -1477,12 +1477,15 @@ applyUIState();
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
 
-  /* Reset 在 INIT 狀態仍然可用 */
   resetBtn.disabled = false;
 
+  /* ===== 6️⃣ UI 同步 ===== */
+  applyUIState();
+
   console.log("🔄 System Reset → INIT");
-  saveState();   // 🔒 Reset 後立刻註冊本分頁為主控
-  
+
+  /* ===== 7️⃣ 存乾淨快照（唯一一次） ===== */
+  saveState();
 };
 
 })(); 
