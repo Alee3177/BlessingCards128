@@ -192,6 +192,35 @@ body{
   color: #aaa;
 }
 
+/* =========================
+   📱 QR Code 樣式（加在這裡）
+   ========================= */
+#qrBox {
+  margin-top: 8px;
+  text-align: center;
+}
+
+#qrBox img {
+  width: 140px;
+  height: 140px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+}
+
+.qr-title {
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #ffd54f;
+  font-weight: bold;
+}
+
+.qr-hint {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -203,7 +232,16 @@ body{
 
 <body>
 
-<img src="logo3524.png" class="logo" />
+<picture>
+  <source srcset="logo3524.webp" type="image/webp">
+  <img 
+    src="logo3524.png"
+    class="logo"
+    loading="lazy"
+    decoding="async"
+  >
+</picture>
+
 <h2>祝福經句紅包（應許等您拿）</h2>
 
 <div id="masterStatus" class="status-bar">
@@ -245,6 +283,13 @@ body{
 <div id="hostPanel">
   <div id="hostStatus">🎤 主持機離線</div>
   <div id="viewerStatus">👥 尚無觀眾</div>
+
+  <!-- ⭐ QR Code 區 -->
+  <div id="qrBox">
+    <div class="qr-title">📱 掃碼看紅包</div>
+    <img id="qrImg" alt="QR Code">
+    <div class="qr-hint">請用手機掃描</div>
+  </div>
 </div>
 
 <audio id="drum" preload="auto" playsinline>
@@ -260,6 +305,12 @@ body{
   預載 LOGO / 音效 / 紅包圖片
 ================================ -->
 <script>
+
+/* ==== 主控旗標 ==== */
+const IS_MASTER = true;
+
+/* ==== 開發 / 現場控制 ==== */
+const DISABLE_MASTER_LOCK = false;
 
 /* ==== 主持機鎖定識別（防多主持） ==== */
 const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
@@ -291,6 +342,9 @@ function heartbeatMaster() {
 }
 
 setInterval(heartbeatMaster, 2000);
+
+setInterval(updateViewerCount, 5000);
+updateViewerCount(); // 立刻跑一次
 
 (function preloadResources(){
 
@@ -332,6 +386,34 @@ setInterval(heartbeatMaster, 2000);
   }
 
 })();
+
+// =============================
+// 📱 QR Code 自動產生（主持機）
+// =============================
+(function initQRCode(){
+
+  const qrImg = document.getElementById("qrImg");
+  if (!qrImg) {
+    console.warn("⚠ 找不到 qrImg");
+    return;
+  }
+
+  // Viewer 頁面網址（同站台）
+const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
+const viewerUrl = base + "viewer.html";
+
+  // 使用免費 QR 產生 API（穩定、快、免套件）
+  const qrApi =
+    "https://api.qrserver.com/v1/create-qr-code/" +
+    "?size=200x200" +
+    "&margin=8" +
+    "&data=" + encodeURIComponent(viewerUrl);
+
+  qrImg.src = qrApi;
+
+  console.log("📱 QR Code ready:", viewerUrl);
+})();
+
 </script>
 
 <script>
@@ -353,12 +435,6 @@ setInterval(heartbeatMaster, 2000);
 })();
 
 let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
-
-// 🔒 主持機搶鎖
-if (!claimMaster()) {
-  alert("此轉盤系統已被另一台主持機鎖定");
-  setStatusLight("error", "主持機已被佔用");
-}
 
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
@@ -384,31 +460,38 @@ const summaryBox = document.getElementById("summaryBox");
 const drum = document.getElementById("drum");
 const winSound = document.getElementById("winSound");
 
-/* ==== 音效解鎖（只需一次） ==== */
 let audioUnlocked = false;
 
 function unlockAudio() {
   if (audioUnlocked) return;
 
   try {
-    winSound.muted = true;
-    winSound.play().then(() => {
-      winSound.pause();
-      winSound.currentTime = 0;
-      winSound.muted = false;
-      audioUnlocked = true;
-      console.log("🔓 Audio unlocked");
-    });
+    const a1 = document.getElementById("drum");
+    const a2 = document.getElementById("winSound");
+
+    if (a1) {
+      a1.muted = true;
+      a1.play().then(() => {
+        a1.pause();
+        a1.currentTime = 0;
+        a1.muted = false;
+        audioUnlocked = true;
+        console.log("🔓 Audio unlocked");
+      }).catch(()=>{});
+    }
+
+    if (a2) {
+      a2.muted = true;
+      a2.play().then(() => {
+        a2.pause();
+        a2.currentTime = 0;
+        a2.muted = false;
+      }).catch(()=>{});
+    }
   } catch (e) {
-    console.log("Audio unlock failed:", e);
+    console.warn("unlockAudio failed", e);
   }
 }
-
-/* ==== 主控旗標 ==== */
-const IS_MASTER = true;
-
-/* ==== 開發 / 現場控制 ==== */
-const DISABLE_MASTER_LOCK = true;
 
 /* ==== 狀態變數 ==== */
 let names = [];
@@ -440,6 +523,46 @@ let systemState = SYS_STATE.INIT;
 let lastActionAt = 0;   // 防連點節流用
 
 const statusBar = document.getElementById("masterStatus");
+
+// =============================
+// 👥 Viewer 即時統計顯示（主持機）
+// =============================
+const VIEWER_KEY = "BLESSING_VIEWERS";
+const VIEWER_TTL = 30000; // 30 秒沒心跳就踢掉
+
+function updateViewerCount() {
+  const now = Date.now();
+  let viewers = {};
+  let count = 0;
+
+  try {
+    viewers = JSON.parse(localStorage.getItem(VIEWER_KEY) || "{}");
+  } catch {
+    viewers = {};
+  }
+
+  // 清掉過期 viewer
+  Object.keys(viewers).forEach(id => {
+    if (now - viewers[id] > VIEWER_TTL) {
+      delete viewers[id];
+    }
+  });
+
+  count = Object.keys(viewers).length;
+  localStorage.setItem(VIEWER_KEY, JSON.stringify(viewers));
+
+  // 更新 UI
+  const viewerStatus = document.getElementById("viewerStatus");
+  if (!viewerStatus) return;
+
+  if (count > 0) {
+    viewerStatus.textContent = `👥 ${count} 人連線中`;
+    viewerStatus.className = "ok";
+  } else {
+    viewerStatus.textContent = "👥 尚無觀眾";
+    viewerStatus.className = "warn";
+  }
+}
 
 /* ========= 工具函式 ========= */
 // ⏰ 時間格式統一工具（PDF / 紀錄 / UI 共用）

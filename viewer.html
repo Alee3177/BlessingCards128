@@ -140,6 +140,7 @@ body{
 
 <script>
 
+/* ==== 主控旗標 ==== */
 const IS_MASTER = false;
 
 // ==== viewer 圖片下載防重複狀態 ====
@@ -198,9 +199,6 @@ heartbeatViewer();
   }, true);
 })();
 
-/* ==== 主控旗標 ==== */
-const IS_MASTER = false;
-
 const ENABLE_DUN_SOUND = false;   // ← 改成 true 就全部恢復
 
 // ⭐ 新增：進場音效選擇
@@ -213,7 +211,23 @@ function getParam(n){
   return u.searchParams.get(n);
 }
 
-const verseNo = getParam("no");
+// ===== 經句編號（URL → 主持機同步保命）=====
+let verseNo = getParam("no");
+
+// 🛟 如果網址沒帶 no，就從主持機同步拿
+if (!verseNo) {
+  try {
+    const raw = localStorage.getItem("LAST_VERSE");
+    if (raw) {
+      const data = JSON.parse(raw);
+      verseNo = data.verse;
+    }
+  } catch (e) {
+    console.warn("LAST_VERSE parse failed", e);
+  }
+}
+
+// ===== 使用者名稱 =====
 const userName = getParam("name") || "";
 
 // 🧠 預載紅包圖片，避免顯示延遲
@@ -325,11 +339,10 @@ img.onload = () => {
   if (img.dataset.loaded === "1") return;
   img.dataset.loaded = "1";
 
-  // 🔄 換新經句 → 重置下載防呆
-  const verseNo = new URLSearchParams(location.search).get("no");
-  imageDownloadedThisView = false;
-  imageRepeatCount = 0;
-  lastVerseNo = verseNo;
+// 🔄 換新經句 → 重置下載防呆
+imageDownloadedThisView = false;
+imageRepeatCount = 0;
+lastVerseNo = window.lastSeenVerse || verseNo;
 
   /* ① 關閉 loading（一定要先做） */
   const loading = document.getElementById("loading");
