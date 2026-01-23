@@ -211,6 +211,39 @@ function getParam(n){
   return u.searchParams.get(n);
 }
 
+// =============================
+// 🛡 Viewer 顯示保命機制（防閃 / 防重刷）
+// =============================
+let currentShownVerse = null;
+
+function showVerseSafe(verse, ref) {
+  if (!verse) return;
+
+  // 🔒 同一張圖就不重刷
+  if (currentShownVerse === verse) return;
+  currentShownVerse = verse;
+
+  const img = document.getElementById("imgVerse");
+  if (!img) return;
+
+  // 重置 onload 保險鎖
+  delete img.dataset.loaded;
+
+  const src = "cards/" + verse + ".png";
+
+// 🔒 如果目前顯示的就是這一張，不重刷（防閃爍）
+if (img.src && img.src.includes(verse + ".png")) return;
+
+  img.src = src;
+
+  // 更新標題資訊
+  const infoBox = document.getElementById("infoBox");
+  if (infoBox) {
+    infoBox.textContent =
+      `抽中的經句紅包\n📜 ${verse}｜📖 ${ref || ""}`;
+  }
+}
+
 // ===== 經句編號（URL → 主持機同步保命）=====
 let verseNo = getParam("no");
 
@@ -330,7 +363,7 @@ const img = document.getElementById("imgVerse");
 img.crossOrigin = "anonymous";
 
 /*======== 設定圖片來源 ========*/
-img.src = "cards/" + verseNo + ".png";
+showVerseSafe(verseNo, refText);
 
 /*======== 圖片讀取完成 ========*/
 img.onload = () => {
@@ -342,7 +375,7 @@ img.onload = () => {
 // 🔄 換新經句 → 重置下載防呆
 imageDownloadedThisView = false;
 imageRepeatCount = 0;
-lastVerseNo = window.lastSeenVerse || verseNo;
+lastVerseNo = verseNo;
 
   /* ① 關閉 loading（一定要先做） */
   const loading = document.getElementById("loading");
@@ -370,7 +403,9 @@ if (window.innerWidth < 768) {
 }
 
   /* ③ 金邊閃爍 */
+if (!img.classList.contains("animate")) {
   img.classList.add("animate");
+}
 
   /* ④ 清一次 confetti 狀態（只一次） */
   if (typeof confetti === "function") {
@@ -450,26 +485,33 @@ img.onerror = ()=>{
 };
 
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
-document.getElementById("btnDownload").onclick = async () => {
+
+// =============================
+// 🧩 唯一下載入口（封裝）
+// =============================
+async function handleDownloadClick() {
   try {
     // 🔒 防止狂點（500ms 內只能進來一次）
     if (downloading) return;
     downloading = true;
-	
+
     // 目前顯示的經句編號
     const verseNo = new URLSearchParams(window.location.search).get("no");
-	if (!verseNo) {
-  alert("經句編號遺失，請返回重新打開紅包");
-  downloading = false;   // 🔓 保命解鎖
-  return;
-}
+    if (!verseNo) {
+      alert("經句編號遺失，請返回重新打開紅包");
+      downloading = false;
+      return;
+    }
 
     // ===== 0️⃣ 防重複下載（只擋「同一經句」）=====
     if (lastVerseNo === verseNo && imageDownloadedThisView) {
       const ok = confirm(
         "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
       );
-      if (!ok) return;
+      if (!ok) {
+        downloading = false;
+        return;
+      }
       imageRepeatCount++;
     } else {
       // 新經句 → 視為第一次下載
@@ -489,6 +531,7 @@ document.getElementById("btnDownload").onclick = async () => {
     const img = document.getElementById("imgVerse");
     if (!img || !img.complete) {
       alert("圖片尚未載入完成，請稍候再試");
+      downloading = false;
       return;
     }
 
@@ -500,37 +543,43 @@ document.getElementById("btnDownload").onclick = async () => {
     canvas.height = img.naturalHeight;
 
     if (img.decode) {
-  await img.decode();
-}
-ctx.drawImage(img, 0, 0);
+      await img.decode();
+    }
+    ctx.drawImage(img, 0, 0);
 
-// ===== 4️⃣ 觸發下載（保命版）=====
-canvas.toBlob(blob => {
-  if (!blob) {
-    alert("瀏覽器不支援圖片下載，請改用截圖");
-    downloading = false;   // 🔓 失敗也要解鎖
-    return;
-  }
+    // ===== 4️⃣ 觸發下載（保命版）=====
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("瀏覽器不支援圖片下載，請改用截圖");
+        downloading = false;
+        return;
+      }
 
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
 
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
-
-  downloading = false;   // 🔓 成功下載後解鎖
-});
+      URL.revokeObjectURL(url);
+      downloading = false;
+    });
 
   } catch (e) {
-    downloading = false; // 🔓 出錯也要解鎖
+    downloading = false;
     console.error("❌ PNG download failed:", e);
     alert("圖片下載失敗，請查看 console");
   }
+}
+
+// =============================
+// 👇 按鈕只負責呼叫入口
+// =============================
+document.getElementById("btnDownload").onclick = () => {
+  handleDownloadClick();
 };
 
 /*======== 下一位：回首頁；由 index 自己根據狀態判斷是否顯示三行 ========*/

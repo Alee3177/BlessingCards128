@@ -343,7 +343,7 @@ function heartbeatMaster() {
 
 setInterval(heartbeatMaster, 2000);
 
-setInterval(updateViewerCount, 5000);
+setInterval(updateViewerCount, 3000);
 updateViewerCount(); // 立刻跑一次
 
 (function preloadResources(){
@@ -388,13 +388,13 @@ updateViewerCount(); // 立刻跑一次
 })();
 
 // =============================
-// 📱 QR Code 自動產生（主持機）
+// 📱 QR Code 自動產生（主持機｜DOM 安全版）
 // =============================
-(function initQRCode(){
+document.addEventListener("DOMContentLoaded", function () {
 
   const qrImg = document.getElementById("qrImg");
   if (!qrImg) {
-    console.warn("⚠ 找不到 qrImg");
+    console.warn("⚠ 找不到 qrImg（Host Panel 尚未渲染）");
     return;
   }
 
@@ -1013,6 +1013,7 @@ function saveState(extra = {}) {
     usedName: [...usedName],
     verseUsed: [...verseUsed],
     currentVerse,
+	round2Started,
     rotation,          // ✅ 必存
     lastWinnerIndex,  // ✅ 必存
 	
@@ -1086,14 +1087,12 @@ systemState = s.finished
 if (!DISABLE_MASTER_LOCK && IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
   const now = Date.now();
 
-  // 只有在對方心跳仍活著時才鎖
-  if (s.heartbeat && now - s.heartbeat < HEARTBEAT_TTL) {
-    setStatusLight("error", "偵測到另一台主持設備");
-    alert("偵測到另一台電腦正在主持本場活動，系統已進入安全模式");
-    sessionStorage.removeItem("spinState");
-    location.reload();
-    return;
-  }
+// 🔄 如果是舊狀態，清掉避免錯亂（不再當主持鎖用）
+if (s.heartbeat && now - s.heartbeat > HEARTBEAT_TTL * 2) {
+  console.warn("🧹 發現過期狀態快照，已清除");
+  sessionStorage.removeItem("spinState");
+}
+
   // 否則視為舊設備 / 重整 / viewer 回流 → 放行
 }
 
@@ -1104,6 +1103,7 @@ verseUsed    = new Set(s.verseUsed || []);
 currentVerse = s.currentVerse || null;
 rotation     = typeof s.rotation === "number" ? s.rotation : 0;
 lastWinnerIndex = (s.lastWinnerIndex ?? -1);
+round2Started = !!s.round2Started;
 
 // ===== 還原 PDF 輪次防呆狀態 =====
 pdfRoundSerial = s.pdfRoundSerial || null;
@@ -1715,6 +1715,42 @@ resetBtn.onclick = () => {
 };
 
 })(); 
+
+// =============================
+// 📱 QR Code 自動產生（主持機｜路徑通吃版）
+// =============================
+document.addEventListener("DOMContentLoaded", function () {
+
+  const qrImg = document.getElementById("qrImg");
+  if (!qrImg) {
+    console.warn("⚠ 找不到 qrImg，Host Panel 尚未載入");
+    return;
+  }
+
+  // 取得 base path（支援 /BlessingCards128 與 /BlessingCards128/index.html）
+  let basePath = location.pathname;
+
+  if (!basePath.endsWith("/")) {
+    basePath = basePath.replace(/\/[^/]*$/, "/");
+  }
+
+  const viewerUrl =
+    location.origin +
+    basePath +
+    "viewer.html";
+
+  // 免費 QR API
+  const qrApi =
+    "https://api.qrserver.com/v1/create-qr-code/" +
+    "?size=200x200" +
+    "&margin=8" +
+    "&data=" + encodeURIComponent(viewerUrl);
+
+  qrImg.src = qrApi;
+
+  console.log("📱 QR Code ready:", viewerUrl);
+});
+
 </script>
 </body>
 </html>
