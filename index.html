@@ -331,7 +331,6 @@ body{
   BlessingCards128 Resource Preloader
   預載 LOGO / 音效 / 紅包圖片
 ================================ -->
-<script>
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = true;
@@ -383,7 +382,6 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) heartbeatMaster();
 });
 
-<script>
 (function preloadResources(){
 
   console.log("🔥 BlessingCards128 資源暖機中...");
@@ -430,9 +428,7 @@ document.addEventListener("visibilitychange", () => {
   }
 
 })();
-</script>
 
-<script>
 // =============================
 // 📱 QR Code 自動產生（主持機｜商用穩定版）
 // =============================
@@ -482,9 +478,7 @@ document.addEventListener("visibilitychange", () => {
   }
 })();
 
-</script>
 
-<script>
 (function(){
 
 // =============================
@@ -1717,16 +1711,16 @@ if (!claimMaster()) {
 
 
 function updateHostStatus(){
-  const hostStatus = document.getElementById(\"hostStatus\");
+  const hostStatus = document.getElementById("hostStatus");
   if (!hostStatus) return;
   if (IS_MASTER) {
-    hostStatus.textContent = \"🎤 主持機在線\";
-    hostStatus.classList.add(\"ok\");
-    hostStatus.classList.remove(\"warn\");
+    hostStatus.textContent = "🎤 主持機在線";
+    hostStatus.classList.add("ok");
+    hostStatus.classList.remove("warn");
   } else {
-    hostStatus.textContent = \"🎤 主持機離線\";
-    hostStatus.classList.add(\"warn\");
-    hostStatus.classList.remove(\"ok\");
+    hostStatus.textContent = "🎤 主持機離線";
+    hostStatus.classList.add("warn");
+    hostStatus.classList.remove("ok");
   }
 }
 updateHostStatus();
@@ -1869,10 +1863,29 @@ resetBtn.onclick = () => {
     run();
   }
 
+<<<<<<< HEAD
 })();
 </script>
+=======
+  const viewerUrl =
+    location.origin +
+    basePath +
+    "viewer.html";
 
-<script>
+  // 免費 QR API
+  const qrApi =
+    "https://api.qrserver.com/v1/create-qr-code/" +
+    "?size=200x200" +
+    "&margin=8" +
+    "&data=" + encodeURIComponent(viewerUrl);
+
+  qrImg.src = qrApi;
+
+  console.log("📱 QR Code ready:", viewerUrl);
+});
+
+>>>>>>> 25232e29b6d4a7418f2fd95ef40c23d03bc6fc58
+
 // =============================
 // 👥 Viewer 計數（保命版）
 // =============================
@@ -1915,7 +1928,6 @@ if (typeof updateViewerCount !== "function") {
 }
 
 setInterval(updateViewerCount, 3000);
-</script>
 
 </body>
 </html>
