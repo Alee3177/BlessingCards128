@@ -314,7 +314,7 @@ const DISABLE_MASTER_LOCK = false;
 
 /* ==== 主持機鎖定識別（防多主持） ==== */
 const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
-const HEARTBEAT_TTL = 30000; // 30 秒內視為「活躍主持機」
+const HEARTBEAT_TTL = 5000; // 5 秒內視為「活躍主持機」
 
 const MASTER_KEY = "BLESSING_MASTER";
 
@@ -343,6 +343,18 @@ function heartbeatMaster() {
 
 setInterval(heartbeatMaster, 2000);
 
+// 🧹 關閉/刷新分頁時釋放主持鎖（避免長時間卡住）
+window.addEventListener("beforeunload", () => {
+  try {
+    const cur = JSON.parse(localStorage.getItem(MASTER_KEY) || "null");
+    if (cur && cur.tabId === TAB_ID) localStorage.removeItem(MASTER_KEY);
+  } catch {}
+});
+
+// ✅ 切到背景也維持心跳（手機鎖屏常見）
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) heartbeatMaster();
+});
 setInterval(updateViewerCount, 3000);
 updateViewerCount(); // 立刻跑一次
 
@@ -364,7 +376,7 @@ updateViewerCount(); // 立刻跑一次
   preloadWin.load();
 
   /* ===== 3️⃣ 紅包圖片（001–128）===== */
-  const MAX_PRELOAD = 128;
+  const MAX_PRELOAD = (window.innerWidth < 768 ? 24 : 128);
   const loaded = { count: 0 };
 
   for (let i = 1; i <= MAX_PRELOAD; i++) {
@@ -412,8 +424,7 @@ const viewerUrl = base + "viewer.html";
   qrImg.src = qrApi;
 
   console.log("📱 QR Code ready:", viewerUrl);
-})();
-
+});
 </script>
 
 <script>
@@ -422,18 +433,6 @@ const viewerUrl = base + "viewer.html";
 // =============================
 // 🔒 防作弊：禁止鍵盤 + 右鍵
 // =============================
-(function lockInputCheat(){
-  document.addEventListener("keydown", function(e) {
-    e.preventDefault();
-    return false;
-  }, true); // ← capture 階段攔截，優先權最高
-
-  document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-    return false;
-  }, true);
-})();
-
 let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
 
 /* ==== DOM 元件 ==== */
@@ -460,6 +459,9 @@ const summaryBox = document.getElementById("summaryBox");
 const drum = document.getElementById("drum");
 const winSound = document.getElementById("winSound");
 
+
+// ✅ 行動裝置音效解鎖：第一次點擊就解鎖（避免 drum 無聲）
+document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
 let audioUnlocked = false;
 
 function unlockAudio() {
@@ -1624,6 +1626,21 @@ if (!claimMaster()) {
   setStatusLight("error", "主持機已被佔用");
 }
 
+
+function updateHostStatus(){
+  const hostStatus = document.getElementById(\"hostStatus\");
+  if (!hostStatus) return;
+  if (IS_MASTER) {
+    hostStatus.textContent = \"🎤 主持機在線\";
+    hostStatus.classList.add(\"ok\");
+    hostStatus.classList.remove(\"warn\");
+  } else {
+    hostStatus.textContent = \"🎤 主持機離線\";
+    hostStatus.classList.add(\"warn\");
+    hostStatus.classList.remove(\"ok\");
+  }
+}
+updateHostStatus();
 // ==== 主控頁才允許送心跳 ====
 if (IS_MASTER) {
   setInterval(() => {

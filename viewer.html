@@ -179,21 +179,22 @@ heartbeatViewer();
 // =============================
 (function lockInputCheat(){
   document.addEventListener("keydown", function(e) {
-
-    // ✅ 允許系統與下載相關操作
+    // ✅ 允許系統快捷鍵 / 下載
     if (
-      e.ctrlKey || e.metaKey || e.altKey ||   // 快捷鍵
-      e.key === "F5" ||                       // 重新整理
-      e.key === "Escape" ||                  // 返回
-      e.key === "Tab"
+      e.ctrlKey || e.metaKey || e.altKey ||
+      e.key === "F5" || e.key === "Escape" || e.key === "Tab" ||
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && ["I","J","C"].includes((e.key||"").toUpperCase()))
     ) {
       return;
     }
 
+    // ✅ 不干擾按鈕（Enter/Space）
+    if (e.key === "Enter" || e.key === " ") return;
+
     e.preventDefault();
   }, true);
 
-  // 右鍵全擋（保留）
   document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
   }, true);
