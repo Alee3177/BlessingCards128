@@ -221,6 +221,32 @@ body{
   margin-top: 2px;
 }
 
+/* =========================
+   QR Panel 尺寸限制
+========================= */
+#qrBox {
+  width: 200px;
+  max-width: 200px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+#qrCanvas {
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* 保證 QR 不會溢出 */
+#qrCanvas canvas,
+#qrCanvas img {
+  max-width: 160px;
+  max-height: 160px;
+  display: block;
+  margin: 0 auto;
+}
+
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -283,11 +309,14 @@ body{
   <div id="viewerStatus">👥 尚無觀眾</div>
 
   <!-- ⭐ QR Code 區 -->
-  <div id="qrBox">
-    <div class="qr-title">📱 掃碼看紅包</div>
-    <img id="qrImg" alt="QR Code">
-    <div class="qr-hint">請用手機掃描</div>
-  </div>
+<div id="qrBox">
+  <div class="qr-title">📱 掃碼看紅包</div>
+  <div id="qrCanvas"></div>
+  <div class="qr-hint">請用手機掃描</div>
+
+  <button id="copyViewerLink" class="qr-copy-btn">
+    📋 複製看紅包連結
+  </button>
 </div>
 
 <audio id="drum" preload="auto" playsinline>
@@ -1794,41 +1823,53 @@ resetBtn.onclick = () => {
 
 })(); 
 
+<script>
 // =============================
-// 📱 QR Code 自動產生（主持機｜路徑通吃版）
+// 📱 本地 QR Code（穩定版）
 // =============================
-document.addEventListener("DOMContentLoaded", function () {
+(function initLocalQR(){
 
-  const qrImg = document.getElementById("qrImg");
-  if (!qrImg) {
-    console.warn("⚠ 找不到 qrImg，Host Panel 尚未載入");
-    return;
+  function run(){
+    if (typeof QRCode !== "function") {
+      console.warn("⚠ QRCode.js 尚未載入");
+      return;
+    }
+
+    const box = document.getElementById("qrCanvas");
+    if (!box) {
+      console.warn("⚠ 找不到 qrCanvas");
+      return;
+    }
+
+    // GitHub Pages / 子目錄安全路徑
+    const base =
+      location.origin +
+      location.pathname.replace(/\/[^\/]*$/, "/");
+
+    const viewerUrl = base + "viewer.html";
+
+    // 清空舊 QR（避免重複疊加）
+    box.innerHTML = "";
+
+    new QRCode(box, {
+      text: viewerUrl,
+      width: 160,
+      height: 160,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    console.log("📱 Local QR ready:", viewerUrl);
   }
 
-  // 取得 base path（支援 /BlessingCards128 與 /BlessingCards128/index.html）
-  let basePath = location.pathname;
-
-  if (!basePath.endsWith("/")) {
-    basePath = basePath.replace(/\/[^/]*$/, "/");
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
   }
 
-  const viewerUrl =
-    location.origin +
-    basePath +
-    "viewer.html";
-
-  // 免費 QR API
-  const qrApi =
-    "https://api.qrserver.com/v1/create-qr-code/" +
-    "?size=200x200" +
-    "&margin=8" +
-    "&data=" + encodeURIComponent(viewerUrl);
-
-  qrImg.src = qrApi;
-
-  console.log("📱 QR Code ready:", viewerUrl);
-});
-
+})();
 </script>
 
 <script>
