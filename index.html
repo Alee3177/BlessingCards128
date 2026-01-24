@@ -228,9 +228,6 @@ body{
 <!-- ① jsPDF 主程式 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- 本地 QR 引擎 -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
 </head>
 
 <body>
@@ -285,15 +282,11 @@ body{
   <div id="hostStatus">🎤 主持機離線</div>
   <div id="viewerStatus">👥 尚無觀眾</div>
 
+  <!-- ⭐ QR Code 區 -->
   <div id="qrBox">
     <div class="qr-title">📱 掃碼看紅包</div>
-    <div id="qrCanvas"></div>
+    <img id="qrImg" alt="QR Code">
     <div class="qr-hint">請用手機掃描</div>
-
-    <!-- ✅ 複製連結按鈕 -->
-    <button id="copyViewerLink" class="qr-copy-btn">
-      📋 複製看紅包連結
-    </button>
   </div>
 </div>
 
@@ -309,7 +302,6 @@ body{
   BlessingCards128 Resource Preloader
   預載 LOGO / 音效 / 紅包圖片
 ================================ -->
-<script>
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = true;
@@ -360,9 +352,7 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) heartbeatMaster();
 });
-</script>
 
-<script>
 (function preloadResources(){
 
   console.log("🔥 BlessingCards128 資源暖機中...");
@@ -409,11 +399,57 @@ document.addEventListener("visibilitychange", () => {
   }
 
 })();
-</script>
+
+// =============================
+// 📱 QR Code 自動產生（主持機｜商用穩定版）
+// =============================
+(function initQRCode(){
+  let initialized = false;
+
+  function run() {
+    if (initialized) return;
+    initialized = true;
+
+    const qrImg = document.getElementById("qrImg");
+    if (!qrImg) {
+      console.warn("⚠ 找不到 qrImg（Host Panel 尚未渲染）");
+      return;
+    }
+
+    // GitHub Pages / 子目錄安全路徑
+    const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
+    const viewerUrl = base + "viewer.html";
+
+    // QR API（防快取 + 正確參數格式）
+    const qrApi =
+      "https://api.qrserver.com/v1/create-qr-code/" +
+      "?cache=0" +
+      "&size=200x200" +
+      "&margin=8" +
+      "&data=" + encodeURIComponent(viewerUrl);
+
+    // 防止重設 src 閃爍
+    if (!qrImg.src || !qrImg.src.includes("api.qrserver.com")) {
+      qrImg.src = qrApi;
+    }
+
+    // 🛟 QR 掛掉保命
+    qrImg.onerror = () => {
+      qrImg.alt = "請手動輸入 viewer.html 開啟";
+      console.warn("⚠ QR API 載入失敗，請手動開啟：", viewerUrl);
+    };
+
+    console.log("📱 QR Code ready:", viewerUrl);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+})();
 
 
-
-<script>
 (function(){
 
 // =============================
@@ -1646,16 +1682,16 @@ if (!claimMaster()) {
 
 
 function updateHostStatus(){
-  const hostStatus = document.getElementById(\"hostStatus\");
+  const hostStatus = document.getElementById("hostStatus");
   if (!hostStatus) return;
   if (IS_MASTER) {
-    hostStatus.textContent = \"🎤 主持機在線\";
-    hostStatus.classList.add(\"ok\");
-    hostStatus.classList.remove(\"warn\");
+    hostStatus.textContent = "🎤 主持機在線";
+    hostStatus.classList.add("ok");
+    hostStatus.classList.remove("warn");
   } else {
-    hostStatus.textContent = \"🎤 主持機離線\";
-    hostStatus.classList.add(\"warn\");
-    hostStatus.classList.remove(\"ok\");
+    hostStatus.textContent = "🎤 主持機離線";
+    hostStatus.classList.add("warn");
+    hostStatus.classList.remove("ok");
   }
 }
 updateHostStatus();
@@ -1787,9 +1823,7 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("📱 QR Code ready:", viewerUrl);
 });
 
-</script>
 
-<script>
 // =============================
 // 👥 Viewer 計數（保命版）
 // =============================
@@ -1832,51 +1866,6 @@ if (typeof updateViewerCount !== "function") {
 }
 
 setInterval(updateViewerCount, 3000);
-</script>
-
-<script>
-// =============================
-// 📱 本地 QR Code 產生（不破壞 UI 版）
-// =============================
-(function initLocalQR(){
-  let done = false;
-
-  function run(){
-    if (done) return;
-    done = true;
-
-    const canvasBox = document.getElementById("qrCanvas");
-    if (!canvasBox || typeof QRCode !== "function") {
-      console.warn("⚠ QRCanvas / QRCode 尚未就緒");
-      return;
-    }
-
-    // GitHub Pages / 子目錄安全路徑
-    const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
-    const viewerUrl = base + "viewer.html";
-
-    // 清空舊 QR（只清 canvas，不動整個 qrBox）
-    canvasBox.innerHTML = "";
-
-    new QRCode(canvasBox, {
-      text: viewerUrl,
-      width: 160,
-      height: 160,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.H
-    });
-
-    console.log("📱 Local QR ready:", viewerUrl);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-})();
-</script>
 
 </body>
 </html>
