@@ -232,7 +232,13 @@ body{
 
 <body>
 
-<img src="logo3524.png" class="logo" loading="eager">
+<img
+  src="logo3524.png"
+  class="logo"
+  loading="eager"
+  decoding="async"
+  onerror="this.style.display='none'; console.warn('⚠ logo3524.png 載入失敗');"
+/>
 
 <h2>祝福經句紅包（應許等您拿）</h2>
 
@@ -347,15 +353,20 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) heartbeatMaster();
 });
-setInterval(updateViewerCount, 3000);
-updateViewerCount(); // 立刻跑一次
 
+<script>
 (function preloadResources(){
 
   console.log("🔥 BlessingCards128 資源暖機中...");
 
   /* ===== 1️⃣ LOGO ===== */
   const preloadLogo = new Image();
+  preloadLogo.onload = () => {
+    console.log("✅ LOGO 預載完成");
+  };
+  preloadLogo.onerror = () => {
+    console.warn("⚠ LOGO 預載失敗：logo3524.png");
+  };
   preloadLogo.src = "logo3524.png";
 
   /* ===== 2️⃣ 音效 ===== */
@@ -367,7 +378,7 @@ updateViewerCount(); // 立刻跑一次
   preloadWin.src = "audio/win.mp3";
   preloadWin.load();
 
-  /* ===== 3️⃣ 紅包圖片（001–128）===== */
+  /* ===== 3️⃣ 紅包圖片（手機降載）===== */
   const MAX_PRELOAD = (window.innerWidth < 768 ? 24 : 128);
   const loaded = { count: 0 };
 
@@ -378,7 +389,7 @@ updateViewerCount(); // 立刻跑一次
     img.onload = () => {
       loaded.count++;
       if (loaded.count === MAX_PRELOAD) {
-        console.log("✅ 所有紅包圖片已暖機完成（001–128）");
+        console.log(`✅ 紅包圖片暖機完成（${MAX_PRELOAD} 張）`);
       }
     };
 
@@ -390,37 +401,83 @@ updateViewerCount(); // 立刻跑一次
   }
 
 })();
+</script>
 
+<script>
 // =============================
-// 📱 QR Code 自動產生（主持機｜DOM 安全版）
+// 📱 QR Code 自動產生（主持機｜商用穩定版）
 // =============================
-document.addEventListener("DOMContentLoaded", function () {
+(function initQRCode(){
+  let initialized = false;
 
-  const qrImg = document.getElementById("qrImg");
-  if (!qrImg) {
-    console.warn("⚠ 找不到 qrImg（Host Panel 尚未渲染）");
-    return;
+  function run() {
+    if (initialized) return;
+    initialized = true;
+
+    const qrImg = document.getElementById("qrImg");
+    if (!qrImg) {
+      console.warn("⚠ 找不到 qrImg（Host Panel 尚未渲染）");
+      return;
+    }
+
+    // GitHub Pages / 子目錄安全路徑
+    const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
+    const viewerUrl = base + "viewer.html";
+
+    // QR API（防快取 + 正確參數格式）
+    const qrApi =
+      "https://api.qrserver.com/v1/create-qr-code/" +
+      "?cache=0" +
+      "&size=200x200" +
+      "&margin=8" +
+      "&data=" + encodeURIComponent(viewerUrl);
+
+    // 防止重設 src 閃爍
+    if (!qrImg.src || !qrImg.src.includes("api.qrserver.com")) {
+      qrImg.src = qrApi;
+    }
+
+    // 🛟 QR 掛掉保命
+    qrImg.onerror = () => {
+      qrImg.alt = "請手動輸入 viewer.html 開啟";
+      console.warn("⚠ QR API 載入失敗，請手動開啟：", viewerUrl);
+    };
+
+    console.log("📱 QR Code ready:", viewerUrl);
   }
 
-  // Viewer 頁面網址（同站台）
-const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
-const viewerUrl = base + "viewer.html";
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+})();
 
-  // 使用免費 QR 產生 API（穩定、快、免套件）
-  const qrApi =
-    "https://api.qrserver.com/v1/create-qr-code/" +
-    "?size=200x200" +
-    "&margin=8" +
-    "&data=" + encodeURIComponent(viewerUrl);
-
-  qrImg.src = qrApi;
-
-  console.log("📱 QR Code ready:", viewerUrl);
-});
 </script>
 
 <script>
 (function(){
+
+// =============================
+// 🔒 防作弊（安全版）
+// =============================
+(function lockInputCheat(){
+  document.addEventListener("keydown", function(e) {
+    // 允許 F12 / F5 / 系統快捷鍵
+    if (
+      e.key === "F12" ||
+      e.key === "F5" ||
+      e.ctrlKey ||
+      e.metaKey
+    ) return;
+
+    e.preventDefault();
+  }, true);
+
+  document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+  }, true);
+})();
 
 // =============================
 // 🔒 防作弊：禁止鍵盤 + 右鍵
@@ -429,12 +486,22 @@ let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / �
 
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
-const ctx   = wheel.getContext("2d");
+const ctx = wheel ? wheel.getContext("2d") : null;
+
+if (!wheel || !ctx) {
+  console.warn("⚠ Wheel canvas not ready");
+}
 const hlSVG = document.getElementById("hl-svg");
 const centerText = document.getElementById("centerText");
 
 const confettiCanvas = document.getElementById("confettiCanvas");
-const confCtx = confettiCanvas.getContext("2d");
+const confCtx = confettiCanvas
+  ? confettiCanvas.getContext("2d")
+  : null;
+
+if (!confettiCanvas || !confCtx) {
+  console.warn("⚠ Confetti canvas not ready");
+}
 
 const lockBtn   = document.getElementById("lockBtn");
 const spinBtn   = document.getElementById("spinBtn");
@@ -921,10 +988,18 @@ function spin(list, clockwise, callback) {
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-  try {
-    drum.currentTime = 0;
-    drum.play();
-  } catch (e) {}
+try {
+  drum.currentTime = 0;
+  const p = drum.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(err => {
+      console.warn("🔇 drum blocked, retry unlock", err);
+      unlockAudio(); // 🔓 補救解鎖
+    });
+  }
+} catch (e) {
+  console.warn("🔇 drum exception", e);
+}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -1078,18 +1153,6 @@ systemState = s.finished
     drawInitialWheel();
     return;
   }
-// ===== 商用級主控鎖（只擋「活著的另一台設備」）（目前先停用）=====
-if (!DISABLE_MASTER_LOCK && IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
-  const now = Date.now();
-
-// 🔄 如果是舊狀態，清掉避免錯亂（不再當主持鎖用）
-if (s.heartbeat && now - s.heartbeat > HEARTBEAT_TTL * 2) {
-  console.warn("🧹 發現過期狀態快照，已清除");
-  sessionStorage.removeItem("spinState");
-}
-
-  // 否則視為舊設備 / 重整 / viewer 回流 → 放行
-}
 
   /* ===== 還原核心資料 ===== */
 names        = Array.isArray(s.names) ? s.names : [];
@@ -1767,5 +1830,51 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 </script>
+
+<script>
+// =============================
+// 👥 Viewer 計數（保命版）
+// =============================
+if (typeof updateViewerCount !== "function") {
+  function updateViewerCount() {
+    const KEY = "BLESSING_VIEWERS";
+    const TTL = 30000;
+
+    let viewers = {};
+    try {
+      viewers = JSON.parse(localStorage.getItem(KEY) || "{}");
+    } catch {
+      viewers = {};
+    }
+
+    const now = Date.now();
+    let count = 0;
+
+    Object.keys(viewers).forEach(id => {
+      if (now - viewers[id] < TTL) {
+        count++;
+      } else {
+        delete viewers[id];
+      }
+    });
+
+    localStorage.setItem(KEY, JSON.stringify(viewers));
+
+    const el = document.getElementById("viewerStatus");
+    if (!el) return;
+
+    if (count > 0) {
+      el.textContent = `👥 觀眾連線中 (${count})`;
+      el.className = "ok";
+    } else {
+      el.textContent = "👥 尚無觀眾";
+      el.className = "warn";
+    }
+  }
+}
+
+setInterval(updateViewerCount, 3000);
+</script>
+
 </body>
 </html>

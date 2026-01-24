@@ -170,9 +170,37 @@ function heartbeatViewer() {
   localStorage.setItem(VIEWER_KEY, JSON.stringify(viewers));
 }
 
-// 每 5 秒報到一次
-setInterval(heartbeatViewer, 5000);
+// =============================
+// 👥 Viewer 心跳排程（穩定版 PATCH F）
+// =============================
+
+// 保證只會有一個心跳計時器
+if (window.__viewerHeartbeatTimer) {
+  clearInterval(window.__viewerHeartbeatTimer);
+}
+
+// 立即報到一次
 heartbeatViewer();
+
+// 每 5 秒報到一次
+window.__viewerHeartbeatTimer = setInterval(heartbeatViewer, 5000);
+
+// 分頁關閉 / 切背景 → 主動下線
+window.addEventListener("pagehide", () => {
+  try {
+    const KEY = "BLESSING_VIEWERS";
+    const viewers = JSON.parse(localStorage.getItem(KEY) || "{}");
+    delete viewers[VIEWER_ID];
+    localStorage.setItem(KEY, JSON.stringify(viewers));
+  } catch {}
+});
+
+// 手機鎖屏 / 切回前景 → 立刻補一次心跳
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    heartbeatViewer();
+  }
+});
 
 // =============================
 // 🔒 防作弊（安全版）
