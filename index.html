@@ -1842,52 +1842,6 @@ resetBtn.onclick = () => {
 
     const viewerUrl = base + "viewer.html";
 
-    // 清空舊 QR（避免重複疊加）
-    box.innerHTML = "";
-
-    new QRCode(box, {
-      text: viewerUrl,
-      width: 160,
-      height: 160,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.H
-    });
-
-    console.log("📱 Local QR ready:", viewerUrl);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-
-<script>
-// =============================
-// 📱 本地 QR Code（商用穩定版）
-// =============================
-(function initLocalQR(){
-
-  function run(){
-    if (typeof QRCode !== "function") {
-      console.warn("⚠ QRCode.js 尚未載入");
-      return;
-    }
-
-    const box = document.getElementById("qrCanvas");
-    if (!box) {
-      console.warn("⚠ 找不到 qrCanvas");
-      return;
-    }
-
-    // GitHub Pages / 子目錄安全路徑
-    const base =
-      location.origin +
-      location.pathname.replace(/\/[^\/]*$/, "/");
-
-    const viewerUrl = base + "viewer.html";
-
     // 清空舊 QR（避免疊加）
     box.innerHTML = "";
 
@@ -1910,7 +1864,9 @@ resetBtn.onclick = () => {
   }
 
 })();
+</script>
 
+<script>
 // =============================
 // 👥 Viewer 計數（保命版）
 // =============================
