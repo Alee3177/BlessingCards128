@@ -193,16 +193,32 @@ body{
 }
 
 /* =========================
-   📱 QR Code 樣式（加在這裡）
-   ========================= */
+   📱 QR Panel（穩定合併版）
+========================= */
 #qrBox {
   margin-top: 8px;
   text-align: center;
+  width: 200px;
+  max-width: 200px;
+  padding: 10px;
+  box-sizing: border-box;
+  cursor: pointer;
 }
 
-#qrBox img {
-  width: 140px;
-  height: 140px;
+/* QR 本體尺寸 */
+#qrCanvas {
+  width: 160px;
+  height: 160px;
+  margin: 0 auto;
+}
+
+/* 保證 QR 不會溢出 */
+#qrCanvas canvas,
+#qrCanvas img {
+  max-width: 160px;
+  max-height: 160px;
+  display: block;
+  margin: 0 auto;
   border-radius: 8px;
   background: #fff;
   padding: 6px;
@@ -221,30 +237,38 @@ body{
   margin-top: 2px;
 }
 
-/* =========================
-   QR Panel 尺寸限制
-========================= */
-#qrBox {
-  width: 200px;
-  max-width: 200px;
-  padding: 10px;
-  box-sizing: border-box;
+/* 手機 QR 縮小模式 */
+@media (max-width: 768px) {
+  #hostPanel {
+    transform: scale(0.75);
+    transform-origin: top right;
+  }
 }
 
-#qrCanvas {
-  width: 160px;
-  height: 160px;
-  margin: 0 auto;
-  overflow: hidden;
+/* 收合狀態 */
+#qrBox.collapsed #qrCanvas,
+#qrBox.collapsed .qr-hint,
+#qrBox.collapsed button {
+  display: none;
 }
 
-/* 保證 QR 不會溢出 */
-#qrCanvas canvas,
-#qrCanvas img {
-  max-width: 160px;
-  max-height: 160px;
+#qrBox.collapsed::after {
+  content: "📱 點我展開 QR";
   display: block;
-  margin: 0 auto;
+  color: #ffd54f;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* 看紅包閃爍提示 */
+.blink-view {
+  animation: blinkPulse 1s infinite;
+}
+
+@keyframes blinkPulse {
+  0%   { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
+  50%  { box-shadow: 0 0 14px rgba(255,193,7,0.9); }
+  100% { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
 }
 
 </style>
@@ -1555,14 +1579,17 @@ secondBtn.onclick = () => {
   round2Done: true,
   currentVerse: currentVerse
 });
+// 🔔 提示主持人可以看紅包
+if (typeof viewBtn !== "undefined" && viewBtn) {
+  viewBtn.classList.add("blink-view");
+}
   });
   };
 
 /* ========= 看紅包 ========= */
 viewBtn.onclick = () => {
-  if (!canAct()) return;   // ✅ 第一行
-  
-  if(!currentVerse) return;
+  if (!canAct()) return;
+  if (!currentVerse) return;
 
   const winnerName = names[lastWinnerIndex] || "";
 
@@ -1570,6 +1597,11 @@ viewBtn.onclick = () => {
   systemState = SYS_STATE.VIEWER;
   applyUIState();
   saveState();
+
+  // 🔕 進 Viewer 前停止閃爍（防呆）
+  if (viewBtn && viewBtn.classList) {
+    viewBtn.classList.remove("blink-view");
+  }
 
   window.location.href =
     `viewer.html?no=${currentVerse}&name=${encodeURIComponent(winnerName)}`;
@@ -1862,6 +1894,15 @@ resetBtn.onclick = () => {
     });
 
     console.log("📱 Local QR ready:", viewerUrl);
+	
+	// 🖱 點 QR 收合 / 展開
+const qrBox = document.getElementById("qrBox");
+if (qrBox) {
+  qrBox.onclick = () => {
+    qrBox.classList.toggle("collapsed");
+  };
+}
+	
   }
 
   if (document.readyState === "loading") {
@@ -1965,6 +2006,7 @@ if (typeof updateViewerCount !== "function") {
   }
 }
 
+//每3秒更新一次
 setInterval(updateViewerCount, 3000);
 </script>
 
