@@ -646,39 +646,39 @@ logBox.innerHTML = logs
   )
   .join("<br>"); 
   
-  // =============================
-// 🔁 Viewer 自動同步主持機（每秒檢查）
 // =============================
-window.lastSeenVerse = null;
+// 🔁 與主持機同步（防閃爍穩定版）
+// =============================
+const LAST_VERSE_KEY = "VIEWER_LAST_VERSE";
 
 function syncFromMaster() {
-  const raw = localStorage.getItem("LAST_VERSE");
-  if (!raw) return;
+  fetch("state.json?_=" + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.verse) return;
 
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return;
-  }
+      const lastSeen = sessionStorage.getItem(LAST_VERSE_KEY);
 
-  if (!data.verse) return;
+      // 已經顯示過就不再刷新
+      if (lastSeen === String(data.verse)) return;
 
-  // 已經顯示過就不再刷新
-  if (window.lastSeenVerse === data.verse) return;
-  window.lastSeenVerse = data.verse;
+      sessionStorage.setItem(LAST_VERSE_KEY, String(data.verse));
 
-  console.log("🔁 同步主持機經句:", data.verse);
+      console.log("🔁 同步主持機經句:", data.verse);
 
-  // ⭐ 強制跳轉本頁（完整重跑動畫 / 音效 / 防呆 / 下載系統）
-  const url = new URL(window.location.href);
-  url.searchParams.set("no", data.verse);
-  url.searchParams.set("name", ""); // Viewer 不需要名字也沒關係
-  window.location.href = url.toString();
+      // 只有真的變了才跳轉
+      const url = new URL(window.location.href);
+      url.searchParams.set("no", data.verse);
+      url.searchParams.set("name", "");
+      window.location.replace(url.toString()); // replace 不產生歷史紀錄，較穩
+    })
+    .catch(err => {
+      console.warn("Viewer sync failed:", err);
+    });
 }
 
-// 每 1 秒同步一次主持機
-setInterval(syncFromMaster, 1000);
+// 每 1.5 秒同步一次（減壓，夠用）
+setInterval(syncFromMaster, 1500);
   
 </script>
 

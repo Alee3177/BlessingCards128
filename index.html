@@ -1551,7 +1551,10 @@ secondBtn.onclick = () => {
     systemState = SYS_STATE.VIEWER;
     applyUIState();
 
-    saveState({ round2Done: true });
+    saveState({
+  round2Done: true,
+  currentVerse: currentVerse
+});
   });
   };
 
@@ -1859,6 +1862,56 @@ resetBtn.onclick = () => {
     });
 
     console.log("📱 Local QR ready:", viewerUrl);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+
+})();
+</script>
+
+<script>
+// =============================
+// 📋 複製看紅包連結（商用穩定版）
+// =============================
+(function initCopyViewerLink(){
+
+  function run(){
+    const btn = document.getElementById("copyViewerLink");
+    if (!btn) {
+      console.warn("⚠ 找不到 copyViewerLink 按鈕");
+      return;
+    }
+
+    // GitHub Pages / 子目錄安全路徑
+    const base =
+      location.origin +
+      location.pathname.replace(/\/[^\/]*$/, "/");
+
+    const viewerUrl = base + "viewer.html";
+
+    btn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(viewerUrl);
+
+        const oldText = btn.textContent;
+        btn.textContent = "✅ 已複製";
+        btn.disabled = true;
+
+        setTimeout(() => {
+          btn.textContent = "📋 複製看紅包連結";
+          btn.disabled = false;
+        }, 1500);
+
+        console.log("📋 Viewer link copied:", viewerUrl);
+      } catch (err) {
+        console.warn("⚠ 複製失敗，改用提示模式", err);
+        prompt("請手動複製連結：", viewerUrl);
+      }
+    };
   }
 
   if (document.readyState === "loading") {
