@@ -261,7 +261,7 @@ body{
 }
 
 /* 看紅包閃爍提示 */
-.blink-view {
+.blink-all {
   animation: blinkPulse 1s infinite;
 }
 
@@ -269,6 +269,47 @@ body{
   0%   { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
   50%  { box-shadow: 0 0 14px rgba(255,193,7,0.9); }
   100% { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
+}
+
+/* ============================= */
+/* 看紅包：框 + 文字一起閃 */
+/* ============================= */
+@keyframes blinkAll {
+  0% {
+    background-color: #f6c453;
+    color: #000;
+    box-shadow: 0 0 0px rgba(246,196,83,0.0);
+  }
+  50% {
+    background-color: #ffeb99;
+    color: #b10000;
+    box-shadow: 0 0 12px rgba(255,200,0,0.9);
+  }
+  100% {
+    background-color: #f6c453;
+    color: #000;
+    box-shadow: 0 0 0px rgba(246,196,83,0.0);
+  }
+}
+
+.blink-all {
+  animation: blinkAll 1s infinite;
+}
+
+/* 管理功能 - 強制解除主持機 */
+.danger-btn {
+  background: #b00020;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-top: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.danger-btn:hover {
+  background: #d00030;
 }
 
 </style>
@@ -318,6 +359,13 @@ body{
 <div class="btn-row">
   <button id="resetBtn" class="btn">全部歸零</button>
   <button id="pdfBtn" class="btn" disabled>抽籤紀錄 PDF</button>
+</div>
+
+<!-- 管理功能 -->
+<div class="btn-row admin-row">
+  <button id="btnForceRelease" class="danger-btn">
+    🔓 強制解除主持機佔用
+  </button>
 </div>
 
 <div id="wheel-container">
@@ -570,7 +618,7 @@ const winSound = document.getElementById("winSound");
 
 
 // ✅ 行動裝置音效解鎖：第一次點擊就解鎖（避免 drum 無聲）
-document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+document.addEventListener("pointerdown", unlockAudio, { capture: true });
 let audioUnlocked = false;
 
 function unlockAudio() {
@@ -1039,12 +1087,15 @@ function spin(list, clockwise, callback) {
   summaryBox.textContent = "";
 
 try {
+  unlockAudio(); // 🔓 先嘗試解鎖
+
   drum.currentTime = 0;
   const p = drum.play();
+
   if (p && typeof p.catch === "function") {
     p.catch(err => {
       console.warn("🔇 drum blocked, retry unlock", err);
-      unlockAudio(); // 🔓 補救解鎖
+      unlockAudio(); // 🔓 再補一次
     });
   }
 } catch (e) {
@@ -1581,7 +1632,7 @@ secondBtn.onclick = () => {
 });
 // 🔔 提示主持人可以看紅包
 if (typeof viewBtn !== "undefined" && viewBtn) {
-  viewBtn.classList.add("blink-view");
+  viewBtn.classList.add("blink-all");
 }
   });
   };
@@ -1600,7 +1651,7 @@ viewBtn.onclick = () => {
 
   // 🔕 進 Viewer 前停止閃爍（防呆）
   if (viewBtn && viewBtn.classList) {
-    viewBtn.classList.remove("blink-view");
+    viewBtn.classList.remove("blink-all");
   }
 
   window.location.href =
@@ -1854,6 +1905,33 @@ resetBtn.onclick = () => {
 };
 
 })(); 
+
+// ===============================
+// 管理功能：強制解除主持機佔用
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  const forceBtn = document.getElementById("btnForceRelease");
+  if (!forceBtn) return;
+
+  forceBtn.addEventListener("click", () => {
+    const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
+    if (!ok) return;
+
+    localStorage.removeItem("hostLock");
+    localStorage.removeItem("hostTimestamp");
+    localStorage.removeItem("hostId");
+
+    if (window.BroadcastChannel) {
+      const bc = new BroadcastChannel("blessing_host");
+      bc.postMessage({ type: "force-release" });
+      bc.close();
+    }
+
+    alert("主持權已強制釋放，請重新整理頁面使用");
+    location.reload();
+  });
+});
+
 </script>
 
 <script>
