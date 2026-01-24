@@ -232,15 +232,7 @@ body{
 
 <body>
 
-<picture>
-  <source srcset="logo3524.webp" type="image/webp">
-  <img 
-    src="logo3524.png"
-    class="logo"
-    loading="lazy"
-    decoding="async"
-  >
-</picture>
+<img src="logo3524.png" class="logo" loading="eager">
 
 <h2>祝福經句紅包（應許等您拿）</h2>
 
@@ -522,6 +514,7 @@ const SYS_STATE = {
  };
 let lastHeartbeat = Date.now();
 let systemState = SYS_STATE.INIT;
+    nameInput.disabled = false;
 let lastActionAt = 0;   // 防連點節流用
 
 const statusBar = document.getElementById("masterStatus");
@@ -667,7 +660,7 @@ function applyUIState() {
   lockBtn.classList.remove("blink-btn");
   spinBtn.classList.remove("blink-btn");
   secondBtn.classList.remove("blink-btn");
-  viewBtn.classList.remove("blink-btn");
+  
 
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
@@ -708,7 +701,7 @@ case SYS_STATE.ROUND2:
 
     case SYS_STATE.VIEWER:
       viewBtn.disabled = false;
-      viewBtn.classList.add("blink-btn");
+      
       statusDiv.textContent = "查看紅包中";
       break;
 
@@ -731,7 +724,7 @@ case SYS_STATE.FINISHED:
 
   spinBtn.classList.remove("blink-btn");
   secondBtn.classList.remove("blink-btn");
-  viewBtn.classList.remove("blink-btn");
+  
 
   // 📢 清楚提示使用者下一步
   statusDiv.textContent = "本輪已完成，可下載 PDF 或直接改名並鎖定名單開始新一輪";
@@ -1158,10 +1151,10 @@ if (
   /* 看紅包：必須完成第二輪 */
   if(round2Done && currentVerse){
     viewBtn.disabled = false;
-    viewBtn.classList.add("blink-btn");
+    
   }else{
     viewBtn.disabled = true;
-    viewBtn.classList.remove("blink-btn");
+    
   }
 
   /* PDF：全部抽完才可 */
@@ -1196,7 +1189,7 @@ if (fromViewer) {
     secondBtn.disabled = true;
     secondBtn.classList.remove("blink-btn");
     viewBtn.disabled = true;
-    viewBtn.classList.remove("blink-btn");
+    
 	
 	// 🔒 Viewer 回來期間：鎖定名單 / PDF 一律關閉
     lockBtn.disabled = true;
@@ -1208,6 +1201,7 @@ if (fromViewer) {
   /* ===== 情況 B：全部人已抽完 ===== */
   else if (total > 0 && drawn === total) {
   systemState = SYS_STATE.FINISHED;
+    nameInput.disabled = false;
   applyUIState();
   
   statusDiv.textContent = "";   // ✅ 清除「請輸入姓名並鎖定名單」
@@ -1233,7 +1227,7 @@ resetBtn.classList.add("btn-reset-danger");
 
     spinBtn.classList.remove("blink-btn");
     secondBtn.classList.remove("blink-btn");
-    viewBtn.classList.remove("blink-btn");
+    
   }
 
   // ✅ 所有 fromViewer 專屬 UI 都處理完，最後才清旗標
@@ -1275,6 +1269,7 @@ lockBtn.onclick = () => {
 
   // 🟢 新一輪強制初始化
   systemState = SYS_STATE.INIT;
+    nameInput.disabled = false;
 
   usedName.clear();
   verseUsed.clear();
@@ -1344,7 +1339,7 @@ spinBtn.onclick = () => {
   secondBtn.classList.remove("blink-btn");
 
   viewBtn.disabled = true;
-  viewBtn.classList.remove("blink-btn");
+  
 
   clearHL();
   centerText.textContent = "";
@@ -1410,6 +1405,7 @@ secondBtn.onclick = () => {
 
   if (!remain.length) {
     systemState = SYS_STATE.FINISHED;
+    nameInput.disabled = false;
     applyUIState();
     return;
   }
@@ -1457,7 +1453,7 @@ secondBtn.onclick = () => {
 
     // 👁 啟用 Viewer
     viewBtn.disabled = false;
-    viewBtn.classList.add("blink-btn");
+    
 
     // ✔ 紀錄
     appendLog(names[lastWinnerIndex], v, ref);
@@ -1590,6 +1586,7 @@ logs.slice().reverse().forEach(l => {
 	
 // ✅ 本輪正式結案
 systemState = SYS_STATE.FINISHED;
+    nameInput.disabled = false;
 saveState({ finished: true });
 audit("ROUND_CLOSED_BY_PDF", { serial: pdfRoundSerial });
 applyUIState();
@@ -1689,6 +1686,7 @@ resetBtn.onclick = () => {
 
   /* ===== 2️⃣ 系統狀態機歸零 ===== */
   systemState = SYS_STATE.INIT;
+    nameInput.disabled = false;
 
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
@@ -1715,7 +1713,7 @@ resetBtn.onclick = () => {
 
   spinBtn.classList.remove("blink-btn");
   secondBtn.classList.remove("blink-btn");
-  viewBtn.classList.remove("blink-btn");
+  
 
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
