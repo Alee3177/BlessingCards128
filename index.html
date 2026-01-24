@@ -254,6 +254,9 @@ body{
 <!-- ① jsPDF 主程式 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+<!-- ② QRCode 本地引擎（一定要在 QR 程式碼前） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 </head>
 
 <body>
@@ -1825,7 +1828,7 @@ resetBtn.onclick = () => {
 
   function run(){
     if (typeof QRCode !== "function") {
-      console.warn("⚠ QRCode.js 尚未載入");
+      console.warn("⚠ QRCode.js 尚未載入, 跳過QR不影響系統");
       return;
     }
 
