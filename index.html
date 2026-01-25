@@ -808,9 +808,36 @@ function applyUIState() {
     setStatusLight("warn", "轉盤旋轉中");
   } else {
     switch (systemState) {
-      case SYS_STATE.INIT:
-        setStatusLight("ok", "系統待命中");
-        break;
+case SYS_STATE.INIT:
+  // =========================
+  // 初始狀態：全部解鎖
+  // =========================
+  setStatusLight("ok", "系統待命中");
+
+  // 輸入框一定要能輸入
+  if (nameInput) {
+    nameInput.disabled = false;
+    nameInput.value = "";
+  }
+
+  // 按鈕狀態
+  if (lockBtn)   lockBtn.disabled = false;
+  if (spinBtn)   spinBtn.disabled = true;
+  if (viewBtn)   viewBtn.disabled = true;
+  if (secondBtn) secondBtn.disabled = true;
+  if (pdfBtn)    pdfBtn.disabled = true;
+
+  // 清理 UI 殘留
+  clearHL();
+  if (centerText) centerText.textContent = "";
+  if (resultDiv) resultDiv.textContent = "";
+  if (summaryBox) summaryBox.textContent = "";
+
+  // QR 區塊重置
+  const qrBox = document.getElementById("qrCanvas");
+  if (qrBox) qrBox.innerHTML = "";
+
+  break;
 
       case SYS_STATE.READY:
         setStatusLight("ok", "名單已鎖定，準備抽籤");
@@ -1630,6 +1657,7 @@ spin(remain, false, (v) => {
 
     centerText.textContent =
       `📜 抽中經句「${v}」\n📖 ${ref}`;
+	updateQRCode();   // 📱 產生 QR  
 
     // 🔊 音效
     try {
@@ -1890,10 +1918,6 @@ resetBtn.onclick = () => {
   pdfRepeatCount = 0;
   pdfDownloadedThisRound = false;
 
-  /* ===== 2️⃣ 系統狀態機歸零 ===== */
-  systemState = SYS_STATE.INIT;
-    nameInput.disabled = false;
-
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
   localStorage.removeItem("pdfSerial");
@@ -1908,31 +1932,20 @@ resetBtn.onclick = () => {
   centerText.textContent = "";
   resultDiv.textContent = "";
   summaryBox.textContent = "";
-  statusDiv.textContent = "請輸入姓名並鎖定名單";
 
-  /* ===== 5️⃣ 還原所有按鈕狀態（INIT） ===== */
-  lockBtn.disabled = false;
-  spinBtn.disabled = true;
-  secondBtn.disabled = true;
-  viewBtn.disabled = true;
-  pdfBtn.disabled = true;
+// =========================
+  // 最終狀態收斂（唯一出口）
+  // =========================
+  systemState = SYS_STATE.INIT;
+  rotating = false;
 
-  spinBtn.classList.remove("blink-btn");
-  secondBtn.classList.remove("blink-btn");
-  
-
-  pdfBtn.classList.remove("btn-pdf-ready");
-  resetBtn.classList.remove("btn-reset-danger");
-
-  resetBtn.disabled = false;
-
-  /* ===== 6️⃣ UI 同步 ===== */
+  // 交給狀態機統一控制 UI
   applyUIState();
 
-  console.log("🔄 System Reset → INIT");
-
-  /* ===== 7️⃣ 存乾淨快照（唯一一次） ===== */
+  // 存乾淨快照
   saveState();
+
+  console.log("🔄 System Reset → INIT");
 };
 
 })(); 
@@ -1988,15 +2001,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <script>
 // =============================
-// 📱 QR Code 初始化 + 動態更新（穩定版）
+// 📱 QR Code 初始化 + 動態更新（正式穩定版）
 // =============================
 
 // 🔁 全域：第二輪抽中後會呼叫這個
 function updateQRCode() {
-  if (typeof QRCode !== "function") return;
+  if (typeof QRCode !== "function") {
+    console.warn("⚠ QRCode library not loaded");
+    return;
+  }
 
   const box = document.getElementById("qrCanvas");
-  if (!box) return;
+  if (!box) {
+    console.warn("⚠ 找不到 qrCanvas");
+    return;
+  }
 
   if (!window.currentVerse) {
     console.warn("⚠ QR skipped: currentVerse is empty");
@@ -2017,7 +2036,8 @@ function updateQRCode() {
     base +
     "viewer.html" +
     "?no=" + encodeURIComponent(window.currentVerse) +
-    "&name=" + encodeURIComponent(winnerName);
+    "&name=" + encodeURIComponent(winnerName) +
+    "&ts=" + Date.now();   // 🔑 防快取
 
   // 清空舊 QR（避免疊加）
   box.innerHTML = "";
@@ -2026,17 +2046,16 @@ function updateQRCode() {
     text: viewerUrl,
     width: 140,
     height: 140,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
+    colorDark: "#000",
+    colorLight: "#fff",
     correctLevel: QRCode.CorrectLevel.H
   });
 
   console.log("📱 QR updated:", viewerUrl);
 }
 
-// 🚀 初始化：只負責綁定「收合 / 展開」
-// 不在這裡產生 QR
-(function initLocalQR() {
+// 🚀 初始化：只負責收合 / 展開（不產生 QR）
+(function initQRBox() {
   function run() {
     const qrBox = document.getElementById("qrBox");
     if (qrBox) {
