@@ -143,6 +143,36 @@ body{
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
 
+// =============================
+// 📱 Viewer 音效解鎖（保險機制）
+// =============================
+document.addEventListener("pointerdown", () => {
+  try {
+    const a1 = document.getElementById("drum");
+    const a2 = document.getElementById("winSound");
+
+    if (a1) {
+      a1.muted = true;
+      a1.play().then(() => {
+        a1.pause();
+        a1.currentTime = 0;
+        a1.muted = false;
+      }).catch(() => {});
+    }
+
+    if (a2) {
+      a2.muted = true;
+      a2.play().then(() => {
+        a2.pause();
+        a2.currentTime = 0;
+        a2.muted = false;
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn("viewer unlockAudio failed", e);
+  }
+}, { capture: true });
+
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
@@ -512,12 +542,6 @@ img.onerror = () => {
   // 🛡 允許下次成功載入時 onload 重新執行
   delete img.dataset.loaded;
 };
-
-// ===== 下載狀態（全域）=====
-let downloading = false;
-let lastVerseNo = null;
-let imageDownloadedThisView = false;
-let imageRepeatCount = 0;
 
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
 
