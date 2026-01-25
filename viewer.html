@@ -499,19 +499,25 @@ dun.src = `${variant}.mp3`;
 };
 
 /*======== 圖片載入失敗 ========*/
-img.onerror = ()=>{
-  // 若有煙火，先清掉
+img.onerror = () => {
+  const v = new URLSearchParams(location.search).get("no") || "unknown";
 
   const loading = document.getElementById("loading");
-  if(loading){
-    loading.textContent = "⚠ 找不到圖片 cards/" + verseNo + ".png";
+  if (loading) {
+    loading.textContent = "⚠ 找不到圖片 cards/" + v + ".png";
   }
 
-  img.alt = "⚠ 找不到圖片 cards/" + verseNo + ".png";
-  
+  img.alt = "⚠ 找不到圖片 cards/" + v + ".png";
+
   // 🛡 允許下次成功載入時 onload 重新執行
   delete img.dataset.loaded;
 };
+
+// ===== 下載狀態（全域）=====
+let downloading = false;
+let lastVerseNo = null;
+let imageDownloadedThisView = false;
+let imageRepeatCount = 0;
 
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
 
@@ -524,15 +530,17 @@ async function handleDownloadClick() {
     if (downloading) return;
     downloading = true;
 
-    // 目前顯示的經句編號
-    const verseNo = new URLSearchParams(window.location.search).get("no");
+    const params = new URLSearchParams(window.location.search);
+    const verseNo = params.get("no");
+    const name = params.get("name") || "Blessing";
+
     if (!verseNo) {
       alert("經句編號遺失，請返回重新打開紅包");
       downloading = false;
       return;
     }
 
-    // ===== 0️⃣ 防重複下載（只擋「同一經句」）=====
+    // ===== 0️⃣ 防重複下載（只擋「同一經句」=====
     if (lastVerseNo === verseNo && imageDownloadedThisView) {
       const ok = confirm(
         "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
@@ -543,28 +551,23 @@ async function handleDownloadClick() {
       }
       imageRepeatCount++;
     } else {
-      // 新經句 → 視為第一次下載
       imageDownloadedThisView = true;
       imageRepeatCount = 0;
       lastVerseNo = verseNo;
     }
 
-    // ===== 1️⃣ 檔名規則 =====
-    let filename = `verse_no_${verseNo}`;
-    if (imageRepeatCount > 0) {
-      filename += `-${imageRepeatCount}`;
-    }
-    filename += `.png`;
-
-    // ===== 2️⃣ 取圖 =====
+    // ===== 1️⃣ 找到圖片元素 =====
+    // 如果你用的是 id="cardImage"，請改成：
+    // const img = document.getElementById("cardImage");
     const img = document.getElementById("imgVerse");
-    if (!img || !img.complete) {
-      alert("圖片尚未載入完成，請稍候再試");
-      downloading = false;
-      return;
-    }
 
-    // ===== 3️⃣ Canvas 轉 PNG =====
+if (!img || !img.complete || img.naturalWidth === 0) {
+  alert("圖片尚未載入完成或載入失敗，請稍候再試");
+  downloading = false;
+  return;
+}
+
+    // ===== 2️⃣ Canvas 轉 PNG =====
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -576,31 +579,46 @@ async function handleDownloadClick() {
     }
     ctx.drawImage(img, 0, 0);
 
-    // ===== 4️⃣ 觸發下載（保命版）=====
-    canvas.toBlob(blob => {
-      if (!blob) {
-        alert("瀏覽器不支援圖片下載，請改用截圖");
-        downloading = false;
-        return;
-      }
+    // ===== 3️⃣ 組檔名（混合規則）=====
+    const safeName = name.replace(/[^\w\u4e00-\u9fa5]+/g, "_");
+    const repeatTag = imageRepeatCount > 0 ? `_R${imageRepeatCount}` : "";
 
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
+    // 同時保留你原本的 verse_no 風格
+    const filename = `${safeName}_verse_no_${verseNo}${repeatTag}.png`;
 
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    // ===== 4️⃣ 強制下載 =====
+const blob = await new Promise((resolve, reject) => {
+  canvas.toBlob(b => {
+    if (!b) reject("toBlob failed");
+    else resolve(b);
+  }, "image/png", 1.0);
+});
 
-      URL.revokeObjectURL(url);
+    if (!blob) {
+      alert("瀏覽器不支援圖片下載，請改用截圖");
       downloading = false;
-    });
+      return;
+    }
 
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+    console.log("📥 PNG downloaded:", filename);
   } catch (e) {
-    downloading = false;
     console.error("❌ PNG download failed:", e);
     alert("圖片下載失敗，請查看 console");
+  } finally {
+    setTimeout(() => {
+      downloading = false;
+    }, 500);
   }
 }
 

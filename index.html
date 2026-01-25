@@ -1603,21 +1603,24 @@ secondBtn.onclick = () => {
 
   audit("ROUND2_START", { remaining: remain.length });
 
-  spin(remain, false, (v) => {
-    verseUsed.add(v);
-    currentVerse = v;
+spin(remain, false, (v) => {
+  verseUsed.add(v);
+  currentVerse = v;
 
-    const ref =
-      (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
-        ? window.VERSE_REF_MAP[v]
-        : "";
-		
-	// ⭐ 廣播給所有 Viewer：最後抽中的經句
+  const ref =
+    (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
+      ? window.VERSE_REF_MAP[v]
+      : "";
+
+  // ⭐ 廣播給所有 Viewer：最後抽中的經句
   localStorage.setItem("LAST_VERSE", JSON.stringify({
     verse: v,
     ref: ref,
     time: Date.now()
-  }));	
+  }));
+
+  // ⭐ 立刻更新 QR Code（一定要在 currentVerse 設定之後）
+  updateQRCode();
 
     // UI 顯示
     statusDiv.textContent = "";
@@ -1976,51 +1979,62 @@ forceBtn.addEventListener("click", () => {
 
 <script>
 // =============================
-// 📱 本地 QR Code（穩定版）
+// 📱 QR Code 初始化 + 動態更新（穩定版）
 // =============================
-(function initLocalQR(){
 
-  function run(){
-    if (typeof QRCode !== "function") {
-      console.warn("⚠ QRCode.js 尚未載入, 跳過QR不影響系統");
-      return;
-    }
+// 🔁 全域：第二輪抽中後會呼叫這個
+function updateQRCode() {
+  if (typeof QRCode !== "function") return;
 
-    const box = document.getElementById("qrCanvas");
-    if (!box) {
-      console.warn("⚠ 找不到 qrCanvas");
-      return;
-    }
+  const box = document.getElementById("qrCanvas");
+  if (!box) return;
 
-    // GitHub Pages / 子目錄安全路徑
-    const base =
-      location.origin +
-      location.pathname.replace(/\/[^\/]*$/, "/");
+  if (!window.currentVerse) {
+    console.warn("⚠ QR skipped: currentVerse is empty");
+    return;
+  }
 
-    const viewerUrl = base + "viewer.html";
+  const winnerName =
+    (window.names && window.lastWinnerIndex != null)
+      ? window.names[window.lastWinnerIndex] || ""
+      : "";
 
-    // 清空舊 QR（避免疊加）
-    box.innerHTML = "";
+  // GitHub Pages / 子目錄安全路徑
+  const base =
+    location.origin +
+    location.pathname.replace(/\/[^\/]*$/, "/");
 
-    new QRCode(box, {
-      text: viewerUrl,
-      width: 140,
-      height: 140,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.H
-    });
+  const viewerUrl =
+    base +
+    "viewer.html" +
+    "?no=" + encodeURIComponent(window.currentVerse) +
+    "&name=" + encodeURIComponent(winnerName);
 
-    console.log("📱 Local QR ready:", viewerUrl);
-	
-	// 🖱 點 QR 收合 / 展開
-const qrBox = document.getElementById("qrBox");
-if (qrBox) {
-  qrBox.onclick = () => {
-    qrBox.classList.toggle("collapsed");
-  };
+  // 清空舊 QR（避免疊加）
+  box.innerHTML = "";
+
+  new QRCode(box, {
+    text: viewerUrl,
+    width: 140,
+    height: 140,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  console.log("📱 QR updated:", viewerUrl);
 }
-	
+
+// 🚀 初始化：只負責綁定「收合 / 展開」
+// 不在這裡產生 QR
+(function initLocalQR() {
+  function run() {
+    const qrBox = document.getElementById("qrBox");
+    if (qrBox) {
+      qrBox.onclick = () => {
+        qrBox.classList.toggle("collapsed");
+      };
+    }
   }
 
   if (document.readyState === "loading") {
@@ -2028,7 +2042,6 @@ if (qrBox) {
   } else {
     run();
   }
-
 })();
 </script>
 
