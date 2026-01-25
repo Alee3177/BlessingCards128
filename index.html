@@ -619,6 +619,34 @@ document.addEventListener("pointerdown", unlockAudio, { capture: true });
 let audioUnlocked = false;
 
 function unlockAudio() {
+
+// =============================
+// 🔊 統一鼓聲播放入口（全站唯一）
+// =============================
+function playDrum() {
+  const drum = document.getElementById("drum");
+  if (!drum) {
+    console.warn("🔇 <audio id='drum'> not found");
+    return;
+  }
+
+  try {
+    console.log("🔊 playDrum called at", Date.now());
+    unlockAudio();           // 🔓 確保音訊已解鎖
+    drum.currentTime = 0;
+
+    const p = drum.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(err => {
+        console.warn("🔇 drum blocked, retry unlock", err);
+        unlockAudio();
+      });
+    }
+  } catch (e) {
+    console.warn("🔇 drum exception", e);
+  }
+}
+
   if (audioUnlocked) return;
 
   try {
@@ -1490,6 +1518,7 @@ spinBtn.onclick = () => {
   if (!canAct()) return;
   if (rotating) return;
   unlockAudio();
+  playDrum();// 🔊 第一輪鼓聲 
 
   spinBtn.disabled = true;
   spinBtn.classList.remove("blink-btn");
@@ -1550,6 +1579,7 @@ secondBtn.onclick = () => {
   round2Started = true;
 
   unlockAudio();
+  playDrum(); // 🔊 第二輪鼓聲
 
   secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
