@@ -613,40 +613,14 @@ const summaryBox = document.getElementById("summaryBox");
 const drum = document.getElementById("drum");
 const winSound = document.getElementById("winSound");
 
-
 // ✅ 行動裝置音效解鎖：第一次點擊就解鎖（避免 drum 無聲）
 document.addEventListener("pointerdown", unlockAudio, { capture: true });
 let audioUnlocked = false;
 
+// =============================
+// 🔓 音效解鎖
+// =============================
 function unlockAudio() {
-
-// =============================
-// 🔊 統一鼓聲播放入口（全站唯一）
-// =============================
-function playDrum() {
-  const drum = document.getElementById("drum");
-  if (!drum) {
-    console.warn("🔇 <audio id='drum'> not found");
-    return;
-  }
-
-  try {
-    console.log("🔊 playDrum called at", Date.now());
-    unlockAudio();           // 🔓 確保音訊已解鎖
-    drum.currentTime = 0;
-
-    const p = drum.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(err => {
-        console.warn("🔇 drum blocked, retry unlock", err);
-        unlockAudio();
-      });
-    }
-  } catch (e) {
-    console.warn("🔇 drum exception", e);
-  }
-}
-
   if (audioUnlocked) return;
 
   try {
@@ -661,7 +635,7 @@ function playDrum() {
         a1.muted = false;
         audioUnlocked = true;
         console.log("🔓 Audio unlocked");
-      }).catch(()=>{});
+      }).catch(() => {});
     }
 
     if (a2) {
@@ -670,10 +644,37 @@ function playDrum() {
         a2.pause();
         a2.currentTime = 0;
         a2.muted = false;
-      }).catch(()=>{});
+      }).catch(() => {});
     }
   } catch (e) {
     console.warn("unlockAudio failed", e);
+  }
+}
+
+// =============================
+// 🔊 統一鼓聲播放入口（全站唯一）
+// =============================
+function playDrum() {
+  const drum = document.getElementById("drum");
+  if (!drum) {
+    console.warn("🔇 <audio id='drum'> not found");
+    return;
+  }
+
+  try {
+    console.log("🔊 playDrum called at", Date.now());
+    unlockAudio();        // 🔓 確保已解鎖
+    drum.currentTime = 0;
+
+    const p = drum.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(err => {
+        console.warn("🔇 drum blocked, retry unlock", err);
+        unlockAudio();
+      });
+    }
+  } catch (e) {
+    console.warn("🔇 drum exception", e);
   }
 }
 
@@ -1937,42 +1938,50 @@ resetBtn.onclick = () => {
 })(); 
 
 // ===============================
-// 管理功能：強制解除主持機佔用--> 改為:強制解除主持機後，紅燈還亮
+// 管理功能：強制解除主持機佔用（修正版）
 // ===============================
-forceBtn.addEventListener("click", () => {
-  const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
-  if (!ok) return;
-
-  // 1️⃣ 清鎖
-  localStorage.removeItem("hostLock");
-  localStorage.removeItem("hostTimestamp");
-  localStorage.removeItem("hostId");
-
-  // 2️⃣ 強制系統回 INIT
-  if (window.SYS_STATE && typeof applyUIState === "function") {
-    systemState = SYS_STATE.INIT;
-    applyUIState();
+document.addEventListener("DOMContentLoaded", () => {
+  const forceBtn = document.getElementById("btnForceRelease");
+  if (!forceBtn) {
+    console.warn("⚠ btnForceRelease not found");
+    return;
   }
 
-  // 3️⃣ 立刻更新紅燈顯示
-  const hostDot = document.getElementById("hostIndicator");
-  if (hostDot) {
-    hostDot.classList.remove("active", "locked");
-    hostDot.textContent = "主持機未佔用";
-  }
+  forceBtn.addEventListener("click", () => {
+    const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
+    if (!ok) return;
 
-  // 4️⃣ 通知其他分頁
-  if (window.BroadcastChannel) {
-    const bc = new BroadcastChannel("blessing_host");
-    bc.postMessage({ type: "force-release" });
-    bc.close();
-  }
+    // 1️⃣ 清鎖
+    localStorage.removeItem("hostLock");
+    localStorage.removeItem("hostTimestamp");
+    localStorage.removeItem("hostId");
 
-  // 5️⃣ 提示
-  alert("主持權已強制釋放，系統已回到 INIT 狀態");
+    // 2️⃣ 強制系統回 INIT
+    if (window.SYS_STATE && typeof applyUIState === "function") {
+      systemState = SYS_STATE.INIT;
+      applyUIState();
+    }
 
-  // 6️⃣ 選擇性重整（保險）
-  setTimeout(() => location.reload(), 300);
+    // 3️⃣ 立刻更新紅燈顯示
+    const hostDot = document.getElementById("hostIndicator");
+    if (hostDot) {
+      hostDot.classList.remove("active", "locked");
+      hostDot.textContent = "主持機未佔用";
+    }
+
+    // 4️⃣ 通知其他分頁
+    if (window.BroadcastChannel) {
+      const bc = new BroadcastChannel("blessing_host");
+      bc.postMessage({ type: "force-release" });
+      bc.close();
+    }
+
+    // 5️⃣ 提示
+    alert("主持權已強制釋放，系統已回到 INIT 狀態");
+
+    // 6️⃣ 選擇性重整（保險）
+    setTimeout(() => location.reload(), 300);
+  });
 });
 
 </script>
