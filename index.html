@@ -265,35 +265,32 @@ body{
   animation: blinkPulse 1s infinite;
 }
 
-@keyframes blinkPulse {
-  0%   { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
-  50%  { box-shadow: 0 0 14px rgba(255,193,7,0.9); }
-  100% { box-shadow: 0 0 0 rgba(255,193,7,0.0); }
-}
-
 /* ============================= */
-/* 看紅包：框 + 文字一起閃 */
+/* 主操作按鈕統一閃爍樣式 */
 /* ============================= */
-@keyframes blinkAll {
+@keyframes mainBlink {
   0% {
     background-color: #f6c453;
     color: #000;
-    box-shadow: 0 0 0px rgba(246,196,83,0.0);
+    box-shadow: 0 0 0 rgba(255,193,7,0.0);
+    transform: scale(1);
   }
   50% {
     background-color: #ffeb99;
-    color: #b10000;
-    box-shadow: 0 0 12px rgba(255,200,0,0.9);
+    color: #8b0000;
+    box-shadow: 0 0 16px rgba(255,200,0,0.9);
+    transform: scale(1.05);
   }
   100% {
     background-color: #f6c453;
     color: #000;
-    box-shadow: 0 0 0px rgba(246,196,83,0.0);
+    box-shadow: 0 0 0 rgba(255,193,7,0.0);
+    transform: scale(1);
   }
 }
 
 .blink-all {
-  animation: blinkAll 1s infinite;
+  animation: mainBlink 1s infinite;
 }
 
 /* 管理功能 - 強制解除主持機 */
@@ -1907,29 +1904,42 @@ resetBtn.onclick = () => {
 })(); 
 
 // ===============================
-// 管理功能：強制解除主持機佔用
+// 管理功能：強制解除主持機佔用--> 改為:強制解除主持機後，紅燈還亮
 // ===============================
-document.addEventListener("DOMContentLoaded", () => {
-  const forceBtn = document.getElementById("btnForceRelease");
-  if (!forceBtn) return;
+forceBtn.addEventListener("click", () => {
+  const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
+  if (!ok) return;
 
-  forceBtn.addEventListener("click", () => {
-    const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
-    if (!ok) return;
+  // 1️⃣ 清鎖
+  localStorage.removeItem("hostLock");
+  localStorage.removeItem("hostTimestamp");
+  localStorage.removeItem("hostId");
 
-    localStorage.removeItem("hostLock");
-    localStorage.removeItem("hostTimestamp");
-    localStorage.removeItem("hostId");
+  // 2️⃣ 強制系統回 INIT
+  if (window.SYS_STATE && typeof applyUIState === "function") {
+    systemState = SYS_STATE.INIT;
+    applyUIState();
+  }
 
-    if (window.BroadcastChannel) {
-      const bc = new BroadcastChannel("blessing_host");
-      bc.postMessage({ type: "force-release" });
-      bc.close();
-    }
+  // 3️⃣ 立刻更新紅燈顯示
+  const hostDot = document.getElementById("hostIndicator");
+  if (hostDot) {
+    hostDot.classList.remove("active", "locked");
+    hostDot.textContent = "主持機未佔用";
+  }
 
-    alert("主持權已強制釋放，請重新整理頁面使用");
-    location.reload();
-  });
+  // 4️⃣ 通知其他分頁
+  if (window.BroadcastChannel) {
+    const bc = new BroadcastChannel("blessing_host");
+    bc.postMessage({ type: "force-release" });
+    bc.close();
+  }
+
+  // 5️⃣ 提示
+  alert("主持權已強制釋放，系統已回到 INIT 狀態");
+
+  // 6️⃣ 選擇性重整（保險）
+  setTimeout(() => location.reload(), 300);
 });
 
 </script>
