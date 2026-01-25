@@ -689,43 +689,20 @@ logBox.innerHTML = logs
   .join("<br>"); 
   
 // =============================
-// 🔁 與主持機同步（防閃爍穩定版）
+// 🔁 與主持機同步（靜態站停用）
 // =============================
-const LAST_VERSE_KEY = "VIEWER_LAST_VERSE";
-
 function syncFromMaster() {
-  fetch("state.json?_=" + Date.now())
-    .then(r => r.json())
-    .then(data => {
-      if (!data || !data.verse) return;
-
-      const lastSeen = sessionStorage.getItem(LAST_VERSE_KEY);
-
-      // 已經顯示過就不再刷新
-      if (lastSeen === String(data.verse)) return;
-
-      sessionStorage.setItem(LAST_VERSE_KEY, String(data.verse));
-
-      console.log("🔁 同步主持機經句:", data.verse);
-
-      // 只有真的變了才跳轉
-      const url = new URL(window.location.href);
-      url.searchParams.set("no", data.verse);
-      url.searchParams.set("name", "");
-      window.location.replace(url.toString()); // replace 不產生歷史紀錄，較穩
-    })
-    .catch(err => {
-      console.warn("Viewer sync failed:", err);
-    });
+  // GitHub Pages 為唯讀靜態環境
+  // 跨裝置同步一律改用 QR Code URL (?no=...&ts=...)
+  return;
 }
-
-// 每 1.5 秒同步一次（減壓，夠用）
-setInterval(syncFromMaster, 1500);
+// 不再 setInterval
   
 </script>
 
-<!-- PATCH-1：viewer 專用音效（新增，不取代任何既有音效） -->
-<audio id="dunSound" preload="auto">
+<!-- PATCH-1：viewer 專用音效 -->
+<audio id="drum" src="audio/drum.mp3" preload="auto"></audio>
+<audio id="winSound" src="audio/win.mp3" preload="auto"></audio>
 
 </audio>
 
