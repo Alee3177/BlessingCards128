@@ -615,6 +615,9 @@ const winSound = document.getElementById("winSound");
 
 // ✅ 行動裝置音效解鎖：第一次點擊就解鎖（避免 drum 無聲）
 document.addEventListener("pointerdown", unlockAudio, { capture: true });
+window.addEventListener("pageshow", () => {
+  try { const d=document.getElementById("drum"); if(d) d.load(); const w=document.getElementById("winSound"); if(w) w.load(); } catch(e) {}
+});
 let audioUnlocked = false;
 
 // =============================
@@ -688,6 +691,17 @@ let rotation = 0;
 let rotating = false;
 let lastWinnerIndex = null;
 let currentVerse = null;
+
+// ===== 開機補救：若重整後 currentVerse 遺失，從 LAST_DRAW_RESULT 還原（只用於產生 QR/連結）=====
+try {
+  if (!window.currentVerse) {
+    const d = JSON.parse(localStorage.getItem("LAST_DRAW_RESULT") || "null");
+    if (d && d.verse) {
+      window.currentVerse = String(d.verse);
+    }
+  }
+} catch (e) {}
+
 
 /* ==== PDF 輪次防呆狀態 ==== */
 let pdfRoundSerial = null;   // 本輪使用的流水號（001~999）
@@ -1648,7 +1662,25 @@ spin(remain, false, (v) => {
     time: Date.now()
   }));
 
-  // ⭐ 立刻更新 QR Code（一定要在 currentVerse 設定之後）
+  
+    // ⭐ 存最後一次「完成第二輪」的結果（跨重整/跨回上一頁可用）
+    try {
+      const winnerName2 =
+        (window.names && window.lastWinnerIndex != null)
+          ? (window.names[window.lastWinnerIndex] || "")
+          : "";
+      localStorage.setItem("LAST_DRAW_RESULT", JSON.stringify({
+        verse: v,
+        ref: ref,
+        name: winnerName2,
+        time: Date.now(),
+        roundDone: true
+      }));
+    } catch (e) {}
+
+    // ⭐ 更新 QR（第二輪完成後才產生）
+    if (typeof updateQRCode === "function") updateQRCode();
+// ⭐ 立刻更新 QR Code（一定要在 currentVerse 設定之後）
   updateQRCode();
 
     // UI 顯示
@@ -1656,34 +1688,8 @@ spin(remain, false, (v) => {
     resultDiv.textContent =
       `第二輪完成：抽中經句「${v}」`;
 
-    centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
-
-
-  // ===== ✅ 系統唯一真相來源（FINAL）=====
-  const result = {
-    verse: v,
-    name: names[lastWinnerIndex] || "",
-    ref: ref,
-    time: Date.now(),
-    roundDone: true
-  };
-
-  localStorage.setItem("LAST_DRAW_RESULT", JSON.stringify(result));
-
-  // ===== UI =====
-  statusDiv.textContent = "";
-  resultDiv.textContent = `第二輪完成：抽中經句「${v}」`;
-  centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
-
-  systemState = SYS_STATE.FINISHED;
-  applyUIState();
-
-  // ===== QR / 複製連結 / PDF 全部靠這個 =====
-  if (typeof updateQRCode === "function") updateQRCode();
-  saveState();
-
-  console.log("✅ FINAL RESULT:", result);
-
+    centerText.textContent =
+      `📜 抽中經句「${v}」\n📖 ${ref}`;
 	updateQRCode();   // 📱 產生 QR  
 
     // 🔊 音效
@@ -1948,7 +1954,7 @@ resetBtn.onclick = () => {
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
   localStorage.removeItem("LAST_DRAW_RESULT");
-  localStorage.removeItem("pdfSerial");
+localStorage.removeItem("pdfSerial");
   sessionStorage.removeItem("spinState");
   sessionStorage.removeItem("showSummaryOnReturn");
 
@@ -2035,11 +2041,16 @@ function updateQRCode() {
   console.log("🧪 updateQRCode() called");
 
   if (typeof QRCode !== "function") {
-    console.warn("❌ QRCode.js not loaded");
+    window.__qrRetry = (window.__qrRetry || 0) + 1;
+    if (window.__qrRetry <= 10) setTimeout(updateQRCode, 300);
+    console.warn("⚠ QRCode.js 尚未載入");
     return;
   }
 
   const box = document.getElementById("qrCanvas");
+  const qrBox = document.getElementById("qrBox");
+  if (qrBox) qrBox.classList.remove("collapsed");
+
   const qrBox = document.getElementById("qrBox");
 
   if (!box || !qrBox) {
@@ -2177,55 +2188,6 @@ if (typeof updateViewerCount !== "function") {
 //每3秒更新一次
 setInterval(updateViewerCount, 3000);
 </script>
-
-
-// =============================
-// 📋 複製看紅包連結（FINAL 統一來源）
-// =============================
-(function initCopyViewerLink(){
-  function run(){
-    const btn = document.getElementById("copyViewerLink");
-    if (!btn) return;
-
-    const base =
-      location.origin +
-      location.pathname.replace(/\/[^\/]*$/, "/");
-
-    btn.onclick = async () => {
-      const data = JSON.parse(localStorage.getItem("LAST_DRAW_RESULT") || "null");
-      if (!data || !data.roundDone) {
-        alert("尚未抽出經句，無法產生連結");
-        return;
-      }
-
-      const viewerUrl =
-        base +
-        "viewer.html" +
-        "?no=" + encodeURIComponent(data.verse) +
-        "&name=" + encodeURIComponent(data.name) +
-        "&ts=" + data.time;
-
-      try {
-        await navigator.clipboard.writeText(viewerUrl);
-        const old = btn.textContent;
-        btn.textContent = "✅ 已複製";
-        btn.disabled = true;
-        setTimeout(() => {
-          btn.textContent = old;
-          btn.disabled = false;
-        }, 1500);
-      } catch {
-        prompt("請手動複製連結：", viewerUrl);
-      }
-    };
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-})();
 
 </body>
 </html>

@@ -108,7 +108,8 @@ body{
 
 </style>
 
-<script src="verseRefMap.js?v=20260105"></script>
+<script src="verseRefMap.js?v=20260105">window.addEventListener("pageshow", ()=>{ try{ const d=document.getElementById("drum"); if(d) d.load(); const w=document.getElementById("winSound"); if(w) w.load(); }catch(e){} });
+</script>
 
 <!-- PATCH-2：煙火 / 彩帶（canvas-confetti） -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
@@ -139,6 +140,39 @@ body{
 </div>
 
 <script>
+
+// ✅ 行動裝置音效解鎖：任何第一次觸碰都嘗試解鎖
+document.addEventListener("pointerdown", unlockAudio, { capture: true });
+let audioUnlocked = false;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  try {
+    const a1 = document.getElementById("drum");
+    const a2 = document.getElementById("winSound");
+    [a1, a2].forEach(a => {
+      if (!a) return;
+      a.muted = true;
+      const p = a.play();
+      if (p && p.then) {
+        p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; audioUnlocked = true; })
+         .catch(()=>{});
+      }
+    });
+  } catch(e) {}
+}
+
+function playDrum() {
+  const drum = document.getElementById("drum");
+  if (!drum) return;
+  try {
+    unlockAudio();
+    drum.currentTime = 0;
+    const p = drum.play();
+    if (p && p.catch) p.catch(()=>{});
+  } catch(e) {}
+}
+
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
@@ -705,34 +739,6 @@ function syncFromMaster() {
 <audio id="winSound" src="audio/win.mp3" preload="auto"></audio>
 
 </audio>
-
-
-// =============================
-// 🔁 FINAL Viewer Loader
-// =============================
-(function loadFromMaster(){
-  const params = new URLSearchParams(location.search);
-  const no = params.get("no");
-
-  if (!no) {
-    const data = JSON.parse(localStorage.getItem("LAST_DRAW_RESULT") || "null");
-    if (data && data.roundDone) {
-      const url = new URL(location.href);
-      url.searchParams.set("no", data.verse);
-      url.searchParams.set("name", data.name || "");
-      url.searchParams.set("ts", data.time || Date.now());
-      location.replace(url.toString());
-      return;
-    }
-
-    const box = document.getElementById("cardBox");
-    if (box) {
-      box.innerHTML = "⚠ 找不到經句編號，請重新掃描 QR Code";
-    }
-    console.warn("Viewer missing verse param");
-    return;
-  }
-})();
 
 </body>
 </html>
