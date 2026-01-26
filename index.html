@@ -1634,6 +1634,7 @@ secondBtn.onclick = () => {
 spin(remain, false, (v) => {
   verseUsed.add(v);
   currentVerse = v;
+  updateQRCode();
 
   const ref =
     (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
@@ -1761,7 +1762,7 @@ pdfBtn.onclick = async () => {
 
     /* ===== 畫布尺寸與版型鎖死（等同 010.pdf） ===== */
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("⁷");
 
     const MARGIN = 60;
     const LINE_H = 32;
@@ -2001,33 +2002,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
 <script>
 // =============================
-// 📱 QR Code 初始化 + 動態更新（正式穩定版）
+// 📱 QR Code 產生 / 更新（唯一入口，穩定版）
 // =============================
-
-// 🔁 全域：第二輪抽中後會呼叫這個
 function updateQRCode() {
+  console.log("🧪 updateQRCode() called");
+
   if (typeof QRCode !== "function") {
-    console.warn("⚠ QRCode library not loaded");
+    console.warn("❌ QRCode.js not loaded");
     return;
   }
 
   const box = document.getElementById("qrCanvas");
-  if (!box) {
-    console.warn("⚠ 找不到 qrCanvas");
+  const qrBox = document.getElementById("qrBox");
+
+  if (!box || !qrBox) {
+    console.warn("❌ qrCanvas or qrBox missing");
     return;
   }
 
   if (!window.currentVerse) {
-    console.warn("⚠ QR skipped: currentVerse is empty");
+    console.warn("⚠ currentVerse empty, skip QR");
     return;
   }
+
+  // 確保不是被收合吃掉
+  qrBox.classList.remove("collapsed");
 
   const winnerName =
     (window.names && window.lastWinnerIndex != null)
       ? window.names[window.lastWinnerIndex] || ""
       : "";
 
-  // GitHub Pages / 子目錄安全路徑
   const base =
     location.origin +
     location.pathname.replace(/\/[^\/]*$/, "/");
@@ -2037,92 +2042,69 @@ function updateQRCode() {
     "viewer.html" +
     "?no=" + encodeURIComponent(window.currentVerse) +
     "&name=" + encodeURIComponent(winnerName) +
-    "&ts=" + Date.now();   // 🔑 防快取
+    "&ts=" + Date.now(); // 防快取
 
-  // 清空舊 QR（避免疊加）
+  // 清空舊 QR
   box.innerHTML = "";
 
   new QRCode(box, {
     text: viewerUrl,
-    width: 140,
-    height: 140,
-    colorDark: "#000",
-    colorLight: "#fff",
+    width: 160,
+    height: 160,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H
   });
 
-  console.log("📱 QR updated:", viewerUrl);
+  console.log("✅ QR generated:", viewerUrl);
 }
 
-// 🚀 初始化：只負責收合 / 展開（不產生 QR）
-(function initQRBox() {
-  function run() {
-    const qrBox = document.getElementById("qrBox");
-    if (qrBox) {
-      qrBox.onclick = () => {
-        qrBox.classList.toggle("collapsed");
-      };
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-})();
-</script>
-
-<script>
 // =============================
-// 📋 複製看紅包連結（商用穩定版）
+// QR 面板互動 + 複製連結
 // =============================
-(function initCopyViewerLink(){
+document.addEventListener("DOMContentLoaded", () => {
+  const qrBox = document.getElementById("qrBox");
+  const copyBtn = document.getElementById("copyViewerLink");
 
-  function run(){
-    const btn = document.getElementById("copyViewerLink");
-    if (!btn) {
-      console.warn("⚠ 找不到 copyViewerLink 按鈕");
-      return;
-    }
-
-    // GitHub Pages / 子目錄安全路徑
-    const base =
-      location.origin +
-      location.pathname.replace(/\/[^\/]*$/, "/");
-
-    const viewerUrl = base + "viewer.html";
-
-    btn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(viewerUrl);
-
-        const oldText = btn.textContent;
-        btn.textContent = "✅ 已複製";
-        btn.disabled = true;
-
-        setTimeout(() => {
-          btn.textContent = "📋 複製看紅包連結";
-          btn.disabled = false;
-        }, 1500);
-
-        console.log("📋 Viewer link copied:", viewerUrl);
-      } catch (err) {
-        console.warn("⚠ 複製失敗，改用提示模式", err);
-        prompt("請手動複製連結：", viewerUrl);
-      }
+  if (qrBox) {
+    qrBox.classList.remove("collapsed"); // 預設展開
+    qrBox.onclick = () => {
+      qrBox.classList.toggle("collapsed");
     };
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
+  if (copyBtn) {
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+
+      if (!window.currentVerse) {
+        alert("尚未抽出經句，無法產生連結");
+        return;
+      }
+
+      const base =
+        location.origin +
+        location.pathname.replace(/\/[^\/]*$/, "/");
+
+      const url =
+        base +
+        "viewer.html" +
+        "?no=" + encodeURIComponent(window.currentVerse) +
+        "&name=" +
+        encodeURIComponent(
+          (window.names && window.lastWinnerIndex != null)
+            ? window.names[window.lastWinnerIndex] || ""
+            : ""
+        );
+
+      navigator.clipboard.writeText(url).then(() => {
+        alert("已複製連結到剪貼簿");
+      });
+    };
   }
-
-})();
+});
 </script>
-
+	
 <script>
 // =============================
 // 👥 Viewer 計數（保命版）
