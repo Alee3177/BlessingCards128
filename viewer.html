@@ -706,42 +706,33 @@ function syncFromMaster() {
 
 </audio>
 
+
+// =============================
+// 🔁 FINAL Viewer Loader
+// =============================
+(function loadFromMaster(){
+  const params = new URLSearchParams(location.search);
+  const no = params.get("no");
+
+  if (!no) {
+    const data = JSON.parse(localStorage.getItem("LAST_DRAW_RESULT") || "null");
+    if (data && data.roundDone) {
+      const url = new URL(location.href);
+      url.searchParams.set("no", data.verse);
+      url.searchParams.set("name", data.name || "");
+      url.searchParams.set("ts", data.time || Date.now());
+      location.replace(url.toString());
+      return;
+    }
+
+    const box = document.getElementById("cardBox");
+    if (box) {
+      box.innerHTML = "⚠ 找不到經句編號，請重新掃描 QR Code";
+    }
+    console.warn("Viewer missing verse param");
+    return;
+  }
+})();
+
 </body>
 </html>
-
-
-<!-- === VIEWER PATCH v1.0 === -->
-<script>
-// 停用任何遠端同步（GitHub Pages 靜態）
-if(window.syncFromMaster){
-  try{ window.syncFromMaster=function(){}; }catch(e){}
-}
-
-// 音效解鎖
-let __audioUnlocked=false;
-function __unlockAudio(){
-  if(__audioUnlocked) return;
-  const a1=document.getElementById('drum');
-  const a2=document.getElementById('winSound');
-  [a1,a2].forEach(a=>{
-    if(!a) return;
-    try{
-      a.muted=true;
-      const p=a.play();
-      if(p&&p.then){
-        p.then(()=>{a.pause();a.currentTime=0;a.muted=false;});
-      }
-    }catch(e){}
-  });
-  __audioUnlocked=true;
-}
-document.addEventListener('pointerdown', __unlockAudio, {capture:true});
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) __unlockAudio(); });
-window.addEventListener('pageshow', __unlockAudio);
-
-// 防重複宣告
-window.downloading=false;
-window.lastVerseNo=null;
-window.imageDownloadedThisView=false;
-window.imageRepeatCount=0;
-</script>

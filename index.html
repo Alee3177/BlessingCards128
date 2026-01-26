@@ -1656,8 +1656,34 @@ spin(remain, false, (v) => {
     resultDiv.textContent =
       `第二輪完成：抽中經句「${v}」`;
 
-    centerText.textContent =
-      `📜 抽中經句「${v}」\n📖 ${ref}`;
+    centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
+
+
+  // ===== ✅ 系統唯一真相來源（FINAL）=====
+  const result = {
+    verse: v,
+    name: names[lastWinnerIndex] || "",
+    ref: ref,
+    time: Date.now(),
+    roundDone: true
+  };
+
+  localStorage.setItem("LAST_DRAW_RESULT", JSON.stringify(result));
+
+  // ===== UI =====
+  statusDiv.textContent = "";
+  resultDiv.textContent = `第二輪完成：抽中經句「${v}」`;
+  centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
+
+  systemState = SYS_STATE.FINISHED;
+  applyUIState();
+
+  // ===== QR / 複製連結 / PDF 全部靠這個 =====
+  if (typeof updateQRCode === "function") updateQRCode();
+  saveState();
+
+  console.log("✅ FINAL RESULT:", result);
+
 	updateQRCode();   // 📱 產生 QR  
 
     // 🔊 音效
@@ -1921,6 +1947,7 @@ resetBtn.onclick = () => {
 
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
+  localStorage.removeItem("LAST_DRAW_RESULT");
   localStorage.removeItem("pdfSerial");
   sessionStorage.removeItem("spinState");
   sessionStorage.removeItem("showSummaryOnReturn");
@@ -2151,89 +2178,54 @@ if (typeof updateViewerCount !== "function") {
 setInterval(updateViewerCount, 3000);
 </script>
 
+
+// =============================
+// 📋 複製看紅包連結（FINAL 統一來源）
+// =============================
+(function initCopyViewerLink(){
+  function run(){
+    const btn = document.getElementById("copyViewerLink");
+    if (!btn) return;
+
+    const base =
+      location.origin +
+      location.pathname.replace(/\/[^\/]*$/, "/");
+
+    btn.onclick = async () => {
+      const data = JSON.parse(localStorage.getItem("LAST_DRAW_RESULT") || "null");
+      if (!data || !data.roundDone) {
+        alert("尚未抽出經句，無法產生連結");
+        return;
+      }
+
+      const viewerUrl =
+        base +
+        "viewer.html" +
+        "?no=" + encodeURIComponent(data.verse) +
+        "&name=" + encodeURIComponent(data.name) +
+        "&ts=" + data.time;
+
+      try {
+        await navigator.clipboard.writeText(viewerUrl);
+        const old = btn.textContent;
+        btn.textContent = "✅ 已複製";
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.textContent = old;
+          btn.disabled = false;
+        }, 1500);
+      } catch {
+        prompt("請手動複製連結：", viewerUrl);
+      }
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", run, { once: true });
+  } else {
+    run();
+  }
+})();
+
 </body>
 </html>
-
-
-<!-- === PATCH v1.0 AutoFix === -->
-<script>
-// ---- HOST LOCK: 防止誤判只有一台手機也被鎖 ----
-(function(){
-  try{
-    localStorage.removeItem("hostLock");
-    localStorage.removeItem("hostTimestamp");
-    localStorage.removeItem("hostId");
-  }catch(e){}
-})();
-
-// ---- AUDIO UNLOCK 強化（LINE/行動裝置）----
-let __audioUnlocked=false;
-function __unlockAudio(){
-  if(__audioUnlocked) return;
-  const a1=document.getElementById('drum');
-  const a2=document.getElementById('winSound');
-  [a1,a2].forEach(a=>{
-    if(!a) return;
-    try{
-      a.muted=true;
-      const p=a.play();
-      if(p&&p.then){
-        p.then(()=>{a.pause();a.currentTime=0;a.muted=false;});
-      }
-    }catch(e){}
-  });
-  __audioUnlocked=true;
-}
-document.addEventListener('pointerdown', __unlockAudio, {capture:true});
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) __unlockAudio(); });
-window.addEventListener('pageshow', __unlockAudio);
-
-// ---- PLAY DRUM 安全封裝 ----
-window.playDrum = function(){
-  const d=document.getElementById('drum');
-  if(!d) return;
-  try{
-    __unlockAudio();
-    d.currentTime=0;
-    const p=d.play();
-    if(p&&p.catch) p.catch(()=>__unlockAudio());
-  }catch(e){}
-};
-
-// ---- RESET 修正：允許重新編輯姓名 ----
-(function(){
-  const btn=document.getElementById('resetBtn');
-  const input=document.getElementById('nameInput');
-  if(!btn||!input) return;
-  btn.addEventListener('click', ()=>{
-    setTimeout(()=>{
-      try{
-        input.disabled=false;
-        input.value="";
-        input.focus();
-      }catch(e){}
-    },100);
-  });
-})();
-
-// ---- QR 生成（第二輪完成後）----
-window.updateQRCode = function(){
-  if(typeof QRCode!=='function') return;
-  const box=document.getElementById('qrCanvas');
-  if(!box||!window.currentVerse) return;
-  const base=location.origin+location.pathname.replace(/\/[^\/]*$/,"/");
-  const name=(window.names&&window.lastWinnerIndex!=null)?(window.names[window.lastWinnerIndex]||""):"";
-  const url=base+"viewer.html?no="+encodeURIComponent(window.currentVerse)+"&name="+encodeURIComponent(name)+"&ts="+Date.now();
-  box.innerHTML="";
-  new QRCode(box,{text:url,width:140,height:140,colorDark:"#000",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.H});
-};
-
-// 嘗試在第二輪按鈕後掛鉤
-(function(){
-  const btn=document.getElementById('secondBtn');
-  if(!btn) return;
-  btn.addEventListener('click', ()=>{
-    setTimeout(()=>{ if(window.updateQRCode) window.updateQRCode(); },1200);
-  });
-})();
-</script>
