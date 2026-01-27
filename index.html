@@ -3,117 +3,105 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>祝福經句紅包（應許等您拿）- 單機穩定A版</title>
+<title>祝福經句紅包（應許等您拿）- 單機穩定A版（視覺還原）</title>
 
 <link rel="preload" as="image" href="logo3524.png">
 
 <style>
-  :root{
-    --bg:#fbf2df;
-    --text:#5b3a00;
-    --btn:#f4b63a;
-    --btnShadow:#d59b25;
-    --btnDisabled:#f0ddaa;
-    --danger:#E53935;
-    --dangerShadow:#B71C1C;
-    --blue:#1976D2;
-    --blueShadow:#0d47a1;
-  }
-  body{
-    font-family:"Noto Sans TC",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
-    background:var(--bg);
-    text-align:center;
-    margin:0;
-    padding:16px;
-    color:var(--text);
-  }
-  .logo{width:220px;margin:10px auto 0;display:block;}
-  h2{margin:12px 0 6px 0;}
+:root{
+  --bg:#fbf2df;
+  --text:#5b3a00;
+  --btn:#f4b63a;
+  --btnShadow:#d59b25;
+  --btnDisabled:#f0ddaa;
+  --danger:#E53935;
+  --dangerShadow:#B71C1C;
+  --blue:#1976D2;
+  --blueShadow:#0d47a1;
+}
+body{
+  font-family:"Noto Sans TC",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
+  background:var(--bg);
+  text-align:center;
+  margin:0;
+  padding:16px;
+  color:var(--text);
+}
+.logo{width:220px;margin:10px auto 0;display:block;}
+h2{margin:12px 0 6px 0;}
 
-  #masterStatus{
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    margin:8px auto 4px auto;font-size:14px;font-weight:800;
-  }
-  #masterStatus .dot{width:12px;height:12px;border-radius:50%;background:#999;box-shadow:0 0 4px rgba(0,0,0,.25);}
-  #masterStatus.ok .dot{background:#2e7d32;box-shadow:0 0 8px rgba(46,125,50,.7);}
-  #masterStatus.warn .dot{background:#f9a825;box-shadow:0 0 8px rgba(249,168,37,.7);}
-  #masterStatus.error .dot{background:#c62828;box-shadow:0 0 8px rgba(198,40,40,.7);}
+#masterStatus{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:8px auto 4px auto;font-size:14px;font-weight:800;
+}
+#masterStatus .dot{width:12px;height:12px;border-radius:50%;background:#2e7d32;box-shadow:0 0 8px rgba(46,125,50,.7);}
 
-  #nameInput{
-    width:90%;max-width:520px;padding:10px 14px;
-    margin-top:10px;border-radius:12px;border:2px solid #e3c78c;
-    font-size:18px;text-align:center;box-sizing:border-box;
-    background:#fffdf8;
-  }
+#nameInput{
+  width:90%;max-width:520px;padding:10px 14px;
+  margin-top:10px;border-radius:12px;border:2px solid #e3c78c;
+  font-size:18px;text-align:center;box-sizing:border-box;
+  background:#fffdf8;
+}
 
-  .btn-row{margin-top:8px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
-  .btn{
-    min-width:130px;
-    padding:10px 16px;
-    border-radius:999px;
-    border:none;
-    background:var(--btn);
-    color:var(--text);
-    font-size:15px;
-    font-weight:800;
-    box-shadow:0 3px 0 var(--btnShadow);
-    cursor:pointer;
-  }
-  .btn:disabled{background:var(--btnDisabled);box-shadow:none;cursor:default;}
-  .btn-pdf-ready{background:var(--blue)!important;color:#fff!important;box-shadow:0 3px 0 var(--blueShadow)!important;}
-  .btn-reset-danger{background:var(--danger)!important;color:#fff!important;box-shadow:0 3px 0 var(--dangerShadow)!important;}
+.btn-row{margin-top:8px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+.btn{
+  min-width:130px;
+  padding:10px 16px;
+  border-radius:999px;
+  border:none;
+  background:var(--btn);
+  color:var(--text);
+  font-size:15px;
+  font-weight:800;
+  box-shadow:0 3px 0 var(--btnShadow);
+  cursor:pointer;
+}
+.btn:disabled{background:var(--btnDisabled);box-shadow:none;cursor:default;}
+.btn-pdf-ready{background:var(--blue)!important;color:#fff!important;box-shadow:0 3px 0 var(--blueShadow)!important;}
+.btn-reset-danger{background:var(--danger)!important;color:#fff!important;box-shadow:0 3px 0 var(--dangerShadow)!important;}
 
-  @keyframes mainBlink{
-    0%{opacity:1;transform:scale(1);}
-    50%{opacity:.55;transform:scale(1.05);}
-    100%{opacity:1;transform:scale(1);}
-  }
-  .blink-all{animation:mainBlink 1s infinite;}
+@keyframes mainBlink{
+  0%{opacity:1;transform:scale(1);}
+  50%{opacity:.55;transform:scale(1.05);}
+  100%{opacity:1;transform:scale(1);}
+}
+.blink-all{animation:mainBlink 1s infinite;}
 
-  #wheel-container{position:relative;width:360px;height:360px;margin:14px auto 10px;}
-  #wheel{width:360px;height:360px;border-radius:50%;background:#fff;box-shadow:0 10px 25px rgba(0,0,0,.12);}
-  #confettiCanvas{position:absolute;left:0;top:0;width:360px;height:360px;pointer-events:none;}
-  #centerText{
-    position:absolute;left:0;top:0;width:360px;height:360px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    pointer-events:none;font-size:18px;font-weight:900;white-space:pre-line;
-    padding:26px;box-sizing:border-box;
-    text-shadow:0 1px 0 rgba(255,255,255,.55);
-  }
-  /* pointer */
-  #pointer{
-    position:absolute;left:50%;top:-6px;transform:translateX(-50%);
-    width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-bottom:22px solid #b00020;
-    filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));
-    z-index:5;
-  }
-  #status{margin-top:8px;font-weight:800;white-space:pre-line;}
-  #result{margin-top:8px;white-space:pre-line;font-weight:900;}
-  #summaryBox{margin-top:10px;white-space:pre-line;font-weight:800;}
+#wheel-container{position:relative;width:360px;height:360px;margin:14px auto 10px;}
+#wheel{width:360px;height:360px;border-radius:50%;background:#fff;box-shadow:0 10px 25px rgba(0,0,0,.12);}
+#confettiCanvas{position:absolute;left:0;top:0;width:360px;height:360px;pointer-events:none;}
+#centerText{
+  position:absolute;left:0;top:0;width:360px;height:360px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:none;font-size:18px;font-weight:900;white-space:pre-line;
+  padding:26px;box-sizing:border-box;
+  text-shadow:0 1px 0 rgba(255,255,255,.55);
+}
 
-  /* Red envelope panel */
-  #redEnvelopePanel{
-    display:none;
-    margin:18px auto 0;
-    max-width:560px;
-    padding:12px;
-    border:2px solid #f6c453;
-    border-radius:12px;
-    background:#1a1a1a;
-    color:#ffd54f;
-    text-align:center;
-  }
-  #redEnvelopePanel img{
-    max-width:100%;
-    border-radius:10px;
-    background:#fff;
-    padding:6px;
-  }
+#status{margin-top:8px;font-weight:800;white-space:pre-line;}
+#result{margin-top:8px;white-space:pre-line;font-weight:900;}
+#summaryBox{margin-top:10px;white-space:pre-line;font-weight:800;}
+
+#redEnvelopePanel{
+  display:none;
+  margin:18px auto 0;
+  max-width:560px;
+  padding:12px;
+  border:2px solid #f6c453;
+  border-radius:12px;
+  background:#1a1a1a;
+  color:#ffd54f;
+  text-align:center;
+}
+#redEnvelopePanel img{
+  max-width:100%;
+  border-radius:10px;
+  background:#fff;
+  padding:6px;
+}
 </style>
 
-<!-- 經句對照（若不存在也不會死） -->
 <script src="verseRefMap.js?v=20260105"></script>
-<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
@@ -122,7 +110,7 @@
      onerror="this.style.display='none'; console.warn('⚠ logo3524.png 載入失敗');"/>
 <h2>祝福經句紅包（應許等您拿）</h2>
 
-<div id="masterStatus" class="ok"><span class="dot"></span><span class="label">單機版已就緒</span></div>
+<div id="masterStatus"><span class="dot"></span><span class="label">單機穩定模式</span></div>
 
 <input id="nameInput" placeholder="請輸入姓名，可用空白 / 逗號 / 換行分隔">
 
@@ -142,7 +130,6 @@
 </div>
 
 <div id="wheel-container">
-  <div id="pointer"></div>
   <canvas id="wheel" width="360" height="360"></canvas>
   <canvas id="confettiCanvas" width="360" height="360"></canvas>
   <div id="centerText"></div>
@@ -152,14 +139,13 @@
 <div id="result"></div>
 <div id="summaryBox"></div>
 
-<!-- Red Envelope Panel -->
 <div id="redEnvelopePanel">
   <div style="font-weight:900;margin-bottom:6px;">🎁 抽中紅包經句 <span id="envelopeVerse"></span></div>
   <div style="font-size:14px;opacity:.9;margin-bottom:8px;" id="envelopeRef"></div>
   <img id="envelopeImg" alt="red envelope"/>
   <div style="margin-top:10px;">
     <button id="downloadEnvelopeBtn" class="btn">📥 下載紅包圖片</button>
-    <button id="nextPersonBtn" class="btn">➡ 下一位</button>
+    <button id="nextPersonBtn" class="btn blink-all">➡ 下一位</button>
   </div>
 </div>
 
@@ -167,664 +153,410 @@
 <audio id="winSound" preload="auto" playsinline src="audio/win.mp3"></audio>
 
 <script>
-/* =========================
-   單機穩定A版（無 QR / 無 Viewer / 無 主持機鎖定）
-   - 第一輪：抽姓名
-   - 第二輪：抽經句（001-128）
-   - 看紅包：顯示 cards/###.png，播放 win.mp3
-   - PDF：以 Canvas 轉圖片嵌入 PDF（避免中文字亂碼）
-========================= */
+const HISTORY_KEY = "BLESSING_HISTORY_A_VISUAL_V1";
+const SYS = { READY:"READY", LOCKED:"LOCKED", R1_DONE:"R1_DONE", R2_DONE:"R2_DONE" };
 
-const HISTORY_KEY = "BLESSING_HISTORY_A_V1";
+let sysState = SYS.READY;
+let names = [];
+let remainingNames = [];
+let remainingVerses = [];
+let currentName = null;
+let currentVerse = null;
+let history = [];
 
-/** 取得經句引用文字（依你現有 verseRefMap.js） */
+const wheel = document.getElementById("wheel");
+const ctx = wheel.getContext("2d");
+let rotation = 0;
+let wheelItems = [];
+let rotating = false;
+let selectedIndex = null;
+
+function $(id){ return document.getElementById(id); }
+
 function getVerseRef(no){
-  try{
-    // 常見命名：verseRefMap["014"] = "..."
-    if (typeof verseRefMap === "object" && verseRefMap){
-      return verseRefMap[no] || "";
-    }
-  }catch{}
+  try{ if (typeof verseRefMap==="object") return verseRefMap[no]||""; }catch{}
   return "";
 }
 
-/** 產生 001..128 */
 function genVerses(){
-  const a=[];
-  for(let i=1;i<=128;i++) a.push(String(i).padStart(3,"0"));
-  return a;
+  const a=[]; for(let i=1;i<=128;i++) a.push(String(i).padStart(3,"0")); return a;
 }
 
-/** 小工具 */
-const $ = (id)=>document.getElementById(id);
-function setStatus(mode, text){
-  const bar = $("masterStatus");
-  bar.className = mode;
-  bar.querySelector(".label").textContent = text;
-}
-function safeAlert(msg){
-  try{ alert(msg); }catch{ console.log(msg); }
-}
-
-/** Audio unlock: 自動播被手機擋時，至少點一下就能播 */
-let audioUnlocked = false;
 function unlockAudioOnce(){
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  const a = $("winSound");
-  const b = $("drum");
-  [a,b].forEach(x=>{
-    if(!x) return;
+  document.removeEventListener("click", unlockAudioOnce);
+  ["winSound","drum"].forEach(id=>{
+    const a=$(id);
+    if(!a) return;
     try{
-      x.muted = true;
-      const p = x.play();
-      if (p && typeof p.then === "function"){
-        p.then(()=>{ x.pause(); x.currentTime = 0; x.muted=false; }).catch(()=>{ x.muted=false; });
-      }else{
-        x.pause(); x.currentTime=0; x.muted=false;
-      }
+      a.muted=true;
+      const p=a.play();
+      if(p&&p.then) p.then(()=>{a.pause();a.currentTime=0;a.muted=false;}).catch(()=>{a.muted=false;});
     }catch{}
   });
 }
 
-/** App state */
-const SYS = {
-  READY:"READY",
-  LOCKED:"LOCKED",
-  R1_DONE:"R1_DONE",
-  R2_DONE:"R2_DONE",
-};
-let sysState = SYS.READY;
+document.addEventListener("click", unlockAudioOnce, { once:true });
 
-let names = [];
-let remainingNames = [];
-let remainingVerses = genVerses();
-let currentName = null;
-let currentVerse = null;
+function formatTime(ts){
+  const d=new Date(ts);
+  return d.toLocaleTimeString("zh-TW",{hour12:false});
+}
 
-let history = []; // {name, verse, ref, ts}
+function loadHistory(){
+  try{ const r=localStorage.getItem(HISTORY_KEY); if(r) return JSON.parse(r)||[]; }catch{}
+  return [];
+}
+function saveHistory(){ try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); }catch{} }
 
-/** wheel drawing */
-const wheel = $("wheel");
-const ctx = wheel.getContext("2d");
-let rotation = 0; // radians
-let wheelItems = []; // current segments labels
-let wheelMode = "names"; // "names" | "verses"
-let rotating = false;
-let selectedIndex = null;
+function renderHistorySummary(){
+  if(!history.length) return "";
+  const lines=["📌 抽籤紀錄"];
+  history.forEach((h,i)=>{
+    const ref=h.ref?`（${h.ref}）`:"";
+    lines.push(`${String(i+1).padStart(2,"0")}. ${h.name} - ${h.verse} ${ref} ${formatTime(h.ts)}`);
+  });
+  return lines.join("\n");
+}
 
 function drawWheel(){
-  const w = wheel.width, h = wheel.height;
-  const r = Math.min(w,h)/2;
+  const w=wheel.width,h=wheel.height;
+  const r=w/2;
   ctx.clearRect(0,0,w,h);
-
-  // base circle
   ctx.save();
-  ctx.translate(w/2,h/2);
+  ctx.translate(r,r);
   ctx.rotate(rotation);
-
-  const n = Math.max(1, wheelItems.length);
-  const step = (Math.PI*2)/n;
+  const n=Math.max(1,wheelItems.length);
+  const step=(Math.PI*2)/n;
 
   for(let i=0;i<n;i++){
-    const start = i*step;
-    const end = start+step;
-
-    // alternating colors (do not hardcode fancy palette)
+    const s=i*step,e=s+step;
     ctx.beginPath();
     ctx.moveTo(0,0);
-    ctx.arc(0,0,r-2,start,end);
+    ctx.arc(0,0,r-2,s,e);
     ctx.closePath();
-    ctx.fillStyle = (i%2===0) ? "#ffe9b8" : "#fff6dc";
+    ctx.fillStyle=i%2?"#fff6dc":"#ffe9b8";
     ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(91,58,0,.18)";
+    ctx.strokeStyle="rgba(91,58,0,.2)";
     ctx.stroke();
 
-    // label
     ctx.save();
-    ctx.rotate(start + step/2);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#5b3a00";
-    ctx.font = (wheelMode==="names") ? "bold 14px 'Noto Sans TC', system-ui" : "bold 13px system-ui";
-    const label = wheelItems[i] ?? "";
-    ctx.fillText(label, r-14, 5);
+    ctx.rotate(s+step/2);
+    ctx.textAlign="right";
+    ctx.fillStyle="#5b3a00";
+    ctx.font="bold 14px system-ui";
+    ctx.fillText(wheelItems[i]||"", r-14, 6);
     ctx.restore();
   }
-
   ctx.restore();
 
-  // highlight selected segment at stop (draw overlay at absolute rotation=0)
-  if (selectedIndex != null && !rotating){
-    drawHighlight(selectedIndex);
+  if(selectedIndex!==null && !rotating){
+    highlightSegment(selectedIndex);
   }
 }
 
-function drawHighlight(index){
-  const w = wheel.width, h = wheel.height;
-  const r = Math.min(w,h)/2;
-  const n = Math.max(1, wheelItems.length);
-  const step = (Math.PI*2)/n;
-
-  // pointer is at top (angle -90° in canvas coordinates)
-  // convert pointer angle to wheel segment index:
-  // pointerAngleWorld = -Math.PI/2
-  // segmentIndex = floor( (normalize(pointerAngleWorld - rotation) / step) )
-  // But we already computed index; draw overlay wedge for visual.
+function highlightSegment(i){
+  const w=wheel.width,r=w/2;
+  const n=Math.max(1,wheelItems.length);
+  const step=(Math.PI*2)/n;
   ctx.save();
-  ctx.translate(w/2,h/2);
-
-  // compute wedge start/end in world coordinates
-  const start = index*step + rotation;
-  const end = start + step;
-
+  ctx.translate(r,r);
+  const s=i*step+rotation,e=s+step;
   ctx.beginPath();
   ctx.moveTo(0,0);
-  ctx.arc(0,0,r-2,start,end);
+  ctx.arc(0,0,r-2,s,e);
   ctx.closePath();
-  ctx.fillStyle = "rgba(255,193,7,.35)";
+  ctx.fillStyle="rgba(255,193,7,.35)";
   ctx.fill();
   ctx.restore();
 }
 
-/** Determine which index is under pointer (top) */
 function getIndexUnderPointer(){
-  const n = Math.max(1, wheelItems.length);
-  const step = (Math.PI*2)/n;
-  const pointer = -Math.PI/2;
-
-  // angle relative to wheel rotation
-  let a = pointer - rotation;
-  a = ((a % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2);
-  const idx = Math.floor(a / step);
-  return Math.max(0, Math.min(n-1, idx));
+  const n=Math.max(1,wheelItems.length);
+  const step=(Math.PI*2)/n;
+  const pointer=-Math.PI/2;
+  let a=pointer-rotation;
+  a=((a%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);
+  return Math.floor(a/step);
 }
 
-/** Spin animation */
-function spinOnce(onDone){
-  if (rotating) return;
-  rotating = true;
-  selectedIndex = null;
-  $("centerText").textContent = "轉動中…";
-  setStatus("warn", "轉動中");
+function spinOnce(cb){
+  if(rotating) return;
+  rotating=true;
+  selectedIndex=null;
+  $("centerText").textContent="轉動中…";
 
-  const audio = $("drum");
-  try{
-    if (audio){
-      audio.currentTime = 0;
-      audio.play().catch(()=>{ /* ignored */ });
-    }
-  }catch{}
+  try{ $("drum").currentTime=0; $("drum").play(); }catch{}
 
-  const startRot = rotation;
-  const extraTurns = 5 + Math.random()*3; // 5~8 turns
-  const targetDelta = extraTurns * Math.PI*2 + (Math.random()*Math.PI*2);
-  const duration = 4200 + Math.random()*800; // ms
-  const t0 = performance.now();
+  const start=rotation;
+  const delta=(5+Math.random()*3)*Math.PI*2+Math.random()*Math.PI*2;
+  const dur=4200+Math.random()*800;
+  const t0=performance.now();
 
-  function easeOutCubic(x){ return 1 - Math.pow(1-x, 3); }
+  function ease(x){ return 1-Math.pow(1-x,3); }
 
   function tick(t){
-    const p = Math.min(1, (t - t0) / duration);
-    const e = easeOutCubic(p);
-    rotation = startRot + targetDelta * e;
+    const p=Math.min(1,(t-t0)/dur);
+    rotation=start+delta*ease(p);
     drawWheel();
-    if (p < 1){
-      requestAnimationFrame(tick);
-    }else{
-      rotating = false;
-      try{ if (audio) audio.pause(); }catch{}
-      const idx = getIndexUnderPointer();
-      selectedIndex = idx;
+    if(p<1) requestAnimationFrame(tick);
+    else{
+      rotating=false;
+      try{$("drum").pause();}catch{}
+      selectedIndex=getIndexUnderPointer();
       drawWheel();
-      setStatus("ok", "單機版已就緒");
-      if (typeof onDone === "function") onDone(idx);
+      if(cb) cb(selectedIndex);
     }
   }
   requestAnimationFrame(tick);
 }
 
-/** UI state */
 function applyUI(){
-  const lockBtn = $("lockBtn");
-  const spinBtn = $("spinBtn");
-  const secondBtn = $("secondBtn");
-  const viewBtn = $("viewBtn");
-  const pdfBtn = $("pdfBtn");
-  const resetBtn = $("resetBtn");
-  const nameInput = $("nameInput");
+  $("spinBtn").disabled=true;
+  $("secondBtn").disabled=true;
+  $("viewBtn").disabled=true;
 
-  // reset blink
-  viewBtn.classList.remove("blink-all");
+  $("viewBtn").classList.remove("blink-all");
 
-  // default
-  spinBtn.disabled = true;
-  secondBtn.disabled = true;
-  viewBtn.disabled = true;
-
-  if (sysState === SYS.READY){
-    lockBtn.disabled = false;
-    nameInput.disabled = false;
-    $("status").textContent = "請輸入姓名並鎖定名單";
+  if(sysState===SYS.READY){
+    $("lockBtn").disabled=false;
+    $("nameInput").disabled=false;
+    $("status").textContent="請輸入姓名並鎖定名單";
   }
-  if (sysState === SYS.LOCKED){
-    lockBtn.disabled = true;
-    nameInput.disabled = true;
-    spinBtn.disabled = false;
-    $("status").textContent = `已鎖定名單（${remainingNames.length} 人）\n按「開始抽姓名（第一輪）」`;
+  if(sysState===SYS.LOCKED){
+    $("lockBtn").disabled=true;
+    $("nameInput").disabled=true;
+    $("spinBtn").disabled=false;
+    $("status").textContent=`已鎖定名單（${remainingNames.length} 人）\n按「開始抽姓名（第一輪）」`;
   }
-  if (sysState === SYS.R1_DONE){
-    lockBtn.disabled = true;
-    nameInput.disabled = true;
-    spinBtn.disabled = true;
-    secondBtn.disabled = false;
-    $("status").textContent = `第一輪完成：${currentName}\n按「抽紅包（第二輪）」抽經句`;
+  if(sysState===SYS.R1_DONE){
+    $("secondBtn").disabled=false;
+    $("status").textContent=`第一輪完成：${currentName}\n請按「抽紅包（第二輪）」`;
   }
-  if (sysState === SYS.R2_DONE){
-    lockBtn.disabled = true;
-    nameInput.disabled = true;
-    spinBtn.disabled = true;
-    secondBtn.disabled = true;
-    viewBtn.disabled = false;
-    viewBtn.classList.add("blink-all");
-    $("status").textContent = `第二輪完成：抽中經句「${currentVerse}」\n請按「看紅包」`;
+  if(sysState===SYS.R2_DONE){
+    $("viewBtn").disabled=false;
+    $("viewBtn").classList.add("blink-all");
+    const ref=getVerseRef(currentVerse);
+    $("status").textContent=`第二輪完成：抽中經句「${currentVerse}」\n${ref||""}`;
   }
 
-  // pdf enable
-  pdfBtn.disabled = history.length === 0;
-  pdfBtn.classList.toggle("btn-pdf-ready", history.length > 0);
-
-  // reset danger if history exists or locked
-  const danger = (history.length>0) || (sysState !== SYS.READY);
-  resetBtn.classList.toggle("btn-reset-danger", danger);
+  $("pdfBtn").disabled=!history.length;
+  $("pdfBtn").classList.toggle("btn-pdf-ready",history.length>0);
+  $("resetBtn").classList.toggle("btn-reset-danger",history.length>0||sysState!==SYS.READY);
 }
 
-/** load/save history */
-function loadHistory(){
-  try{
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (Array.isArray(arr)) return arr;
-  }catch{}
-  return [];
-}
-function saveHistory(){
-  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); }catch{}
-}
-
-/** lock names */
 function lockNames(){
   unlockAudioOnce();
-  const text = $("nameInput").value || "";
-  const parts = text
-    .split(/[\n,，\s]+/g)
-    .map(s=>s.trim())
-    .filter(Boolean);
+  const parts=$("nameInput").value.split(/[\n,，\s]+/).map(s=>s.trim()).filter(Boolean);
+  const seen=new Set();
+  names=[];
+  parts.forEach(p=>{ if(!seen.has(p)){seen.add(p);names.push(p);} });
+  if(!names.length){ alert("請至少輸入一位姓名"); return; }
 
-  // unique preserve order
-  const seen = new Set();
-  names = [];
-  for (const p of parts){
-    if (!seen.has(p)){
-      seen.add(p);
-      names.push(p);
-    }
-  }
-  if (names.length < 1){
-    safeAlert("請先輸入至少 1 位姓名");
-    return;
-  }
-  remainingNames = names.slice();
-  remainingVerses = genVerses();
-  currentName = null;
-  currentVerse = null;
-  sysState = SYS.LOCKED;
+  remainingNames=[...names];
+  remainingVerses=genVerses();
+  currentName=null;
+  currentVerse=null;
+  sysState=SYS.LOCKED;
 
-  // show names wheel
-  wheelMode = "names";
-  wheelItems = remainingNames.slice();
-  rotation = 0;
-  selectedIndex = null;
-  $("centerText").textContent = "第一輪：抽姓名";
-  $("result").textContent = "";
-  $("summaryBox").textContent = renderHistorySummary();
+  wheelItems=[...remainingNames];
+  rotation=0;
+  selectedIndex=null;
+  $("centerText").textContent="第一輪：抽姓名";
+  $("result").textContent="";
+  $("summaryBox").textContent=renderHistorySummary();
   drawWheel();
   applyUI();
 }
 
-/** round 1: pick name */
 function startRound1(){
   unlockAudioOnce();
-  if (remainingNames.length === 0){
-    safeAlert("名單已抽完。可按「全部歸零」重新開始。");
-    return;
-  }
-  wheelMode = "names";
-  wheelItems = remainingNames.slice();
-  selectedIndex = null;
+  wheelItems=[...remainingNames];
   drawWheel();
-  spinOnce((idx)=>{
-    currentName = remainingNames[idx];
-    // remove name
-    remainingNames.splice(idx,1);
-
-    $("result").textContent = `✅ 第一輪：抽中「${currentName}」`;
-    $("centerText").textContent = `第一輪完成\n${currentName}`;
-    sysState = SYS.R1_DONE;
+  spinOnce(i=>{
+    currentName=remainingNames[i];
+    remainingNames.splice(i,1);
+    $("result").textContent=`✅ 第一輪：抽中「${currentName}」`;
+    $("centerText").textContent=`第一輪完成\n${currentName}`;
+    sysState=SYS.R1_DONE;
     applyUI();
   });
 }
 
-/** round 2: pick verse */
 function startRound2(){
   unlockAudioOnce();
-  if (!currentName){
-    safeAlert("請先完成第一輪（抽姓名）");
-    return;
-  }
-  if (remainingVerses.length === 0){
-    safeAlert("經句已抽完。可按「全部歸零」重新開始。");
-    return;
-  }
-
-  wheelMode = "verses";
-  wheelItems = remainingVerses.slice();
-  selectedIndex = null;
-  $("centerText").textContent = "第二輪：抽經句";
+  wheelItems=[...names];
   drawWheel();
-
-  spinOnce((idx)=>{
-    currentVerse = remainingVerses[idx];
+  spinOnce(()=>{
+    const idx=Math.floor(Math.random()*remainingVerses.length);
+    currentVerse=remainingVerses[idx];
     remainingVerses.splice(idx,1);
 
-    const ref = getVerseRef(currentVerse);
-    const ts = new Date().toISOString();
-
-    history.push({ name: currentName, verse: currentVerse, ref, ts });
+    const ref=getVerseRef(currentVerse);
+    const ts=Date.now();
+    history.push({name:currentName,verse:currentVerse,ref,ts});
     saveHistory();
 
-    $("result").textContent =
-      `✅ 第二輪：${currentName} 抽中經句「${currentVerse}」` +
-      (ref ? `\n📖 ${ref}` : "");
-
-    $("centerText").textContent =
-      `${currentVerse}\n` + (ref ? ref : "");
-
-    $("summaryBox").textContent = renderHistorySummary();
-
-    sysState = SYS.R2_DONE;
+    $("result").textContent="";
+    $("summaryBox").textContent=renderHistorySummary();
+    sysState=SYS.R2_DONE;
     applyUI();
   });
-}
-
-/** show envelope */
-function playWin(){
-  const win = $("winSound");
-  if (!win) return;
-  try{
-    win.currentTime = 0;
-    win.play().catch(()=>{
-      // 被擋：提示使用者點一下（但不要讓流程中斷）
-      $("status").textContent += "\n（若無聲音：請輕點螢幕一下再按一次「看紅包」）";
-    });
-  }catch{}
 }
 
 function showEnvelope(){
-  unlockAudioOnce();
-  if (!currentVerse){
-    safeAlert("尚未抽出經句");
-    return;
-  }
-  const panel = $("redEnvelopePanel");
-  const img = $("envelopeImg");
-  const label = $("envelopeVerse");
-  const refEl = $("envelopeRef");
-
-  const ref = getVerseRef(currentVerse);
-  label.textContent = currentVerse;
-  refEl.textContent = ref ? `📖 ${ref}` : "";
-
-  img.onload = ()=>{ panel.style.display = "block"; playWin(); };
-  img.onerror = ()=>{ safeAlert("找不到圖片：cards/" + currentVerse + ".png"); };
-  img.src = "cards/" + currentVerse + ".png";
+  $("viewBtn").classList.remove("blink-all");
+  const img=$("envelopeImg");
+  const ref=getVerseRef(currentVerse);
+  $("envelopeVerse").textContent=currentVerse;
+  $("envelopeRef").textContent=ref?`📖 ${ref}`:"";
+  img.onload=()=>{ $("redEnvelopePanel").style.display="block"; try{$("winSound").play();}catch{} };
+  img.onerror=()=>alert("找不到圖片 cards/"+currentVerse+".png");
+  img.src="cards/"+currentVerse+".png";
 }
 
-/** download envelope image */
 function downloadEnvelope(){
-  const img = $("envelopeImg");
-  if (!img || !img.complete){
-    safeAlert("圖片尚未載入完成");
-    return;
-  }
-  const canvas = document.createElement("canvas");
-  const c = canvas.getContext("2d");
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-  c.drawImage(img, 0, 0);
-  canvas.toBlob((blob)=>{
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `verse_${currentVerse}.png`;
-    document.body.appendChild(a);
+  const img=$("envelopeImg");
+  if(!img.complete){ alert("圖片尚未載入完成"); return; }
+  const c=document.createElement("canvas");
+  c.width=img.naturalWidth;
+  c.height=img.naturalHeight;
+  c.getContext("2d").drawImage(img,0,0);
+  c.toBlob(b=>{
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(b);
+    a.download="verse_"+currentVerse+".png";
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   });
 }
 
-/** next person */
 function nextPerson(){
-  $("redEnvelopePanel").style.display = "none";
-  currentName = null;
-  currentVerse = null;
-  sysState = SYS.LOCKED;
-
-  // back to names wheel for next person
-  wheelMode = "names";
-  wheelItems = remainingNames.slice();
-  selectedIndex = null;
-  $("centerText").textContent = "第一輪：抽姓名";
-  $("result").textContent = "";
+  $("redEnvelopePanel").style.display="none";
+  currentName=null;
+  currentVerse=null;
+  sysState=SYS.LOCKED;
+  wheelItems=[...remainingNames];
+  $("centerText").textContent="第一輪：抽姓名";
   drawWheel();
   applyUI();
-
-  if (remainingNames.length === 0){
-    $("status").textContent = "✅ 全部姓名已抽完。可按「抽籤紀錄 PDF」或「全部歸零」。";
-    $("spinBtn").disabled = true;
-  }
 }
 
-/** history summary */
-function renderHistorySummary(){
-  if (!history.length) return "";
-  const lines = [];
-  lines.push("📌 抽籤紀錄");
-  history.forEach((h, i)=>{
-    const ref = h.ref ? `（${h.ref}）` : "";
-    lines.push(`${String(i+1).padStart(2,"0")}. ${h.name} － ${h.verse} ${ref}`);
-  });
-  return lines.join("\n");
-}
-
-/** PDF export: render to canvas then embed image */
-async function exportPDF(){
-  unlockAudioOnce();
-  if (!history.length){
-    safeAlert("目前沒有紀錄");
-    return;
-  }
-  const { jsPDF } = window.jspdf || {};
-  if (!jsPDF){
-    safeAlert("PDF 引擎載入失敗（jsPDF）");
-    return;
-  }
-
-  setStatus("warn", "PDF 產生中…");
-
-  // canvas render
-  const pageW = 1240;
-  const pageH = 1754; // approx A4 @150dpi
-  const margin = 70;
-  const lineH = 42;
-
-  function renderPage(pageIndex, rows){
-    const c = document.createElement("canvas");
-    c.width = pageW; c.height = pageH;
-    const g = c.getContext("2d");
-
-    // bg
-    g.fillStyle = "#ffffff";
-    g.fillRect(0,0,pageW,pageH);
-
-    // header
-    g.fillStyle = "#111";
-    g.font = "bold 44px 'Noto Sans TC', system-ui";
-    g.fillText("祝福經句紅包－抽籤紀錄", margin, margin+20);
-
-    g.font = "24px 'Noto Sans TC', system-ui";
-    const now = new Date();
-    g.fillStyle = "#444";
-    g.fillText(`產生時間：${now.toLocaleString()}`, margin, margin+65);
-
-    // table header
-    let y = margin + 120;
-    g.fillStyle = "#000";
-    g.font = "bold 28px 'Noto Sans TC', system-ui";
-    g.fillText("No.", margin, y);
-    g.fillText("姓名", margin+110, y);
-    g.fillText("經句", margin+430, y);
-    g.fillText("引用", margin+560, y);
-
-    // divider
-    g.strokeStyle = "rgba(0,0,0,.15)";
-    g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(margin, y+12);
-    g.lineTo(pageW-margin, y+12);
-    g.stroke();
-
-    // rows
-    y += 55;
-    g.font = "26px 'Noto Sans TC', system-ui";
-    rows.forEach((h, i)=>{
-      const no = pageIndex*rowsPerPage + i + 1;
-      const ref = h.ref || "";
-      g.fillStyle = "#111";
-      g.fillText(String(no), margin, y);
-      g.fillText(h.name, margin+110, y);
-      g.fillText(h.verse, margin+430, y);
-
-      // ref wrap
-      const maxWidth = pageW - (margin+560) - margin;
-      const refLines = wrapText(g, ref, maxWidth);
-      refLines.slice(0,2).forEach((ln, k)=>{
-        g.fillText(ln, margin+560, y + k*30);
-      });
-
-      y += lineH;
-      if (y > pageH - margin - 60) return;
-    });
-
-    // footer
-    g.fillStyle = "#666";
-    g.font = "22px 'Noto Sans TC', system-ui";
-    g.fillText(`頁 ${pageIndex+1}`, pageW - margin - 90, pageH - margin);
-    return c;
-  }
-
-  function wrapText(g, text, maxWidth){
-    if (!text) return [""];
-    const words = text.split("");
-    const lines = [];
-    let line = "";
-    for (const ch of words){
-      const test = line + ch;
-      if (g.measureText(test).width > maxWidth && line){
-        lines.push(line);
-        line = ch;
-      }else{
-        line = test;
-      }
-    }
-    if (line) lines.push(line);
-    return lines;
-  }
-
-  const rowsPerPage = 28;
-  const totalPages = Math.ceil(history.length / rowsPerPage);
-
-  const pdf = new jsPDF({ orientation:"p", unit:"pt", format:"a4" });
-
-  for (let p=0;p<totalPages;p++){
-    const rows = history.slice(p*rowsPerPage, (p+1)*rowsPerPage);
-    const canvas = renderPage(p, rows);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    if (p>0) pdf.addPage();
-    // fit A4 in points: 595x842
-    pdf.addImage(dataUrl, "JPEG", 0, 0, 595, 842);
-  }
-
-  pdf.save("BlessingCards128_Record_A.pdf");
-  setStatus("ok", "單機版已就緒");
-}
-
-/** reset */
 function resetAll(){
-  unlockAudioOnce();
-  if (!confirm("確定要全部歸零？（將清除抽籤紀錄與目前狀態）")) return;
-
-  history = [];
-  saveHistory();
-
-  names = [];
-  remainingNames = [];
-  remainingVerses = genVerses();
-  currentName = null;
-  currentVerse = null;
-  sysState = SYS.READY;
-
-  $("nameInput").value = "";
-  $("redEnvelopePanel").style.display = "none";
-  $("result").textContent = "";
-  $("summaryBox").textContent = "";
-  $("centerText").textContent = "";
-  wheelItems = [];
-  rotation = 0;
-  selectedIndex = null;
+  if(!confirm("確定全部歸零？")) return;
+  localStorage.removeItem(HISTORY_KEY);
+  history=[];
+  names=[];
+  remainingNames=[];
+  remainingVerses=genVerses();
+  currentName=null;
+  currentVerse=null;
+  sysState=SYS.READY;
+  $("nameInput").value="";
+  $("summaryBox").textContent="";
+  $("result").textContent="";
+  $("redEnvelopePanel").style.display="none";
+  wheelItems=[];
   drawWheel();
   applyUI();
 }
 
-/** bind */
-document.addEventListener("click", unlockAudioOnce, { once:true });
+async function exportPDF(){
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){ alert("PDF 引擎載入失敗"); return; }
+  const pdf=new jsPDF();
+  pdf.text("BlessingCards128 Record",20,20);
+  let y=40;
+  history.forEach((h,i)=>{
+    const line=`${i+1}. ${h.name} - ${h.verse} ${h.ref||""} ${formatTime(h.ts)}`;
+    pdf.text(line,20,y);
+    y+=10;
+    if(y>270){ pdf.addPage(); y=20; }
+  });
+  pdf.save("BlessingCards128_Record_A.pdf");
+}
 
-$("lockBtn").addEventListener("click", lockNames);
-$("spinBtn").addEventListener("click", startRound1);
-$("secondBtn").addEventListener("click", startRound2);
-$("viewBtn").addEventListener("click", showEnvelope);
-$("downloadEnvelopeBtn").addEventListener("click", downloadEnvelope);
-$("nextPersonBtn").addEventListener("click", nextPerson);
-$("pdfBtn").addEventListener("click", exportPDF);
-$("resetBtn").addEventListener("click", resetAll);
+$("lockBtn").onclick=lockNames;
+$("spinBtn").onclick=startRound1;
+$("secondBtn").onclick=startRound2;
+$("viewBtn").onclick=showEnvelope;
+$("downloadEnvelopeBtn").onclick=downloadEnvelope;
+$("nextPersonBtn").onclick=nextPerson;
+$("pdfBtn").onclick=exportPDF;
+$("resetBtn").onclick=resetAll;
 
-/** init */
 (function init(){
-  history = loadHistory();
-  $("summaryBox").textContent = renderHistorySummary();
-
-  // initial wheel placeholder
-  wheelItems = [];
-  rotation = 0;
-  $("centerText").textContent = "請先鎖定名單";
+  history=loadHistory();
+  $("summaryBox").textContent=renderHistorySummary();
+  $("centerText").textContent="請先鎖定名單";
   drawWheel();
-
-  // initial UI
   applyUI();
 })();
+
+/* ===============================
+   🎆 煙火 / 彩帶動畫（單機穩定版）
+   只在中獎與顯示紅包時觸發
+=============================== */
+const confettiCanvas = document.getElementById("confettiCanvas");
+const cctx = confettiCanvas.getContext("2d");
+let particles = [];
+
+function resizeConfetti(){
+  confettiCanvas.width = confettiCanvas.offsetWidth;
+  confettiCanvas.height = confettiCanvas.offsetHeight;
+}
+window.addEventListener("resize", resizeConfetti);
+resizeConfetti();
+
+function spawnConfetti(count = 80){
+  particles = [];
+  const w = confettiCanvas.width;
+  const h = confettiCanvas.height;
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: w/2,
+      y: h/2,
+      vx: (Math.random()*2-1) * (3+Math.random()*4),
+      vy: (Math.random()*2-1) * (3+Math.random()*4),
+      size: 4 + Math.random()*4,
+      life: 60 + Math.random()*40,
+      color: `hsl(${Math.random()*360},90%,60%)`
+    });
+  }
+}
+
+function drawConfetti(){
+  cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  particles.forEach(p=>{
+    cctx.fillStyle = p.color;
+    cctx.fillRect(p.x, p.y, p.size, p.size);
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+  });
+  particles = particles.filter(p=>p.life>0);
+  if(particles.length>0){
+    requestAnimationFrame(drawConfetti);
+  }
+}
+
+// Hook into events
+const _origShowEnvelope = showEnvelope;
+showEnvelope = function(){
+  spawnConfetti(120);
+  drawConfetti();
+  _origShowEnvelope();
+};
+
+const _origStartRound2 = startRound2;
+startRound2 = function(){
+  _origStartRound2();
+  setTimeout(()=>{
+    spawnConfetti(60);
+    drawConfetti();
+  }, 4300);
+};
+
 </script>
 </body>
 </html>
