@@ -180,7 +180,7 @@ body{
 
 <body>
 
-<img id="logo" class="logo" alt="LOGO">
+<img id="logo" class="logo" src="logo3524.png" alt="LOGO">
 
 <h2>祝福經句紅包（應許等您拿）</h2>
 
@@ -237,8 +237,11 @@ body{
 
   console.log("🔥 BlessingCards128 資源暖機中...");
 
-/* ===== 1️⃣ LOGO（桌機直載 / 手機預載） ===== */
-const logoEl = document.getElementById("logo");
+/* ===== 1️⃣ LOGO 快取預載（穩定版） ===== */
+(function(){
+  const img = new Image();
+  img.src = "logo3524.png";
+})();
 
 if (logoEl) {
   // 桌機：直接顯示，最快最穩
