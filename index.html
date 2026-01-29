@@ -243,23 +243,6 @@ body{
   img.src = "logo3524.png";
 })();
 
-if (logoEl) {
-  // 桌機：直接顯示，最快最穩
-  if (window.innerWidth > 768) {
-    logoEl.src = "logo3524.png";
-    console.log("🖥️ LOGO direct load (desktop)");
-  }
-  // 手機：預載後再顯示，避免慢顯或閃爍
-  else {
-    const preloadLogo = new Image();
-    preloadLogo.src = "logo3524.png";
-    preloadLogo.onload = () => {
-      logoEl.src = preloadLogo.src;
-      console.log("📱 LOGO loaded from cache (mobile)");
-    };
-  }
-}
-
   /* ===== 2️⃣ 音效 ===== */
   const preloadDrum = new Audio();
   preloadDrum.src = "audio/drum.mp3";
