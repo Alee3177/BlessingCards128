@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>祝福經句紅包</title>
 
+<link rel="preload" as="image" href="logo3524.png">
+
 <style>
 body{
   font-family:"Noto Sans TC",system-ui;
@@ -98,11 +100,28 @@ body{
   color: #8a5a00;
 }
 
-/* 📱 手機專用放大模式 */
+/* 📱 智慧手機自適應顯示（小機不爆、大機不浪費） */
 @media (max-width: 768px) {
-  #imgVerse{
-    width: 98vw;
-    max-height: 90vh;
+  #imgVerse {
+    display: block;
+    margin: 0 auto;
+
+    /* 寬度會在 90vw ~ 100vw 之間自動調整 */
+    width: clamp(90vw, 96vw, 100vw);
+
+    /* 高度限制在螢幕高度內，避免超出 */
+    max-height: clamp(70vh, 85vh, 92vh);
+
+    height: auto;
+    object-fit: contain;
+
+    /* 視覺微放大（自適應） */
+    transform: scale(clamp(1.05, 1.12, 1.2));
+    transform-origin: top center;
+  }
+
+  body {
+    overflow-x: hidden;
   }
 }
 
@@ -118,6 +137,21 @@ body{
 <body>
 
 <h2>祝福經句紅包（應許等您拿）</h2>
+
+<!-- =============================
+ ⚡ LOGO 顯示區
+============================= -->
+<img
+  id="logo"
+  src=""
+  alt="LOGO"
+  style="
+    display:block;
+    max-width:160px;
+    margin:10px auto 6px auto;
+    border-radius:8px;
+  "
+>
 
 <div id="infoBox"></div>
 
@@ -139,6 +173,39 @@ body{
 </div>
 
 <script>
+
+// =============================
+// ⚡ LOGO 預載快取（防慢顯示）
+// =============================
+let logoCache = null;
+
+function preloadLogo() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = "logo3524.png";
+    img.onload = () => {
+      logoCache = img;
+      resolve();
+    };
+    img.onerror = resolve;
+  });
+}
+
+// 開頁就先抓
+const logoPromise = preloadLogo();
+
+// =============================
+// 🧲 套用快取到畫面 LOGO
+// =============================
+document.addEventListener("DOMContentLoaded", async () => {
+  await preloadLogo();
+
+  const logoEl = document.getElementById("logo");
+  if (logoEl && logoCache) {
+    logoEl.src = logoCache.src;
+    console.log("⚡ LOGO loaded from cache");
+  }
+});
 
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
