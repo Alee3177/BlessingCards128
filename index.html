@@ -158,157 +158,6 @@ body{
   box-shadow:0 0 8px rgba(198,40,40,.8);
 }
 
-/* ===== 主持機 / 觀眾狀態面板 ===== */
-#hostPanel {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  background: rgba(0,0,0,0.75);
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  z-index: 9999;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-}
-
-#hostStatus.ok {
-  color: #4caf50;
-  font-weight: bold;
-}
-
-#hostStatus.warn {
-  color: #ffb300;
-  font-weight: bold;
-}
-
-#viewerStatus.ok {
-  color: #03a9f4;
-}
-
-#viewerStatus.warn {
-  color: #aaa;
-}
-
-/* =========================
-   📱 QR Panel（穩定合併版）
-========================= */
-#qrBox {
-  margin-top: 8px;
-  text-align: center;
-  width: 200px;
-  max-width: 200px;
-  padding: 10px;
-  box-sizing: border-box;
-  cursor: pointer;
-}
-
-/* QR 本體尺寸 */
-#qrCanvas {
-  width: 160px;
-  height: 160px;
-  margin: 0 auto;
-}
-
-/* 保證 QR 不會溢出 */
-#qrCanvas canvas,
-#qrCanvas img {
-  max-width: 160px;
-  max-height: 160px;
-  display: block;
-  margin: 0 auto;
-  border-radius: 8px;
-  background: #fff;
-  padding: 6px;
-}
-
-.qr-title {
-  font-size: 13px;
-  margin-bottom: 4px;
-  color: #ffd54f;
-  font-weight: bold;
-}
-
-.qr-hint {
-  font-size: 11px;
-  opacity: 0.85;
-  margin-top: 2px;
-}
-
-/* 手機 QR 縮小模式 */
-@media (max-width: 768px) {
-  #hostPanel {
-    transform: scale(0.75);
-    transform-origin: top right;
-  }
-}
-
-/* 收合狀態 */
-#qrBox.collapsed #qrCanvas,
-#qrBox.collapsed .qr-hint,
-#qrBox.collapsed button {
-  display: none;
-}
-
-#qrBox.collapsed::after {
-  content: "📱 點我展開 QR";
-  display: block;
-  color: #ffd54f;
-  font-size: 12px;
-  margin-top: 6px;
-}
-
-/* 看紅包閃爍提示 */
-.blink-all {
-  animation: blinkPulse 1s infinite;
-}
-
-/* ============================= */
-/* 主操作按鈕統一閃爍樣式 */
-/* ============================= */
-@keyframes mainBlink {
-  0% {
-    background-color: #f6c453;
-    color: #000;
-    box-shadow: 0 0 0 rgba(255,193,7,0.0);
-    transform: scale(1);
-  }
-  50% {
-    background-color: #ffeb99;
-    color: #8b0000;
-    box-shadow: 0 0 16px rgba(255,200,0,0.9);
-    transform: scale(1.05);
-  }
-  100% {
-    background-color: #f6c453;
-    color: #000;
-    box-shadow: 0 0 0 rgba(255,193,7,0.0);
-    transform: scale(1);
-  }
-}
-
-.blink-all {
-  animation: mainBlink 1s infinite;
-}
-
-/* 管理功能 - 強制解除主持機 */
-.danger-btn {
-  background: #b00020;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  margin-top: 8px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.danger-btn:hover {
-  background: #d00030;
-}
-
 </style>
 
 <script src="verseRefMap.js?v=20260105"></script>
@@ -316,21 +165,11 @@ body{
 <!-- ① jsPDF 主程式 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<!-- ② QRCode 本地引擎（一定要在 QR 程式碼前） -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
 </head>
 
 <body>
 
-<img
-  src="logo3524.png"
-  class="logo"
-  loading="eager"
-  decoding="async"
-  onerror="this.style.display='none'; console.warn('⚠ logo3524.png 載入失敗');"
-/>
-
+<img src="logo3524.png" class="logo" />
 <h2>祝福經句紅包（應許等您拿）</h2>
 
 <div id="masterStatus" class="status-bar">
@@ -358,13 +197,6 @@ body{
   <button id="pdfBtn" class="btn" disabled>抽籤紀錄 PDF</button>
 </div>
 
-<!-- 管理功能 -->
-<div class="btn-row admin-row">
-  <button id="btnForceRelease" class="danger-btn">
-    🔓 強制解除主持機佔用
-  </button>
-</div>
-
 <div id="wheel-container">
   <canvas id="wheel" width="360" height="360"></canvas>
   <canvas id="confettiCanvas" width="360" height="360"></canvas>
@@ -376,26 +208,11 @@ body{
 <div id="result"></div>
 <div id="summaryBox"></div>
 
-<div id="hostPanel">
-  <div id="hostStatus">🎤 主持機離線</div>
-  <div id="viewerStatus">👥 尚無觀眾</div>
-
-  <!-- ⭐ QR Code 區 -->
-<div id="qrBox">
-  <div class="qr-title">📱 掃碼看紅包</div>
-  <div id="qrCanvas"></div>
-  <div class="qr-hint">請用手機掃描</div>
-
-  <button id="copyViewerLink" class="qr-copy-btn">
-    📋 複製看紅包連結
-  </button>
-</div>
-
-<audio id="drum" preload="auto" playsinline src="audio/drum.mp3">
+<audio id="drum" preload="auto" playsinline>
   <source src="audio/drum.mp3" type="audio/mpeg">
 </audio>
 
-<audio id="winSound" preload="auto" playsinline src="audio/win.mp3">
+<audio id="winSound" preload="auto" playsinline>
   <source src="audio/win.mp3" type="audio/mpeg">
 </audio>
 
@@ -404,68 +221,12 @@ body{
   預載 LOGO / 音效 / 紅包圖片
 ================================ -->
 <script>
-/* ==== 主控旗標 ==== */
-const IS_MASTER = true;
-
-/* ==== 開發 / 現場控制 ==== */
-const DISABLE_MASTER_LOCK = false;
-
-/* ==== 主持機鎖定識別（防多主持） ==== */
-const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
-const HEARTBEAT_TTL = 5000; // 5 秒內視為「活躍主持機」
-
-const MASTER_KEY = "BLESSING_MASTER";
-
-function claimMaster() {
-  const now = Date.now();
-  const current = JSON.parse(localStorage.getItem(MASTER_KEY) || "null");
-
-  if (!current || now - current.heartbeat > HEARTBEAT_TTL) {
-    localStorage.setItem(MASTER_KEY, JSON.stringify({
-      tabId: TAB_ID,
-      heartbeat: now
-    }));
-    return true;
-  }
-
-  return current.tabId === TAB_ID;
-}
-
-function heartbeatMaster() {
-  if (!IS_MASTER) return;
-  localStorage.setItem(MASTER_KEY, JSON.stringify({
-    tabId: TAB_ID,
-    heartbeat: Date.now()
-  }));
-}
-
-setInterval(heartbeatMaster, 2000);
-
-// 🧹 關閉/刷新分頁時釋放主持鎖（避免長時間卡住）
-window.addEventListener("beforeunload", () => {
-  try {
-    const cur = JSON.parse(localStorage.getItem(MASTER_KEY) || "null");
-    if (cur && cur.tabId === TAB_ID) localStorage.removeItem(MASTER_KEY);
-  } catch {}
-});
-
-// ✅ 切到背景也維持心跳（手機鎖屏常見）
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) heartbeatMaster();
-});
-
 (function preloadResources(){
 
   console.log("🔥 BlessingCards128 資源暖機中...");
 
   /* ===== 1️⃣ LOGO ===== */
   const preloadLogo = new Image();
-  preloadLogo.onload = () => {
-    console.log("✅ LOGO 預載完成");
-  };
-  preloadLogo.onerror = () => {
-    console.warn("⚠ LOGO 預載失敗：logo3524.png");
-  };
   preloadLogo.src = "logo3524.png";
 
   /* ===== 2️⃣ 音效 ===== */
@@ -477,8 +238,8 @@ document.addEventListener("visibilitychange", () => {
   preloadWin.src = "audio/win.mp3";
   preloadWin.load();
 
-  /* ===== 3️⃣ 紅包圖片（手機降載）===== */
-  const MAX_PRELOAD = (window.innerWidth < 768 ? 24 : 128);
+  /* ===== 3️⃣ 紅包圖片（001–128）===== */
+  const MAX_PRELOAD = 128;
   const loaded = { count: 0 };
 
   for (let i = 1; i <= MAX_PRELOAD; i++) {
@@ -488,7 +249,7 @@ document.addEventListener("visibilitychange", () => {
     img.onload = () => {
       loaded.count++;
       if (loaded.count === MAX_PRELOAD) {
-        console.log(`✅ 紅包圖片暖機完成（${MAX_PRELOAD} 張）`);
+        console.log("✅ 所有紅包圖片已暖機完成（001–128）");
       }
     };
 
@@ -500,103 +261,21 @@ document.addEventListener("visibilitychange", () => {
   }
 
 })();
+</script>
 
-// =============================
-// 📱 QR Code 自動產生（主持機｜商用穩定版）
-// =============================
-(function initQRCode(){
-  let initialized = false;
-
-  function run() {
-    if (initialized) return;
-    initialized = true;
-
-    const qrImg = document.getElementById("qrImg");
-    if (!qrImg) {
-      console.warn("⚠ 找不到 qrImg（Host Panel 尚未渲染）");
-      return;
-    }
-
-    // GitHub Pages / 子目錄安全路徑
-    const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/");
-    const viewerUrl = base + "viewer.html";
-
-    // QR API（防快取 + 正確參數格式）
-    const qrApi =
-      "https://api.qrserver.com/v1/create-qr-code/" +
-      "?cache=0" +
-      "&size=200x200" +
-      "&margin=8" +
-      "&data=" + encodeURIComponent(viewerUrl);
-
-    // 防止重設 src 閃爍
-    if (!qrImg.src || !qrImg.src.includes("api.qrserver.com")) {
-      qrImg.src = qrApi;
-    }
-
-    // 🛟 QR 掛掉保命
-    qrImg.onerror = () => {
-      qrImg.alt = "請手動輸入 viewer.html 開啟";
-      console.warn("⚠ QR API 載入失敗，請手動開啟：", viewerUrl);
-    };
-
-    console.log("📱 QR Code ready:", viewerUrl);
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-})();
-
-
+<script>
 (function(){
 
-// =============================
-// 🔒 防作弊（安全版）
-// =============================
-(function lockInputCheat(){
-  document.addEventListener("keydown", function(e) {
-    // 允許 F12 / F5 / 系統快捷鍵
-    if (
-      e.key === "F12" ||
-      e.key === "F5" ||
-      e.ctrlKey ||
-      e.metaKey
-    ) return;
-
-    e.preventDefault();
-  }, true);
-
-  document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-  }, true);
-})();
-
-// =============================
-// 🔒 防作弊：禁止鍵盤 + 右鍵
-// =============================
 let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
 
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
-const ctx = wheel ? wheel.getContext("2d") : null;
-
-if (!wheel || !ctx) {
-  console.warn("⚠ Wheel canvas not ready");
-}
+const ctx   = wheel.getContext("2d");
 const hlSVG = document.getElementById("hl-svg");
 const centerText = document.getElementById("centerText");
 
 const confettiCanvas = document.getElementById("confettiCanvas");
-const confCtx = confettiCanvas
-  ? confettiCanvas.getContext("2d")
-  : null;
-
-if (!confettiCanvas || !confCtx) {
-  console.warn("⚠ Confetti canvas not ready");
-}
+const confCtx = confettiCanvas.getContext("2d");
 
 const lockBtn   = document.getElementById("lockBtn");
 const spinBtn   = document.getElementById("spinBtn");
@@ -613,76 +292,41 @@ const summaryBox = document.getElementById("summaryBox");
 const drum = document.getElementById("drum");
 const winSound = document.getElementById("winSound");
 
-// ✅ 行動裝置音效解鎖：第一次點擊就解鎖（避免 drum 無聲）
-document.addEventListener("pointerdown", unlockAudio, { capture: true });
+/* ==== 音效解鎖（只需一次） ==== */
 let audioUnlocked = false;
 
-// =============================
-// 🔓 音效解鎖
-// =============================
 function unlockAudio() {
   if (audioUnlocked) return;
 
   try {
-    const a1 = document.getElementById("drum");
-    const a2 = document.getElementById("winSound");
-
-    if (a1) {
-      a1.muted = true;
-      a1.play().then(() => {
-        a1.pause();
-        a1.currentTime = 0;
-        a1.muted = false;
-        audioUnlocked = true;
-        console.log("🔓 Audio unlocked");
-      }).catch(() => {});
-    }
-
-    if (a2) {
-      a2.muted = true;
-      a2.play().then(() => {
-        a2.pause();
-        a2.currentTime = 0;
-        a2.muted = false;
-      }).catch(() => {});
-    }
+    winSound.muted = true;
+    winSound.play().then(() => {
+      winSound.pause();
+      winSound.currentTime = 0;
+      winSound.muted = false;
+      audioUnlocked = true;
+      console.log("🔓 Audio unlocked");
+    });
   } catch (e) {
-    console.warn("unlockAudio failed", e);
+    console.log("Audio unlock failed:", e);
   }
 }
 
-// =============================
-// 🔊 統一鼓聲播放入口（全站唯一）
-// =============================
-function playDrum() {
-  const drum = document.getElementById("drum");
-  if (!drum) {
-    console.warn("🔇 <audio id='drum'> not found");
-    return;
-  }
+/* ==== 主控旗標 ==== */
+const IS_MASTER = true;
 
-  try {
-    console.log("🔊 playDrum called at", Date.now());
-    unlockAudio();        // 🔓 確保已解鎖
-    drum.currentTime = 0;
-
-    const p = drum.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(err => {
-        console.warn("🔇 drum blocked, retry unlock", err);
-        unlockAudio();
-      });
-    }
-  } catch (e) {
-    console.warn("🔇 drum exception", e);
-  }
-}
+/* ==== 開發 / 現場控制 ==== */
+const DISABLE_MASTER_LOCK = true;
 
 /* ==== 狀態變數 ==== */
 let names = [];
 let usedName = new Set();
 let verseUsed = new Set();
 let round2Started = false; // ✅ 第二輪是否已經被按過
+
+/* ==== 商用級分頁識別 ==== */
+const TAB_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+const HEARTBEAT_TTL = 5000; // 5 秒內視為「活躍分頁」
 
 let rotation = 0;
 let rotating = false;
@@ -705,50 +349,9 @@ const SYS_STATE = {
  };
 let lastHeartbeat = Date.now();
 let systemState = SYS_STATE.INIT;
-    nameInput.disabled = false;
 let lastActionAt = 0;   // 防連點節流用
 
 const statusBar = document.getElementById("masterStatus");
-
-// =============================
-// 👥 Viewer 即時統計顯示（主持機）
-// =============================
-const VIEWER_KEY = "BLESSING_VIEWERS";
-const VIEWER_TTL = 30000; // 30 秒沒心跳就踢掉
-
-function updateViewerCount() {
-  const now = Date.now();
-  let viewers = {};
-  let count = 0;
-
-  try {
-    viewers = JSON.parse(localStorage.getItem(VIEWER_KEY) || "{}");
-  } catch {
-    viewers = {};
-  }
-
-  // 清掉過期 viewer
-  Object.keys(viewers).forEach(id => {
-    if (now - viewers[id] > VIEWER_TTL) {
-      delete viewers[id];
-    }
-  });
-
-  count = Object.keys(viewers).length;
-  localStorage.setItem(VIEWER_KEY, JSON.stringify(viewers));
-
-  // 更新 UI
-  const viewerStatus = document.getElementById("viewerStatus");
-  if (!viewerStatus) return;
-
-  if (count > 0) {
-    viewerStatus.textContent = `👥 ${count} 人連線中`;
-    viewerStatus.className = "ok";
-  } else {
-    viewerStatus.textContent = "👥 尚無觀眾";
-    viewerStatus.className = "warn";
-  }
-}
 
 /* ========= 工具函式 ========= */
 // ⏰ 時間格式統一工具（PDF / 紀錄 / UI 共用）
@@ -808,36 +411,9 @@ function applyUIState() {
     setStatusLight("warn", "轉盤旋轉中");
   } else {
     switch (systemState) {
-case SYS_STATE.INIT:
-  // =========================
-  // 初始狀態：全部解鎖
-  // =========================
-  setStatusLight("ok", "系統待命中");
-
-  // 輸入框一定要能輸入
-  if (nameInput) {
-    nameInput.disabled = false;
-    nameInput.value = "";
-  }
-
-  // 按鈕狀態
-  if (lockBtn)   lockBtn.disabled = false;
-  if (spinBtn)   spinBtn.disabled = true;
-  if (viewBtn)   viewBtn.disabled = true;
-  if (secondBtn) secondBtn.disabled = true;
-  if (pdfBtn)    pdfBtn.disabled = true;
-
-  // 清理 UI 殘留
-  clearHL();
-  if (centerText) centerText.textContent = "";
-  if (resultDiv) resultDiv.textContent = "";
-  if (summaryBox) summaryBox.textContent = "";
-
-  // QR 區塊重置
-  const qrBox = document.getElementById("qrCanvas");
-  if (qrBox) qrBox.innerHTML = "";
-
-  break;
+      case SYS_STATE.INIT:
+        setStatusLight("ok", "系統待命中");
+        break;
 
       case SYS_STATE.READY:
         setStatusLight("ok", "名單已鎖定，準備抽籤");
@@ -878,7 +454,7 @@ case SYS_STATE.INIT:
   lockBtn.classList.remove("blink-btn");
   spinBtn.classList.remove("blink-btn");
   secondBtn.classList.remove("blink-btn");
-  
+  viewBtn.classList.remove("blink-btn");
 
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
@@ -919,7 +495,7 @@ case SYS_STATE.ROUND2:
 
     case SYS_STATE.VIEWER:
       viewBtn.disabled = false;
-      
+      viewBtn.classList.add("blink-btn");
       statusDiv.textContent = "查看紅包中";
       break;
 
@@ -942,7 +518,7 @@ case SYS_STATE.FINISHED:
 
   spinBtn.classList.remove("blink-btn");
   secondBtn.classList.remove("blink-btn");
-  
+  viewBtn.classList.remove("blink-btn");
 
   // 📢 清楚提示使用者下一步
   statusDiv.textContent = "本輪已完成，可下載 PDF 或直接改名並鎖定名單開始新一輪";
@@ -1139,21 +715,10 @@ function spin(list, clockwise, callback) {
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-try {
-  unlockAudio(); // 🔓 先嘗試解鎖
-
-  drum.currentTime = 0;
-  const p = drum.play();
-
-  if (p && typeof p.catch === "function") {
-    p.catch(err => {
-      console.warn("🔇 drum blocked, retry unlock", err);
-      unlockAudio(); // 🔓 再補一次
-    });
-  }
-} catch (e) {
-  console.warn("🔇 drum exception", e);
-}
+  try {
+    drum.currentTime = 0;
+    drum.play();
+  } catch (e) {}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -1237,7 +802,6 @@ function saveState(extra = {}) {
     usedName: [...usedName],
     verseUsed: [...verseUsed],
     currentVerse,
-	round2Started,
     rotation,          // ✅ 必存
     lastWinnerIndex,  // ✅ 必存
 	
@@ -1307,6 +871,20 @@ systemState = s.finished
     drawInitialWheel();
     return;
   }
+// ===== 商用級主控鎖（只擋「活著的另一台設備」）（目前先停用）=====
+if (!DISABLE_MASTER_LOCK && IS_MASTER && s.tabId && s.tabId !== TAB_ID) {
+  const now = Date.now();
+
+  // 只有在對方心跳仍活著時才鎖
+  if (s.heartbeat && now - s.heartbeat < HEARTBEAT_TTL) {
+    setStatusLight("error", "偵測到另一台主持設備");
+    alert("偵測到另一台電腦正在主持本場活動，系統已進入安全模式");
+    sessionStorage.removeItem("spinState");
+    location.reload();
+    return;
+  }
+  // 否則視為舊設備 / 重整 / viewer 回流 → 放行
+}
 
   /* ===== 還原核心資料 ===== */
 names        = Array.isArray(s.names) ? s.names : [];
@@ -1315,7 +893,6 @@ verseUsed    = new Set(s.verseUsed || []);
 currentVerse = s.currentVerse || null;
 rotation     = typeof s.rotation === "number" ? s.rotation : 0;
 lastWinnerIndex = (s.lastWinnerIndex ?? -1);
-round2Started = !!s.round2Started;
 
 // ===== 還原 PDF 輪次防呆狀態 =====
 pdfRoundSerial = s.pdfRoundSerial || null;
@@ -1368,10 +945,10 @@ if (
   /* 看紅包：必須完成第二輪 */
   if(round2Done && currentVerse){
     viewBtn.disabled = false;
-    
+    viewBtn.classList.add("blink-btn");
   }else{
     viewBtn.disabled = true;
-    
+    viewBtn.classList.remove("blink-btn");
   }
 
   /* PDF：全部抽完才可 */
@@ -1406,7 +983,7 @@ if (fromViewer) {
     secondBtn.disabled = true;
     secondBtn.classList.remove("blink-btn");
     viewBtn.disabled = true;
-    
+    viewBtn.classList.remove("blink-btn");
 	
 	// 🔒 Viewer 回來期間：鎖定名單 / PDF 一律關閉
     lockBtn.disabled = true;
@@ -1418,7 +995,6 @@ if (fromViewer) {
   /* ===== 情況 B：全部人已抽完 ===== */
   else if (total > 0 && drawn === total) {
   systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
   applyUIState();
   
   statusDiv.textContent = "";   // ✅ 清除「請輸入姓名並鎖定名單」
@@ -1444,7 +1020,7 @@ resetBtn.classList.add("btn-reset-danger");
 
     spinBtn.classList.remove("blink-btn");
     secondBtn.classList.remove("blink-btn");
-    
+    viewBtn.classList.remove("blink-btn");
   }
 
   // ✅ 所有 fromViewer 專屬 UI 都處理完，最後才清旗標
@@ -1486,7 +1062,6 @@ lockBtn.onclick = () => {
 
   // 🟢 新一輪強制初始化
   systemState = SYS_STATE.INIT;
-    nameInput.disabled = false;
 
   usedName.clear();
   verseUsed.clear();
@@ -1546,7 +1121,6 @@ spinBtn.onclick = () => {
   if (!canAct()) return;
   if (rotating) return;
   unlockAudio();
-  playDrum();// 🔊 第一輪鼓聲 
 
   spinBtn.disabled = true;
   spinBtn.classList.remove("blink-btn");
@@ -1557,7 +1131,7 @@ spinBtn.onclick = () => {
   secondBtn.classList.remove("blink-btn");
 
   viewBtn.disabled = true;
-  
+  viewBtn.classList.remove("blink-btn");
 
   clearHL();
   centerText.textContent = "";
@@ -1607,7 +1181,6 @@ secondBtn.onclick = () => {
   round2Started = true;
 
   unlockAudio();
-  playDrum(); // 🔊 第二輪鼓聲
 
   secondBtn.disabled = true;
   secondBtn.classList.remove("blink-btn");
@@ -1624,31 +1197,20 @@ secondBtn.onclick = () => {
 
   if (!remain.length) {
     systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
     applyUIState();
     return;
   }
 
   audit("ROUND2_START", { remaining: remain.length });
 
-spin(remain, false, (v) => {
-  verseUsed.add(v);
-  currentVerse = v;
+  spin(remain, false, (v) => {
+    verseUsed.add(v);
+    currentVerse = v;
 
-  const ref =
-    (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
-      ? window.VERSE_REF_MAP[v]
-      : "";
-
-  // ⭐ 廣播給所有 Viewer：最後抽中的經句
-  localStorage.setItem("LAST_VERSE", JSON.stringify({
-    verse: v,
-    ref: ref,
-    time: Date.now()
-  }));
-
-  // ⭐ 立刻更新 QR Code（一定要在 currentVerse 設定之後）
-  updateQRCode();
+    const ref =
+      (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
+        ? window.VERSE_REF_MAP[v]
+        : "";
 
     // UI 顯示
     statusDiv.textContent = "";
@@ -1657,7 +1219,6 @@ spin(remain, false, (v) => {
 
     centerText.textContent =
       `📜 抽中經句「${v}」\n📖 ${ref}`;
-	updateQRCode();   // 📱 產生 QR  
 
     // 🔊 音效
     try {
@@ -1676,7 +1237,7 @@ spin(remain, false, (v) => {
 
     // 👁 啟用 Viewer
     viewBtn.disabled = false;
-    
+    viewBtn.classList.add("blink-btn");
 
     // ✔ 紀錄
     appendLog(names[lastWinnerIndex], v, ref);
@@ -1685,21 +1246,15 @@ spin(remain, false, (v) => {
     systemState = SYS_STATE.VIEWER;
     applyUIState();
 
-    saveState({
-  round2Done: true,
-  currentVerse: currentVerse
-});
-// 🔔 提示主持人可以看紅包
-if (typeof viewBtn !== "undefined" && viewBtn) {
-  viewBtn.classList.add("blink-all");
-}
+    saveState({ round2Done: true });
   });
   };
 
 /* ========= 看紅包 ========= */
 viewBtn.onclick = () => {
-  if (!canAct()) return;
-  if (!currentVerse) return;
+  if (!canAct()) return;   // ✅ 第一行
+  
+  if(!currentVerse) return;
 
   const winnerName = names[lastWinnerIndex] || "";
 
@@ -1707,11 +1262,6 @@ viewBtn.onclick = () => {
   systemState = SYS_STATE.VIEWER;
   applyUIState();
   saveState();
-
-  // 🔕 進 Viewer 前停止閃爍（防呆）
-  if (viewBtn && viewBtn.classList) {
-    viewBtn.classList.remove("blink-all");
-  }
 
   window.location.href =
     `viewer.html?no=${currentVerse}&name=${encodeURIComponent(winnerName)}`;
@@ -1820,7 +1370,6 @@ logs.slice().reverse().forEach(l => {
 	
 // ✅ 本輪正式結案
 systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
 saveState({ finished: true });
 audit("ROUND_CLOSED_BY_PDF", { serial: pdfRoundSerial });
 applyUIState();
@@ -1852,26 +1401,6 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 /* ========= 初始化 ========= */
 loadState();
 
-if (!claimMaster()) {
-  alert("此轉盤系統已被另一台主持機鎖定");
-  setStatusLight("error", "主持機已被佔用");
-}
-
-
-function updateHostStatus(){
-  const hostStatus = document.getElementById("hostStatus");
-  if (!hostStatus) return;
-  if (IS_MASTER) {
-    hostStatus.textContent = "🎤 主持機在線";
-    hostStatus.classList.add("ok");
-    hostStatus.classList.remove("warn");
-  } else {
-    hostStatus.textContent = "🎤 主持機離線";
-    hostStatus.classList.add("warn");
-    hostStatus.classList.remove("ok");
-  }
-}
-updateHostStatus();
 // ==== 主控頁才允許送心跳 ====
 if (IS_MASTER) {
   setInterval(() => {
@@ -1918,6 +1447,9 @@ resetBtn.onclick = () => {
   pdfRepeatCount = 0;
   pdfDownloadedThisRound = false;
 
+  /* ===== 2️⃣ 系統狀態機歸零 ===== */
+  systemState = SYS_STATE.INIT;
+
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
   localStorage.removeItem("pdfSerial");
@@ -1932,242 +1464,34 @@ resetBtn.onclick = () => {
   centerText.textContent = "";
   resultDiv.textContent = "";
   summaryBox.textContent = "";
+  statusDiv.textContent = "請輸入姓名並鎖定名單";
 
-// =========================
-  // 最終狀態收斂（唯一出口）
-  // =========================
-  systemState = SYS_STATE.INIT;
-  rotating = false;
+  /* ===== 5️⃣ 還原所有按鈕狀態（INIT） ===== */
+  lockBtn.disabled = false;
+  spinBtn.disabled = true;
+  secondBtn.disabled = true;
+  viewBtn.disabled = true;
+  pdfBtn.disabled = true;
 
-  // 交給狀態機統一控制 UI
+  spinBtn.classList.remove("blink-btn");
+  secondBtn.classList.remove("blink-btn");
+  viewBtn.classList.remove("blink-btn");
+
+  pdfBtn.classList.remove("btn-pdf-ready");
+  resetBtn.classList.remove("btn-reset-danger");
+
+  resetBtn.disabled = false;
+
+  /* ===== 6️⃣ UI 同步 ===== */
   applyUIState();
 
-  // 存乾淨快照
-  saveState();
-
   console.log("🔄 System Reset → INIT");
+
+  /* ===== 7️⃣ 存乾淨快照（唯一一次） ===== */
+  saveState();
 };
 
 })(); 
-
-// ===============================
-// 管理功能：強制解除主持機佔用（修正版）
-// ===============================
-document.addEventListener("DOMContentLoaded", () => {
-  const forceBtn = document.getElementById("btnForceRelease");
-  if (!forceBtn) {
-    console.warn("⚠ btnForceRelease not found");
-    return;
-  }
-
-  forceBtn.addEventListener("click", () => {
-    const ok = confirm("這將強制釋放所有主持權鎖定，確定要執行嗎？");
-    if (!ok) return;
-
-    // 1️⃣ 清鎖
-    localStorage.removeItem("hostLock");
-    localStorage.removeItem("hostTimestamp");
-    localStorage.removeItem("hostId");
-
-    // 2️⃣ 強制系統回 INIT
-    if (window.SYS_STATE && typeof applyUIState === "function") {
-      systemState = SYS_STATE.INIT;
-      applyUIState();
-    }
-
-    // 3️⃣ 立刻更新紅燈顯示
-    const hostDot = document.getElementById("hostIndicator");
-    if (hostDot) {
-      hostDot.classList.remove("active", "locked");
-      hostDot.textContent = "主持機未佔用";
-    }
-
-    // 4️⃣ 通知其他分頁
-    if (window.BroadcastChannel) {
-      const bc = new BroadcastChannel("blessing_host");
-      bc.postMessage({ type: "force-release" });
-      bc.close();
-    }
-
-    // 5️⃣ 提示
-    alert("主持權已強制釋放，系統已回到 INIT 狀態");
-
-    // 6️⃣ 選擇性重整（保險）
-    setTimeout(() => location.reload(), 300);
-  });
-});
-
 </script>
-
-<script>
-// =============================
-// 📱 QR Code 初始化 + 動態更新（正式穩定版）
-// =============================
-
-// 🔁 全域：第二輪抽中後會呼叫這個
-function updateQRCode() {
-  if (typeof QRCode !== "function") {
-    console.warn("⚠ QRCode library not loaded");
-    return;
-  }
-
-  const box = document.getElementById("qrCanvas");
-  if (!box) {
-    console.warn("⚠ 找不到 qrCanvas");
-    return;
-  }
-
-  if (!window.currentVerse) {
-    console.warn("⚠ QR skipped: currentVerse is empty");
-    return;
-  }
-
-  const winnerName =
-    (window.names && window.lastWinnerIndex != null)
-      ? window.names[window.lastWinnerIndex] || ""
-      : "";
-
-  // GitHub Pages / 子目錄安全路徑
-  const base =
-    location.origin +
-    location.pathname.replace(/\/[^\/]*$/, "/");
-
-  const viewerUrl =
-    base +
-    "viewer.html" +
-    "?no=" + encodeURIComponent(window.currentVerse) +
-    "&name=" + encodeURIComponent(winnerName) +
-    "&ts=" + Date.now();   // 🔑 防快取
-
-  // 清空舊 QR（避免疊加）
-  box.innerHTML = "";
-
-  new QRCode(box, {
-    text: viewerUrl,
-    width: 140,
-    height: 140,
-    colorDark: "#000",
-    colorLight: "#fff",
-    correctLevel: QRCode.CorrectLevel.H
-  });
-
-  console.log("📱 QR updated:", viewerUrl);
-}
-
-// 🚀 初始化：只負責收合 / 展開（不產生 QR）
-(function initQRBox() {
-  function run() {
-    const qrBox = document.getElementById("qrBox");
-    if (qrBox) {
-      qrBox.onclick = () => {
-        qrBox.classList.toggle("collapsed");
-      };
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-})();
-</script>
-
-<script>
-// =============================
-// 📋 複製看紅包連結（商用穩定版）
-// =============================
-(function initCopyViewerLink(){
-
-  function run(){
-    const btn = document.getElementById("copyViewerLink");
-    if (!btn) {
-      console.warn("⚠ 找不到 copyViewerLink 按鈕");
-      return;
-    }
-
-    // GitHub Pages / 子目錄安全路徑
-    const base =
-      location.origin +
-      location.pathname.replace(/\/[^\/]*$/, "/");
-
-    const viewerUrl = base + "viewer.html";
-
-    btn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(viewerUrl);
-
-        const oldText = btn.textContent;
-        btn.textContent = "✅ 已複製";
-        btn.disabled = true;
-
-        setTimeout(() => {
-          btn.textContent = "📋 複製看紅包連結";
-          btn.disabled = false;
-        }, 1500);
-
-        console.log("📋 Viewer link copied:", viewerUrl);
-      } catch (err) {
-        console.warn("⚠ 複製失敗，改用提示模式", err);
-        prompt("請手動複製連結：", viewerUrl);
-      }
-    };
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
-
-})();
-</script>
-
-<script>
-// =============================
-// 👥 Viewer 計數（保命版）
-// =============================
-if (typeof updateViewerCount !== "function") {
-  function updateViewerCount() {
-    const KEY = "BLESSING_VIEWERS";
-    const TTL = 30000;
-
-    let viewers = {};
-    try {
-      viewers = JSON.parse(localStorage.getItem(KEY) || "{}");
-    } catch {
-      viewers = {};
-    }
-
-    const now = Date.now();
-    let count = 0;
-
-    Object.keys(viewers).forEach(id => {
-      if (now - viewers[id] < TTL) {
-        count++;
-      } else {
-        delete viewers[id];
-      }
-    });
-
-    localStorage.setItem(KEY, JSON.stringify(viewers));
-
-    const el = document.getElementById("viewerStatus");
-    if (!el) return;
-
-    if (count > 0) {
-      el.textContent = `👥 觀眾連線中 (${count})`;
-      el.className = "ok";
-    } else {
-      el.textContent = "👥 尚無觀眾";
-      el.className = "warn";
-    }
-  }
-}
-
-//每3秒更新一次
-setInterval(updateViewerCount, 3000);
-</script>
-
 </body>
 </html>
