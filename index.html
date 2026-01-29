@@ -6,7 +6,7 @@
 <title>祝福經句紅包（應許等您拿）</title>
 
 <!-- 讓 logo 優先載入（改善出現很慢） -->
-<link rel="preload" as="image" href="logo3524.png">
+<link rel="preload" as="image" href="/BlessingCards128/logo3524.png">
 
 <style>
 body{
@@ -180,7 +180,11 @@ body{
 
 <body>
 
-<img id="logo" class="logo" src="logo3524.png" alt="LOGO">
+<img id="logo" class="logo"
+     src="/BlessingCards128/logo3524.png"
+     alt="LOGO"
+     loading="eager"
+     decoding="async">
 
 <h2>祝福經句紅包（應許等您拿）</h2>
 
@@ -237,22 +241,43 @@ body{
 
   console.log("🔥 BlessingCards128 資源暖機中...");
 
-/* ===== 1️⃣ LOGO 快取預載（穩定版） ===== */
-(function(){
-  const img = new Image();
-  img.src = "logo3524.png";
-})();
+  /* ===== 1️⃣ LOGO 快取預載（GitHub Pages 穩定版） ===== */
+  (function(){
+    const img = new Image();
+    img.src = "/BlessingCards128/logo3524.png";
+  })();
 
-  /* ===== 2️⃣ 音效 ===== */
+  /* ===== 2️⃣ 音效預載（手機解鎖版） ===== */
   const preloadDrum = new Audio();
-  preloadDrum.src = "audio/drum.mp3";
-  preloadDrum.load();
+  preloadDrum.src = "/BlessingCards128/audio/drum.mp3";
+  preloadDrum.preload = "auto";
 
   const preloadWin = new Audio();
-  preloadWin.src = "audio/win.mp3";
-  preloadWin.load();
+  preloadWin.src = "/BlessingCards128/audio/win.mp3";
+  preloadWin.preload = "auto";
 
-  /* ===== 3️⃣ 紅包圖片（001–128）===== */
+  // 📱 手機瀏覽器需要「使用者互動」才能啟用音效
+  function unlockAudio(){
+    preloadDrum.play().then(() => {
+      preloadDrum.pause();
+      preloadDrum.currentTime = 0;
+
+      preloadWin.play().then(() => {
+        preloadWin.pause();
+        preloadWin.currentTime = 0;
+
+        console.log("🔓 Audio unlocked (mobile ready)");
+      }).catch(()=>{});
+    }).catch(()=>{});
+
+    document.removeEventListener("touchstart", unlockAudio);
+    document.removeEventListener("click", unlockAudio);
+  }
+
+  document.addEventListener("touchstart", unlockAudio, { once: true });
+  document.addEventListener("click", unlockAudio, { once: true });
+
+  /* ===== 3️⃣ 紅包圖片預載（001–128） ===== */
   const MAX_PRELOAD = 128;
   const loaded = { count: 0 };
 
@@ -268,10 +293,10 @@ body{
     };
 
     img.onerror = () => {
-      console.warn("⚠ 無法預載圖片:", "cards/" + no + ".png");
+      console.warn("⚠ 無法預載圖片:", "/BlessingCards128/cards/" + no + ".png");
     };
 
-    img.src = "cards/" + no + ".png";
+    img.src = "/BlessingCards128/cards/" + no + ".png";
   }
 
 })();
