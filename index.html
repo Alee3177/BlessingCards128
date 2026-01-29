@@ -17,7 +17,18 @@ body{
   padding:16px;
   color:#5b3a00;
 }
-.logo{width:220px;margin:10px auto 0;display:block;}
+#logo{
+  display:block;
+  margin:10px auto 0;
+  max-width:220px;
+  visibility:hidden; /* 搭配 JS，圖一來才顯示 */
+}
+
+@media (max-width: 480px) {
+  #logo {
+    max-width: 160px;
+  }
+}
 
 #nameInput{
   width:90%;max-width:480px;padding:10px 14px;
@@ -169,7 +180,8 @@ body{
 
 <body>
 
-<img src="logo3524.png" class="logo" />
+<img id="logo" src="logo3524.png" alt="LOGO">
+
 <h2>祝福經句紅包（應許等您拿）</h2>
 
 <div id="masterStatus" class="status-bar">

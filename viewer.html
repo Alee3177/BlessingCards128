@@ -4,9 +4,14 @@
 <meta charset="UTF-8">
 <title>祝福經句紅包</title>
 
-<link rel="preload" as="image" href="logo3524.png">
+<!-- 行動裝置最佳化 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- 預載經句圖片（實際圖片會在 JS 動態改 src） -->
+<link rel="preload" as="image" href="cards/001.png">
 
 <style>
+
 body{
   font-family:"Noto Sans TC",system-ui;
   background:#fbf2df;
@@ -173,39 +178,6 @@ body{
 </div>
 
 <script>
-
-// =============================
-// ⚡ LOGO 預載快取（防慢顯示）
-// =============================
-let logoCache = null;
-
-function preloadLogo() {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = "logo3524.png";
-    img.onload = () => {
-      logoCache = img;
-      resolve();
-    };
-    img.onerror = resolve;
-  });
-}
-
-// 開頁就先抓
-const logoPromise = preloadLogo();
-
-// =============================
-// 🧲 套用快取到畫面 LOGO
-// =============================
-document.addEventListener("DOMContentLoaded", async () => {
-  await preloadLogo();
-
-  const logoEl = document.getElementById("logo");
-  if (logoEl && logoCache) {
-    logoEl.src = logoCache.src;
-    console.log("⚡ LOGO loaded from cache");
-  }
-});
 
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
