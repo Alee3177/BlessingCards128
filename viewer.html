@@ -108,8 +108,7 @@ body{
 
 </style>
 
-<script src="verseRefMap.js?v=20260105">window.addEventListener("pageshow", ()=>{ try{ const d=document.getElementById("drum"); if(d) d.load(); const w=document.getElementById("winSound"); if(w) w.load(); }catch(e){} });
-</script>
+<script src="verseRefMap.js?v=20260105"></script>
 
 <!-- PATCH-2：煙火 / 彩帶（canvas-confetti） -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
@@ -141,75 +140,6 @@ body{
 
 <script>
 
-<<<<<<< HEAD
-=======
-// ✅ 行動裝置音效解鎖：任何第一次觸碰都嘗試解鎖
-document.addEventListener("pointerdown", unlockAudio, { capture: true });
-let audioUnlocked = false;
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  try {
-    const a1 = document.getElementById("drum");
-    const a2 = document.getElementById("winSound");
-    [a1, a2].forEach(a => {
-      if (!a) return;
-      a.muted = true;
-      const p = a.play();
-      if (p && p.then) {
-        p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; audioUnlocked = true; })
-         .catch(()=>{});
-      }
-    });
-  } catch(e) {}
-}
-
-function playDrum() {
-  const drum = document.getElementById("drum");
-  if (!drum) return;
-  try {
-    unlockAudio();
-    drum.currentTime = 0;
-    const p = drum.play();
-    if (p && p.catch) p.catch(()=>{});
-  } catch(e) {}
-}
-
-
-/* ==== 主控旗標 ==== */
-const IS_MASTER = false;
-
-// =============================
-// 📱 Viewer 音效解鎖（保險機制）
-// =============================
-document.addEventListener("pointerdown", () => {
-  try {
-    const a1 = document.getElementById("drum");
-    const a2 = document.getElementById("winSound");
-
-    if (a1) {
-      a1.muted = true;
-      a1.play().then(() => {
-        a1.pause();
-        a1.currentTime = 0;
-        a1.muted = false;
-      }).catch(() => {});
-    }
-
-    if (a2) {
-      a2.muted = true;
-      a2.play().then(() => {
-        a2.pause();
-        a2.currentTime = 0;
-        a2.muted = false;
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.warn("viewer unlockAudio failed", e);
-  }
-}, { capture: true });
-
->>>>>>> 406dfd9ed4110734e54e08c4ec3a4f2240d29c62
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
