@@ -413,12 +413,25 @@ document.getElementById("btnDownload").onclick = async () => {
       lastVerseNo = verseNo;
     }
 
-    // ===== 1️⃣ 檔名規則 =====
-    let filename = `verse_no_${verseNo}`;
-    if (imageRepeatCount > 0) {
-      filename += `-${imageRepeatCount}`;
-    }
-    filename += `.png`;
+// ===== 1️⃣ 檔名規則（加入第一輪姓名）=====
+
+// 取出姓名並做檔名安全處理
+let safeName = userName
+  .trim()
+  .replace(/[\\/:*?"<>|]/g, "_")  // Windows 不允許的字元
+  .replace(/\s+/g, "_");          // 空白改成底線
+
+if (!safeName) {
+  safeName = "無名";
+}
+
+let filename = `${safeName}_verse_no_${verseNo}`;
+
+if (imageRepeatCount > 0) {
+  filename += `-${imageRepeatCount}`;
+}
+
+filename += `.png`;
 
     // ===== 2️⃣ 取圖 =====
     const img = document.getElementById("imgVerse");
