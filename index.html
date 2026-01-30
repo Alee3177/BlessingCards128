@@ -870,16 +870,29 @@ function loadState(){
 
 // ===== 2️⃣ Viewer 回流 → 回到第一輪待命狀態 =====
 if (cameFromViewer) {
-  console.log("🔄 Viewer return detected → BACK TO READY");
+  console.log("🔄 Viewer return detected → HARD RESET TO READY");
 
-  systemState = SYS_STATE.READY;   // ✅ 第一輪按鈕閃爍的正確狀態
+  // 🛑 強制停掉任何動畫
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
 
-  // 清殘留狀態
+  // 🧯 清除旋轉狀態
+  rotating = false;
+  rotation = 0;
+
+  // 🧹 清殘留狀態
   sessionStorage.removeItem("spinState");
   sessionStorage.removeItem("showSummaryOnReturn");
 
-  applyUIState();  // 強制刷新 UI
-  return;          // 🛑 阻止舊狀態復活
+  // 🔄 回到第一輪待命
+  systemState = SYS_STATE.READY;
+
+  drawWheel(rotation);   // 重畫轉盤到初始角度
+  applyUIState();
+
+  return; // ⛔ 阻止舊狀態繼續載入
 }
 
   // ===== 3️⃣ 正常流程才允許還原狀態 =====
