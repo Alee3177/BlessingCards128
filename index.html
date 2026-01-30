@@ -763,25 +763,23 @@ function launchConfetti(){
 function spin(list, clockwise, callback) {
   if (!list || !list.length) return;
 
-  // 🔐 世代鎖
   const myToken = ++spinToken;
 
-  // 🧹 強制殺掉任何舊動畫
+  // 🧹 殺掉舊動畫
   if (animId) {
     cancelAnimationFrame(animId);
     animId = null;
   }
-  rotating = false;
 
   rotating = true;
-  applyUIState();
+  setState(systemState); // ✅ 只同步UI，不改狀態
 
   statusDiv.textContent = "旋轉中…";
   resultDiv.textContent = "";
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-  // 🔊 音效保命播放
+  // 🔊 音效
   try {
     unlockAudio();
     if (drum) {
@@ -804,9 +802,12 @@ function spin(list, clockwise, callback) {
   const DURATION_SAFE = typeof DURATION === "number" ? DURATION : 3500;
   const hardStopAt = start + DURATION_SAFE + 500;
 
+  let finished = false;
+
   function finish() {
-    // 🛡 舊動畫直接作廢
     if (myToken !== spinToken) return;
+    if (finished) return;
+    finished = true;
 
     rotating = false;
 
@@ -824,12 +825,11 @@ function spin(list, clockwise, callback) {
       console.error("❌ spin callback failed", e);
     }
 
-    applyUIState();
+    applyUIState(); // 🟢 只在最後同步一次
     console.log("🟢 spin finished OK");
   }
 
   function frame(now) {
-    // 🛡 舊動畫自殺
     if (myToken !== spinToken) return;
 
     if (now >= hardStopAt) {
@@ -1246,8 +1246,7 @@ spinBtn.onclick = () => {
   if (!remain.length) return;
 
   audit("ROUND1_START", { remaining: remain.length });
-  systemState = SYS_STATE.ROUND1;
-  applyUIState();
+  setState(SYS_STATE.ROUND1);
 
   pdfBtn.disabled = true;
   lockBtn.disabled = true;
