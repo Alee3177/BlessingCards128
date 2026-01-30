@@ -868,21 +868,19 @@ function loadState(){
   const cameFromViewer =
     sessionStorage.getItem("showSummaryOnReturn") === "1";
 
-  // ===== 2️⃣ Viewer 回流 → 硬重置系統 =====
-  if (cameFromViewer) {
-    console.log("🔄 Viewer return detected → HARD RESET");
+// ===== 2️⃣ Viewer 回流 → 回到第一輪待命狀態 =====
+if (cameFromViewer) {
+  console.log("🔄 Viewer return detected → BACK TO READY");
 
-    // 核心狀態重置
-    systemState = "WAIT_FIRST";
+  systemState = SYS_STATE.READY;   // ✅ 第一輪按鈕閃爍的正確狀態
 
-    // 所有流程資料清空
-    sessionStorage.removeItem("spinState");
-    sessionStorage.removeItem("showSummaryOnReturn");
+  // 清殘留狀態
+  sessionStorage.removeItem("spinState");
+  sessionStorage.removeItem("showSummaryOnReturn");
 
-    // UI 強制回第一輪
-    applyUIState();
-    return; // 🛑 直接結束，不允許舊狀態復活
-  }
+  applyUIState();  // 強制刷新 UI
+  return;          // 🛑 阻止舊狀態復活
+}
 
   // ===== 3️⃣ 正常流程才允許還原狀態 =====
   const raw = sessionStorage.getItem("spinState");
