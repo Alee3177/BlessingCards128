@@ -329,7 +329,17 @@ function unlockAudio() {
 }
 
 // =============================
-// 🟢 解鎖觸發點（一定要在最後）
+// 🟢 保命解鎖：綁到一定會點的按鈕
+// =============================
+function unlockAudioOnce() {
+  unlockAudio();
+}
+
+lockBtn.addEventListener("click", unlockAudioOnce, { once: true });
+spinBtn.addEventListener("click", unlockAudioOnce, { once: true });
+
+// =============================
+// 🟢 全畫面保險解鎖
 // =============================
 document.addEventListener("pointerdown", unlockAudio, { once: true });
 
@@ -368,8 +378,38 @@ const SYS_STATE = {
   VIEWER: "VIEWER",      // 查看紅包
   FINISHED: "FINISHED"  // 全部完成
  };
+ 
+ // =============================
+// 🛡 狀態唯一出口（保命層）
+// =============================
+function setState(next, extra = {}) {
+  systemState = next;
+  saveState({
+    systemState: next,
+    ...extra
+  });
+  applyUIState();
+  console.log("🔁 STATE →", next, extra);
+}
+
+ 
 let lastHeartbeat = Date.now();
-let systemState = SYS_STATE.INIT;
+let systemState = (function(){
+  try {
+    const raw = sessionStorage.getItem("spinState");
+    if (!raw) return SYS_STATE.INIT;
+
+    const data = JSON.parse(raw);
+    if (Object.values(SYS_STATE).includes(data.systemState)) {
+      console.log("🔁 Restored systemState:", data.systemState);
+      return data.systemState;
+    }
+  } catch(e) {
+    console.warn("⚠ State restore failed:", e);
+  }
+  return SYS_STATE.INIT;
+})();
+
 let lastActionAt = 0;   // 防連點節流用
 
 const statusBar = document.getElementById("masterStatus");
@@ -720,7 +760,17 @@ function launchConfetti(){
 }
 
 function spin(list, clockwise, callback) {
-  if (rotating || !list.length) return;
+if (rotating) {
+  console.warn("⚠ spin blocked — force release");
+  rotating = false;
+
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
+}
+
+if (!list.length) return;
 
   // 🛡 音效元素保命檢查
   if (!drum || !winSound) {
@@ -742,14 +792,25 @@ function spin(list, clockwise, callback) {
   summaryBox.textContent = "";
 
 try {
-  unlockAudio();                 // 🔓 先確保音效已解鎖
-  drum.currentTime = 0;
-  const p = drum.play();
-  if (p && typeof p.catch === "function") {
-    p.catch(()=>{});            // 🛡 防瀏覽器阻擋導致報錯
-  }
-} catch (e) {}
+  // 🔓 確保已解鎖（行動裝置 / LINE WebView 必須）
+  unlockAudio();
 
+  if (!drum) {
+    console.warn("🔇 drum element missing");
+  } else {
+    drum.currentTime = 0;
+
+    const p = drum.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(err => {
+        console.warn("🔇 drum blocked, retry unlock", err);
+        unlockAudio(); // 再嘗試解鎖一次
+      });
+    }
+  }
+} catch (e) {
+  console.warn("🔇 drum exception", e);
+}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -888,6 +949,12 @@ if (cameFromViewer) {
 
   // 🔄 回到第一輪待命
   systemState = SYS_STATE.READY;
+  
+  saveState({
+  round2Done: false,
+  finished: false,
+  systemState: systemState
+});
 
   drawWheel(rotation);   // 重畫轉盤到初始角度
   applyUIState();
@@ -1167,8 +1234,9 @@ lockBtn.onclick = () => {
   statusDiv.textContent = "名單已鎖定，請開始抽籤";
   systemState = SYS_STATE.READY;
   applyUIState();
-
+  
   saveState({
+    systemState: systemState,
     round2Done: false,
     finished: false
   });
