@@ -280,6 +280,7 @@ body{
 (function(){
 
 let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
+let spinToken = 0;  // 🛡 轉盤世代鎖（防殭屍動畫 / 下一位死機）
 
 /* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
@@ -760,24 +761,17 @@ function launchConfetti(){
 }
 
 function spin(list, clockwise, callback) {
-if (rotating) {
-  console.warn("⚠ spin blocked — force release");
-  rotating = false;
+  if (!list.length) return;
 
-  if (animId) {
-    cancelAnimationFrame(animId);
-    animId = null;
-  }
-}
+  const myToken = ++spinToken;   // 🔐 本輪世代鎖
 
-if (!list.length) return;
-
-  // 🛡 音效元素保命檢查
-  if (!drum || !winSound) {
-    console.warn("🔇 Audio elements missing");
+  // 🛑 如果還在轉，直接作廢舊動畫
+  if (rotating) {
+    console.warn("⚠ spin blocked — invalidate old spin");
+    spinToken++;
   }
 
-  // 🔴 先停掉任何殘留動畫
+  // 🔴 停掉舊動畫幀
   if (animId) {
     cancelAnimationFrame(animId);
     animId = null;
@@ -791,26 +785,17 @@ if (!list.length) return;
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-try {
-  // 🔓 確保已解鎖（行動裝置 / LINE WebView 必須）
-  unlockAudio();
-
-  if (!drum) {
-    console.warn("🔇 drum element missing");
-  } else {
-    drum.currentTime = 0;
-
-    const p = drum.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(err => {
-        console.warn("🔇 drum blocked, retry unlock", err);
-        unlockAudio(); // 再嘗試解鎖一次
-      });
+  // 🔊 音效保命播放
+  try {
+    unlockAudio();
+    if (drum) {
+      drum.currentTime = 0;
+      const p = drum.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => unlockAudio());
+      }
     }
-  }
-} catch (e) {
-  console.warn("🔇 drum exception", e);
-}
+  } catch(e){}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -822,11 +807,11 @@ try {
   const end = base + delta;
 
   const start = performance.now();
-  const hardStopAt = start + DURATION + 300; // 🛡 最終保險絲
-
+  const hardStopAt = start + DURATION + 300;
   let finished = false;
 
   function finish() {
+    if (myToken !== spinToken) return;   // 🛡 舊動畫作廢
     if (finished) return;
     finished = true;
 
@@ -850,9 +835,9 @@ try {
   }
 
   function frame(now) {
+    if (myToken !== spinToken) return;   // 🛡 舊動畫自殺
     if (finished) return;
 
-    // 🛡 硬停保險
     if (now >= hardStopAt) {
       finish();
       return;
