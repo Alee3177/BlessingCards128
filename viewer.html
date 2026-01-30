@@ -27,10 +27,11 @@ body{
 
 /* 經句圖片（含金邊） */
 #imgVerse{
-  /* 自動適應裝置尺寸（桌機 / 手機） */
-  width: min(98vw, 720px);   /* 原本 520px → 放大約 30% */
-  max-height: 92vh;         /* 原本 72vh → 放大顯示高度 */
-  object-fit: contain;      /* ← 關鍵: 完整顯示、不裁切 */
+  width: 96vw;
+  max-width: 720px;
+  max-height: 70vh;
+
+  object-fit: contain;
   border-radius:18px;
   display:block;
   margin:16px auto;
@@ -102,29 +103,8 @@ body{
   color: #8a5a00;
 }
 
-/* 📱 智慧手機自適應顯示（小機不爆、大機不浪費） */
-@media (max-width: 768px) {
-  #imgVerse {
-    display: block;
-    margin: 0 auto;
-
-    /* 寬度會在 90vw ~ 100vw 之間自動調整 */
-    width: clamp(90vw, 96vw, 100vw);
-
-    /* 高度限制在螢幕高度內，避免超出 */
-    max-height: clamp(70vh, 85vh, 92vh);
-
-    height: auto;
-    object-fit: contain;
-
-    /* 視覺微放大（自適應） */
-    transform: scale(clamp(1.05, 1.12, 1.2));
-    transform-origin: top center;
-  }
-
-  body {
-    overflow-x: hidden;
-  }
+body {
+  overflow-x: hidden;
 }
 
 </style>
@@ -139,21 +119,6 @@ body{
 <body>
 
 <h2>祝福經句紅包（應許等您拿）</h2>
-
-<!-- =============================
- ⚡ LOGO 顯示區
-============================= -->
-<img
-  id="logo"
-  src=""
-  alt="LOGO"
-  style="
-    display:block;
-    max-width:160px;
-    margin:10px auto 6px auto;
-    border-radius:8px;
-  "
->
 
 <div id="infoBox"></div>
 
@@ -201,8 +166,9 @@ const verseNo = getParam("no");
 const userName = getParam("name") || "";
 
 // 🧠 預載紅包圖片，避免顯示延遲
+const BASE = location.pathname.replace(/\/[^\/]*$/, "");
 const preload = new Image();
-preload.src = "cards/" + verseNo + ".png";
+preload.src = BASE + "/cards/" + verseNo + ".png";
 
 /*======== 找出書卷＋章節（用 VERSE_REF_MAP） ========*/
 let refText = "";
@@ -300,7 +266,7 @@ const img = document.getElementById("imgVerse");
 img.crossOrigin = "anonymous";
 
 /*======== 設定圖片來源 ========*/
-img.src = "cards/" + verseNo + ".png";
+img.src = BASE + "/cards/" + verseNo + ".png";
 
 /*======== 圖片讀取完成 ========*/
 img.onload = () => {
@@ -323,22 +289,6 @@ img.onload = () => {
 
   /* ② 顯示圖片本體（保底） */
   img.style.display = "block";
-  
-  // 📱 自動最佳化顯示比例（手機特化）
-if (window.innerWidth < 768) {
-  const vw = window.innerWidth;
-  const ratio = img.naturalWidth / img.naturalHeight;
-
-  if (ratio < 0.8) {
-    // 直式圖 → 高度優先
-    img.style.maxHeight = "95vh";
-    img.style.width = "auto";
-  } else {
-    // 橫式或方形 → 寬度優先
-    img.style.width = "98vw";
-    img.style.maxHeight = "90vh";
-  }
-}
 
   /* ③ 金邊閃爍 */
   img.classList.add("animate");
@@ -383,7 +333,7 @@ if (ENABLE_DUN_SOUND) {
 
 // ⭐ 動態選擇音效檔（防呆：避免變數未定義炸掉）
 const variant = window.DUN_SOUND_VARIANT || "dun";
-dun.src = `${variant}.mp3`;
+dun.src = BASE + `/audio/${variant}.mp3`;
 
       dun.currentTime = 0;
 
@@ -427,10 +377,9 @@ document.getElementById("btnDownload").onclick = async () => {
     if (downloading) return;
     downloading = true;
 	
-    // 目前顯示的經句編號
-    const verseNo = new URLSearchParams(window.location.search).get("no");
-	if (!verseNo) {
-  alert("經句編號遺失，請返回重新打開紅包");
+// 目前顯示的經句編號（統一來源）✅ 用全域 verseNo
+if (!verseNo) {
+  alert("尚未選擇經句，請從首頁點選「看紅包」");
   downloading = false;   // 🔓 保命解鎖
   return;
 }
@@ -551,12 +500,22 @@ logBox.innerHTML = logs
     `[${l.time}] 「${l.name}」 → 抽中經句紅包: ${l.ref}`
   )
   .join("<br>"); 
+  
+  // =============================
+// 📱 手機音效解鎖（一定要最後）- 雙保險
+// =============================
+function unlockDun(){
+  const dun = document.getElementById("dunSound");
+  if (dun) dun.play().catch(()=>{});
+}
+
+document.body.addEventListener("click", unlockDun, { once:true });
+document.body.addEventListener("touchstart", unlockDun, { once:true });
+  
 </script>
 
 <!-- PATCH-1：viewer 專用音效（新增，不取代任何既有音效） -->
-<audio id="dunSound" preload="auto">
-
-</audio>
+<audio id="dunSound" preload="auto"></audio>
 
 </body>
 </html>

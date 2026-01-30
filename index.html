@@ -21,7 +21,6 @@ body{
   display:block;
   margin:10px auto 0;
   max-width:220px;
-  visibility:hidden; /* 搭配 JS，圖一來才顯示 */
 }
 
 @media (max-width: 480px) {
@@ -184,7 +183,9 @@ body{
      src="/BlessingCards128/logo3524.png"
      alt="LOGO"
      loading="eager"
-     decoding="async">
+     decoding="async"
+     onerror="this.src='logo3524.png'">
+
 
 <h2>祝福經句紅包（應許等您拿）</h2>
 
@@ -225,11 +226,11 @@ body{
 <div id="summaryBox"></div>
 
 <audio id="drum" preload="auto" playsinline>
-  <source src="audio/drum.mp3" type="audio/mpeg">
+<source src="/BlessingCards128/audio/drum.mp3" type="audio/mpeg">
 </audio>
 
 <audio id="winSound" preload="auto" playsinline>
-  <source src="audio/win.mp3" type="audio/mpeg">
+<source src="/BlessingCards128/audio/win.mp3" type="audio/mpeg">
 </audio>
 
 <!-- ===============================
@@ -241,12 +242,6 @@ body{
 
   console.log("🔥 BlessingCards128 資源暖機中...");
 
-  /* ===== 1️⃣ LOGO 快取預載（GitHub Pages 穩定版） ===== */
-  (function(){
-    const img = new Image();
-    img.src = "/BlessingCards128/logo3524.png";
-  })();
-
   /* ===== 2️⃣ 音效預載（手機解鎖版） ===== */
   const preloadDrum = new Audio();
   preloadDrum.src = "/BlessingCards128/audio/drum.mp3";
@@ -255,27 +250,6 @@ body{
   const preloadWin = new Audio();
   preloadWin.src = "/BlessingCards128/audio/win.mp3";
   preloadWin.preload = "auto";
-
-  // 📱 手機瀏覽器需要「使用者互動」才能啟用音效
-  function unlockAudio(){
-    preloadDrum.play().then(() => {
-      preloadDrum.pause();
-      preloadDrum.currentTime = 0;
-
-      preloadWin.play().then(() => {
-        preloadWin.pause();
-        preloadWin.currentTime = 0;
-
-        console.log("🔓 Audio unlocked (mobile ready)");
-      }).catch(()=>{});
-    }).catch(()=>{});
-
-    document.removeEventListener("touchstart", unlockAudio);
-    document.removeEventListener("click", unlockAudio);
-  }
-
-  document.addEventListener("touchstart", unlockAudio, { once: true });
-  document.addEventListener("click", unlockAudio, { once: true });
 
   /* ===== 3️⃣ 紅包圖片預載（001–128） ===== */
   const MAX_PRELOAD = 128;
@@ -328,28 +302,36 @@ const statusDiv  = document.getElementById("status");
 const resultDiv  = document.getElementById("result");
 const summaryBox = document.getElementById("summaryBox");
 
-const drum = document.getElementById("drum");
-const winSound = document.getElementById("winSound");
-
 /* ==== 音效解鎖（只需一次） ==== */
 let audioUnlocked = false;
 
+const drum = document.getElementById("drum");
+const winSound = document.getElementById("winSound");
+
+// =============================
+// 🔓 行動裝置音效解鎖（唯一版本）
+// =============================
 function unlockAudio() {
   if (audioUnlocked) return;
-
   try {
-    winSound.muted = true;
-    winSound.play().then(() => {
-      winSound.pause();
-      winSound.currentTime = 0;
-      winSound.muted = false;
-      audioUnlocked = true;
-      console.log("🔓 Audio unlocked");
+    [drum, winSound].forEach(a => {
+      if (!a) return;
+      a.muted = true;
+      a.play().then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = false;
+      }).catch(()=>{});
     });
-  } catch (e) {
-    console.log("Audio unlock failed:", e);
-  }
+    audioUnlocked = true;
+    console.log("🔓 Audio unlocked");
+  } catch(e){}
 }
+
+// =============================
+// 🟢 解鎖觸發點（一定要在最後）
+// =============================
+document.addEventListener("pointerdown", unlockAudio, { once: true });
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = true;
@@ -740,6 +722,11 @@ function launchConfetti(){
 function spin(list, clockwise, callback) {
   if (rotating || !list.length) return;
 
+  // 🛡 音效元素保命檢查
+  if (!drum || !winSound) {
+    console.warn("🔇 Audio elements missing");
+  }
+
   // 🔴 先停掉任何殘留動畫
   if (animId) {
     cancelAnimationFrame(animId);
@@ -754,10 +741,15 @@ function spin(list, clockwise, callback) {
   centerText.textContent = "";
   summaryBox.textContent = "";
 
-  try {
-    drum.currentTime = 0;
-    drum.play();
-  } catch (e) {}
+try {
+  unlockAudio();                 // 🔓 先確保音效已解鎖
+  drum.currentTime = 0;
+  const p = drum.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(()=>{});            // 🛡 防瀏覽器阻擋導致報錯
+  }
+} catch (e) {}
+
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -876,6 +868,8 @@ function loadState(){
   // ⭐ PATCH A-1：是否從 viewer 回來（一定要在最前面）
   const cameFromViewer =
     sessionStorage.getItem("showSummaryOnReturn") === "1";
+	
+	sessionStorage.removeItem("showSummaryOnReturn"); // 🛡 用完就清，避免殘留
 
   const raw = sessionStorage.getItem("spinState");
 
@@ -1440,22 +1434,6 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 /* ========= 初始化 ========= */
 loadState();
 
-// ==== 主控頁才允許送心跳 ====
-if (IS_MASTER) {
-  setInterval(() => {
-    const raw = sessionStorage.getItem("spinState");
-    if (!raw) return;
-
-    try {
-      const s = JSON.parse(raw);
-      if (s.tabId === TAB_ID) {
-        s.heartbeat = Date.now();
-        sessionStorage.setItem("spinState", JSON.stringify(s));
-      }
-    } catch(e) {}
-  }, 2000);
-}
-
 /* ========= 全部歸零（最高優先權 Reset 核心） ========= */
 resetBtn.onclick = () => {
   if (!canAct()) return;   // ✅ 必須第一行
@@ -1491,7 +1469,6 @@ resetBtn.onclick = () => {
 
   /* ===== 3️⃣ 清 Storage ===== */
   localStorage.removeItem("drawLogs");
-  localStorage.removeItem("pdfSerial");
   sessionStorage.removeItem("spinState");
   sessionStorage.removeItem("showSummaryOnReturn");
 
