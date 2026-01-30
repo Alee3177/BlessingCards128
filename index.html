@@ -861,16 +861,30 @@ heartbeat: Date.now(),
   }));
 }
 
-/* ========= 載入狀態（不自動旋轉） ========= */
 function loadState(){
   rotating = false;   // ★ 強制解除死鎖
 
-  // ⭐ PATCH A-1：是否從 viewer 回來（一定要在最前面）
+  // ===== 1️⃣ 是否從 viewer 回來 =====
   const cameFromViewer =
     sessionStorage.getItem("showSummaryOnReturn") === "1";
-	
-	sessionStorage.removeItem("showSummaryOnReturn"); // 🛡 用完就清，避免殘留
 
+  // ===== 2️⃣ Viewer 回流 → 硬重置系統 =====
+  if (cameFromViewer) {
+    console.log("🔄 Viewer return detected → HARD RESET");
+
+    // 核心狀態重置
+    systemState = "WAIT_FIRST";
+
+    // 所有流程資料清空
+    sessionStorage.removeItem("spinState");
+    sessionStorage.removeItem("showSummaryOnReturn");
+
+    // UI 強制回第一輪
+    applyUIState();
+    return; // 🛑 直接結束，不允許舊狀態復活
+  }
+
+  // ===== 3️⃣ 正常流程才允許還原狀態 =====
   const raw = sessionStorage.getItem("spinState");
 
   /* ===== 完全沒有任何狀態：初始畫面 ===== */
