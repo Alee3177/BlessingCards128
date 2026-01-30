@@ -761,26 +761,22 @@ function launchConfetti(){
 }
 
 function spin(list, clockwise, callback) {
-  if (!list.length) return;
+  if (!list || !list.length) return;
 
-  const myToken = ++spinToken;   // 🔐 本輪世代鎖
+  // 🔐 世代鎖
+  const myToken = ++spinToken;
 
-  // 🛑 如果還在轉，直接作廢舊動畫
-  if (rotating) {
-    console.warn("⚠ spin blocked — invalidate old spin");
-    spinToken++;
-  }
-
-  // 🔴 停掉舊動畫幀
+  // 🧹 強制殺掉任何舊動畫
   if (animId) {
     cancelAnimationFrame(animId);
     animId = null;
   }
+  rotating = false;
 
   rotating = true;
-  applyUIState(); // 🟡 黃燈
+  applyUIState();
 
-  statusDiv.textContent = "旋轉中……";
+  statusDiv.textContent = "旋轉中…";
   resultDiv.textContent = "";
   centerText.textContent = "";
   summaryBox.textContent = "";
@@ -791,11 +787,9 @@ function spin(list, clockwise, callback) {
     if (drum) {
       drum.currentTime = 0;
       const p = drum.play();
-      if (p && typeof p.catch === "function") {
-        p.catch(() => unlockAudio());
-      }
+      if (p && p.catch) p.catch(() => {});
     }
-  } catch(e){}
+  } catch {}
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -807,13 +801,14 @@ function spin(list, clockwise, callback) {
   const end = base + delta;
 
   const start = performance.now();
-  const hardStopAt = start + DURATION + 300;
-  let finished = false;
+  const DURATION_SAFE = typeof DURATION === "number" ? DURATION : 3500;
+  const hardStopAt = start + DURATION_SAFE + 500;
 
   function finish() {
-    if (myToken !== spinToken) return;   // 🛡 舊動畫作廢
-    if (finished) return;
-    finished = true;
+    // 🛡 舊動畫直接作廢
+    if (myToken !== spinToken) return;
+
+    rotating = false;
 
     if (animId) {
       cancelAnimationFrame(animId);
@@ -826,24 +821,23 @@ function spin(list, clockwise, callback) {
     try {
       callback(target, idx);
     } catch (e) {
-      console.error("❌ spin callback crashed:", e);
+      console.error("❌ spin callback failed", e);
     }
 
-    rotating = false;
-    applyUIState(); // 🟢 回綠燈
-    console.log("🟢 spin finished, state =", systemState);
+    applyUIState();
+    console.log("🟢 spin finished OK");
   }
 
   function frame(now) {
-    if (myToken !== spinToken) return;   // 🛡 舊動畫自殺
-    if (finished) return;
+    // 🛡 舊動畫自殺
+    if (myToken !== spinToken) return;
 
     if (now >= hardStopAt) {
       finish();
       return;
     }
 
-    let t = (now - start) / DURATION;
+    let t = (now - start) / DURATION_SAFE;
     if (t < 0) t = 0;
 
     if (t >= 1) {
