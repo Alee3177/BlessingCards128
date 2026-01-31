@@ -1336,6 +1336,40 @@ rotation     = typeof s.rotation === "number" ? s.rotation : 0;
 lastWinnerIndex = (s.lastWinnerIndex ?? -1);
 round2Started = !!s.round2Started;
 
+/* ================================
+   🛡 Viewer 回流唯一處理區
+   ================================ */
+if (cameFromViewer) {
+  console.log("🔄 Viewer return → force READY (stable)");
+
+  // 作廢任何動畫
+  spinToken++;
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
+  rotating = false;
+
+  // 強制回第一輪待命
+  s.round2Done = false;
+  s.round2Started = false;
+  s.lastWinnerIndex = -1;
+  s.systemState = SYS_STATE.READY;
+
+  systemState = SYS_STATE.READY;
+
+  // 同步存回狀態（關鍵！）
+  saveState({
+    systemState: SYS_STATE.READY,
+    round2Done: false,
+    round2Started: false,
+    lastWinnerIndex: -1
+  });
+
+  // 清旗標
+  sessionStorage.removeItem("showSummaryOnReturn");
+}
+
 // ===== 還原 PDF 輪次防呆狀態 =====
 pdfRoundSerial = s.pdfRoundSerial || null;
 pdfRepeatCount = s.pdfRepeatCount || 0;
@@ -1374,8 +1408,7 @@ const round2Done = !!s.round2Done;
 if (
   lastWinnerIndex >= 0 &&
   !round2Done &&
-  rotating === false &&
-  !cameFromViewer   // ⭐ 關鍵：從 viewer 回來一律鎖死
+  rotating === false 
 ){
   secondBtn.disabled = false;
   secondBtn.classList.add("blink-btn");
@@ -1401,74 +1434,6 @@ if (
     resultDiv.textContent = "";
   }
 
-/* ===== 🔒 FINAL LOCK：從 viewer 回來後的 UI（唯一版本） ===== */
-
-const fromViewer =
-  sessionStorage.getItem("showSummaryOnReturn") === "1";
-  
-  // 🧹 保證不會殘留第一輪閃爍（避免跟第二輪一起閃）
-spinBtn.classList.remove("blink-btn");
-
-if (fromViewer) {
-
-  /* ===== 情況 A：尚未全部抽完 ===== */
-  if (drawn < total) {
-
-    // 轉盤下方提示
-    statusDiv.textContent = "請繼續下一位抽經句紅包";
-
-    // 第一輪：唯一入口 → 啟用 + 閃爍
-    spinBtn.disabled = false;
-    spinBtn.classList.add("blink-btn");
-
-    // 其他入口全部鎖死
-    secondBtn.disabled = true;
-    secondBtn.classList.remove("blink-btn");
-    viewBtn.disabled = true;
-    
-	
-	// 🔒 Viewer 回來期間：鎖定名單 / PDF 一律關閉
-    lockBtn.disabled = true;
-    pdfBtn.disabled = true;
-    pdfBtn.classList.remove("btn-pdf-ready");
-
-  }
-
-  /* ===== 情況 B：全部人已抽完 ===== */
-  else if (total > 0 && drawn === total) {
-  systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
-  applyUIState();
-  
-  statusDiv.textContent = "";   // ✅ 清除「請輸入姓名並鎖定名單」
-
-    // 指定三行提示
-    summaryBox.textContent =
-      `🎉 此輪轉盤已完成 ${total} 位的紅包抽籤\n` +
-      `📄 請按「抽籤紀錄 PDF」下載紀錄，或\n` +
-      `🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
-
-    // 抽籤紀錄 PDF：整顆藍色
-    pdfBtn.disabled = false;
-    pdfBtn.classList.add("btn-pdf-ready");
-
-// ✅ 全部歸零：整顆紅色（不可再被覆蓋）
-resetBtn.disabled = false;          // ← 必加，不然紅色只是裝飾
-resetBtn.classList.add("btn-reset-danger");
-
-    // 所有抽籤入口鎖死
-    spinBtn.disabled   = true;
-    secondBtn.disabled = true;
-    viewBtn.disabled   = true;
-
-    spinBtn.classList.remove("blink-btn");
-    secondBtn.classList.remove("blink-btn");
-    
-  }
-
-  // ✅ 所有 fromViewer 專屬 UI 都處理完，最後才清旗標
-  sessionStorage.removeItem("showSummaryOnReturn");
-}
 }
 
 /* ========= 抽籤紀錄寫入 localStorage ========= */
@@ -1641,12 +1606,18 @@ secondBtn.onclick = () => {
     .map(i => String(i + 1).padStart(3, "0"))
     .filter(v => !verseUsed.has(v));
 
-  if (!remain.length) {
-    systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
-    applyUIState();
-    return;
-  }
+if (!remain.length) {
+  systemState = SYS_STATE.FINISHED;
+  nameInput.disabled = false;
+
+  saveState({
+    finished: true,
+    systemState: SYS_STATE.FINISHED
+  });
+
+  applyUIState();
+  return;
+}
 
   audit("ROUND2_START", { remaining: remain.length });
 
@@ -1840,8 +1811,13 @@ logs.slice().reverse().forEach(l => {
 	
 // ✅ 本輪正式結案
 systemState = SYS_STATE.FINISHED;
-    nameInput.disabled = false;
-saveState({ finished: true });
+nameInput.disabled = false;
+
+saveState({
+  finished: true,
+  systemState: SYS_STATE.FINISHED
+});
+
 audit("ROUND_CLOSED_BY_PDF", { serial: pdfRoundSerial });
 applyUIState();
 
