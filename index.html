@@ -558,6 +558,7 @@ document.addEventListener("visibilitychange", () => {
 // =============================
 let animId = null;
 let spinToken = 0;
+let activeSpinToken = 0; // ⭐ 全域世代標記
 let rotating = false;
 let rotation = 0;
 
@@ -1131,6 +1132,7 @@ function spin(list, clockwise, callback) {
 
   // 🔐 本輪世代鎖
   const myToken = ++spinToken;
+  activeSpinToken = myToken; // ⭐ 同步到全域
 
   // 🛑 作廢舊動畫（不管 rotating 狀態）
   if (rotating) {
@@ -1190,14 +1192,14 @@ try {
 
   // 🧯 保命：就算 rAF 沒跑（某些 WebView/背景/卡住），也要硬收尾
   const failSafeId = setTimeout(() => {
-    if (myToken !== spinToken) return; // 舊世代不處理
+if (myToken !== activeSpinToken) return; // 舊世代不處理
     if (finished) return;
     console.warn('🧯 spin failsafe fired → force finish');
     finish();
   }, DURATION + 1200);
 
   function finish() {
-  if (myToken !== spinToken) return;   // 🛡 舊動畫作廢
+if (myToken !== activeSpinToken) return;  // 🛡 舊動畫作廢
     if (finished) return;
     finished = true;
 	
@@ -1223,7 +1225,7 @@ clearTimeout(failSafeId);          // 🧯 清除保險絲
   }
 
   function frame(now) {
-if (myToken !== spinToken) return;   // 🛡 舊動畫作廢  
+if (myToken !== activeSpinToken) return;   // 🛡 舊動畫作廢  
     if (finished) return;
 
     // 🛡 硬停保險
@@ -1355,7 +1357,7 @@ if (cameFromViewer) {
   console.log("🔄 Viewer return → force READY (stable)");
 
   // 作廢任何動畫
-  spinToken++;
+activeSpinToken = ++spinToken; // ⭐ 同步作廢所有舊動畫
   if (animId) {
     cancelAnimationFrame(animId);
     animId = null;
