@@ -1127,9 +1127,18 @@ function launchConfetti(){
 }
 
 function spin(list, clockwise, callback) {
-  if (rotating || !list.length) return;
+  if (!list.length) return;
 
-  // 🔴 先停掉任何殘留動畫
+  // 🔐 本輪世代鎖
+  const myToken = ++spinToken;
+
+  // 🛑 作廢舊動畫（不管 rotating 狀態）
+  if (rotating) {
+    console.warn("⚠ spin blocked — invalidate old spin");
+    spinToken++;
+  }
+
+  // 🔴 強制停掉舊動畫幀
   if (animId) {
     cancelAnimationFrame(animId);
     animId = null;
@@ -1146,8 +1155,14 @@ function spin(list, clockwise, callback) {
 try {
   unlockAudio(); // 🔓 先嘗試解鎖
 
-  drum.currentTime = 0;
-  const p = drum.play();
+  let p = null;
+
+  if (drum) {
+    drum.currentTime = 0;
+    p = drum.play();
+  } else {
+    console.warn("🔇 drum element missing");
+  }
 
   if (p && typeof p.catch === "function") {
     p.catch(err => {
@@ -1182,8 +1197,11 @@ try {
   }, DURATION + 1200);
 
   function finish() {
+  if (myToken !== spinToken) return;   // 🛡 舊動畫作廢
     if (finished) return;
     finished = true;
+	
+clearTimeout(failSafeId);          // 🧯 清除保險絲
 
     if (animId) {
       cancelAnimationFrame(animId);
@@ -1205,6 +1223,7 @@ try {
   }
 
   function frame(now) {
+if (myToken !== spinToken) return;   // 🛡 舊動畫作廢  
     if (finished) return;
 
     // 🛡 硬停保險
