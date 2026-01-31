@@ -554,6 +554,14 @@ document.addEventListener("visibilitychange", () => {
 (function(){
 
 // =============================
+// 🛡 全域保命變數（一定要最前面）
+// =============================
+let animId = null;
+let spinToken = 0;
+let rotating = false;
+let rotation = 0;
+
+// =============================
 // 🔒 防作弊（安全版）
 // =============================
 (function lockInputCheat(){
@@ -575,28 +583,15 @@ document.addEventListener("visibilitychange", () => {
 })();
 
 // =============================
-// 🔒 防作弊：禁止鍵盤 + 右鍵
+// 🎯 DOM 元件
 // =============================
-let animId = null;   // requestAnimationFrame 控制用（防止動畫殘留 / 死機）
-
-/* ==== DOM 元件 ==== */
 const wheel = document.getElementById("wheel");
-const ctx = wheel ? wheel.getContext("2d") : null;
-
-if (!wheel || !ctx) {
-  console.warn("⚠ Wheel canvas not ready");
-}
+const ctx   = wheel ? wheel.getContext("2d") : null;
 const hlSVG = document.getElementById("hl-svg");
 const centerText = document.getElementById("centerText");
 
 const confettiCanvas = document.getElementById("confettiCanvas");
-const confCtx = confettiCanvas
-  ? confettiCanvas.getContext("2d")
-  : null;
-
-if (!confettiCanvas || !confCtx) {
-  console.warn("⚠ Confetti canvas not ready");
-}
+const confCtx = confettiCanvas ? confettiCanvas.getContext("2d") : null;
 
 const lockBtn   = document.getElementById("lockBtn");
 const spinBtn   = document.getElementById("spinBtn");
@@ -695,8 +690,6 @@ let usedName = new Set();
 let verseUsed = new Set();
 let round2Started = false; // ✅ 第二輪是否已經被按過
 
-let rotation = 0;
-let rotating = false;
 let lastWinnerIndex = null;
 let currentVerse = null;
 
