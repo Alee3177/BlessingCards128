@@ -1,712 +1,297 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>BlessingCards128 — Stable A</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>祝福經句紅包 — 單機極簡穩定版</title>
 
-  <!-- 讓 LOGO 優先載入 -->
-  <link rel="preload" as="image" href="logo3524.png">
+<!-- LOGO 最高優先級預載 -->
+<link rel="preload" as="image" href="logo3524.png" fetchpriority="high">
 
-  <style>
-    :root{ --gold:#d7a21b; --gold2:#f1d48b; --bg:#f7eedb; --text:#4b3a20; }
-    body{ margin:0; font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
-          background:var(--bg); color:var(--text); }
-    .wrap{ max-width:760px; margin:0 auto; padding:18px 14px 28px; text-align:center; }
-    #logo{ display:block; max-width:220px; width:56vw; margin:12px auto 10px; border-radius:10px; }
-    h2{ margin:8px 0 10px; font-weight:800; letter-spacing:1px; }
-    .statusRow{ display:flex; align-items:center; justify-content:center; gap:10px; margin:6px 0 10px; }
-    .dot{ width:10px; height:10px; border-radius:50%; background:#999; }
-    .dot.ok{ background:#2ea043; }
-    .dot.warn{ background:#f59e0b; }
-    .dot.bad{ background:#ef4444; }
-    #status{ font-weight:700; }
-    input{ width:min(92vw,520px); padding:10px 12px; border-radius:10px; border:2px solid #d9c08a; background:#fff; font-size:16px; }
-    .btnRow{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:10px 0; }
-    button{ border:none; cursor:pointer; padding:10px 14px; border-radius:18px;
-            background:linear-gradient(#f6d890,#e8b545); color:#3c2a12; font-weight:800; box-shadow:0 3px 0 #c08c1f; }
-    button:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; }
-    .ghost{ background:#f1e3c5; box-shadow:none; border:2px solid #d9c08a; }
-    .danger{ background:#ef4444; color:#fff; box-shadow:none; }
-    .blink{ animation: blink 1s infinite; }
-    @keyframes blink { 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.25); } }
-    #wheelWrap{ margin:14px auto 8px; width:min(92vw,520px); }
-    canvas{ width:100%; height:auto; background:transparent; }
-    .hint{ margin-top:10px; font-size:13px; opacity:.8; line-height:1.35; }
-    #result{ margin:10px 0 0; font-weight:800; }
-    #summaryBox{ margin:6px auto 0; max-width:620px; white-space:pre-line; font-size:13px; line-height:1.35; opacity:.9; }
-  </style>
+<style>
+/* ================== UI LOCKED STYLE (DO NOT CHANGE) ================== */
+body{
+  font-family:"Noto Sans TC",system-ui;
+  background:#fbf2df;
+  text-align:center;
+  margin:0;
+  padding:16px;
+  color:#5b3a00;
+}
+.logo{width:220px;margin:10px auto 0;display:block;}
+
+#nameInput{
+  width:90%;max-width:480px;padding:10px 14px;
+  margin-top:10px;border-radius:10px;border:2px solid #e3c78c;
+  font-size:18px;text-align:center;box-sizing:border-box;
+}
+
+.btn-row{
+  margin-top:8px;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.btn{
+  min-width:110px;
+  padding:8px 16px;
+  border-radius:999px;
+  border:none;
+  background:#f4b63a;
+  color:#5b3a00;
+  font-size:15px;
+  font-weight:600;
+  box-shadow:0 3px 0 #d59b25;
+  cursor:pointer;
+}
+.btn:disabled{
+  background:#f0ddaa;
+  cursor:default;
+}
+
+.blink-btn{animation:flash .8s infinite alternate;}
+@keyframes flash{from{opacity:1}to{opacity:.35}}
+
+#wheel-container{
+  position:relative;
+  width:360px;
+  height:360px;
+  margin:16px auto;
+}
+#wheel{width:360px;height:360px;}
+#centerText{
+  position:absolute;
+  left:0;top:0;width:360px;height:360px;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;font-size:18px;font-weight:700;white-space:pre-line;
+}
+#summaryBox{margin-top:10px;white-space:pre-line;font-weight:700;}
+
+.status-bar{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:8px auto 4px auto;font-size:14px;font-weight:700;
+  transform: scale(1.2);
+}
+.status-bar .dot{
+  width:12px;height:12px;border-radius:50%;background:#999;
+  box-shadow:0 0 4px rgba(0,0,0,.3);
+}
+.status-ok .dot{background:#2e7d32;box-shadow:0 0 8px rgba(46,125,50,.8);}
+.status-warn .dot{background:#f9a825;box-shadow:0 0 8px rgba(249,168,37,.8);}
+.status-error .dot{background:#c62828;box-shadow:0 0 8px rgba(198,40,40,.8);}
+</style>
 </head>
-
 <body>
-<div class="wrap">
-  <img id="logo" src="logo3524.png" alt="LOGO" loading="eager" decoding="async" />
 
-  <h2>祝福經句紅包（應許等您拿）</h2>
+<img id="logo" class="logo"
+     src="logo3524.png"
+     alt="LOGO"
+     loading="eager"
+     decoding="sync"
+     fetchpriority="high">
 
-  <div class="statusRow">
-    <span id="dot" class="dot"></span>
-    <div id="status">系統初始化中</div>
-  </div>
+<h2>祝福經句紅包（應許等您拿）</h2>
 
-  <input id="nameInput" placeholder="請輸入姓名，可用空白或逗號分隔" autocomplete="off"/>
-
-  <div class="btnRow">
-    <button id="lockBtn">鎖定名單</button>
-    <button id="spinBtn">開始抽姓名＋經句（第一輪）</button>
-  </div>
-
-  <div class="btnRow">
-    <button id="viewBtn" class="ghost">看紅包</button>
-    <button id="secondBtn">抽紅包（第二輪）</button>
-  </div>
-
-  <div class="btnRow">
-    <button id="resetBtn" class="ghost">全部歸零</button>
-    <button id="pdfBtn" class="ghost">抽籤紀錄 PDF</button>
-  </div>
-
-  <div class="btnRow">
-    <button id="hardResetBtn" class="danger">強制解除卡死</button>
-  </div>
-
-  <div id="wheelWrap">
-    <canvas id="wheel" width="520" height="520"></canvas>
-  </div>
-
-  <div id="result"></div>
-  <div id="summaryBox"></div>
-
-  <!-- 音效元素（行動裝置需解鎖） -->
-  <audio id="drum" preload="auto" src="audio/drum.mp3"></audio>
-  <audio id="winSound" preload="auto" src="audio/win.mp3"></audio>
-
-  <div class="hint">
-    使用流程：<br/>
-    1) 輸入姓名 →「鎖定名單」<br/>
-    2) 「第一輪」抽到姓名 + 經句編號<br/>
-    3) 「第二輪」抽紅包（確認經句）→「看紅包」<br/>
-    4) viewer 點「下一位」回來後，會回到第一輪並閃爍提示
-  </div>
+<div id="masterStatus" class="status-bar status-ok">
+  <span class="dot"></span>
+  <span id="status">請輸入姓名並鎖定名單</span>
 </div>
 
+<input id="nameInput" placeholder="輸入姓名（用逗號分隔）">
+
+<div class="btn-row">
+  <button id="lockBtn" class="btn">鎖定名單</button>
+  <button id="spinBtn" class="btn" disabled>開始抽姓名</button>
+  <button id="secondBtn" class="btn" disabled>抽紅包</button>
+</div>
+
+<div id="wheel-container">
+  <canvas id="wheel" width="360" height="360"></canvas>
+  <div id="centerText"></div>
+</div>
+
+<div id="summaryBox"></div>
+
+<audio id="drum" preload="auto" playsinline src="audio/drum.mp3"></audio>
+<audio id="winSound" preload="auto" playsinline src="audio/win.mp3"></audio>
+
 <script>
-/* =========================================================
-   BlessingCards128 — Stable A (Production Build)
-   目標：不死機、狀態可回復、手機音效可解鎖、無 QR 依賴
-========================================================= */
+// =============================
+// 🛡 單機極簡穩定核心
+// =============================
 
-/* -------------------------
-   0) Base path（子目錄安全）
-------------------------- */
-const BASE_PATH = (() => {
-  // e.g. /BlessingCards128/index.html -> /BlessingCards128
-  const base = location.pathname.replace(/\/[^\/]*$/, "");
-  return base || "";
-})();
-const ASSET = (p) => `${BASE_PATH}/${p}`.replace(/\/{2,}/g,"/");
-
-/* -------------------------
-   1) DOM
-------------------------- */
-const el = {
-  wheel: document.getElementById("wheel"),
-  ctx: null,
-  logo: document.getElementById("logo"),
-  dot: document.getElementById("dot"),
-  status: document.getElementById("status"),
-  result: document.getElementById("result"),
-  summary: document.getElementById("summaryBox"),
-  nameInput: document.getElementById("nameInput"),
-  lockBtn: document.getElementById("lockBtn"),
-  spinBtn: document.getElementById("spinBtn"),
-  secondBtn: document.getElementById("secondBtn"),
-  viewBtn: document.getElementById("viewBtn"),
-  resetBtn: document.getElementById("resetBtn"),
-  pdfBtn: document.getElementById("pdfBtn"),
-  hardResetBtn: document.getElementById("hardResetBtn"),
-  drum: document.getElementById("drum"),
-  win: document.getElementById("winSound"),
-};
-el.ctx = el.wheel ? el.wheel.getContext("2d") : null;
-
-/* -------------------------
-   2) 全域保命變數（唯一來源）
-------------------------- */
-let animId = null;
-let spinToken = 0;
+let names = [];
+let usedName = new Set();
 let rotating = false;
 let rotation = 0;
+let spinToken = 0;
+let animId = null;
 
-/* -------------------------
-   3) 狀態機
-------------------------- */
-const SYS = {
-  INIT: "INIT",           // 尚未鎖名單
-  READY: "READY",         // 已鎖名單，等待第一輪
-  ROUND1: "ROUND1",       // 第一輪旋轉中
-  ROUND2_READY: "ROUND2_READY", // 第一輪完成，等待第二輪
-  ROUND2: "ROUND2",       // 第二輪旋轉中
-  VIEWER_READY: "VIEWER_READY", // 第二輪完成，可看紅包
-  FINISHED: "FINISHED",   // 全部完成
-};
+const wheel = document.getElementById("wheel");
+const ctx = wheel.getContext("2d");
+const centerText = document.getElementById("centerText");
 
-const STORE_KEY = "BC_STATE_V1";   // sessionStorage
-const LOG_KEY   = "drawLogs";      // localStorage (既有)
+const lockBtn = document.getElementById("lockBtn");
+const spinBtn = document.getElementById("spinBtn");
+const secondBtn = document.getElementById("secondBtn");
+const nameInput = document.getElementById("nameInput");
+const statusDiv = document.getElementById("status");
+const statusBar = document.getElementById("masterStatus");
+const summaryBox = document.getElementById("summaryBox");
 
-const state = {
-  systemState: SYS.INIT,
-  names: [],
-  idx: 0,                  // 目前抽到第幾位（names 的 index）
-  currentName: null,
-  currentVerseNo: null,     // "007"
-  finished: false,
-};
+const drum = document.getElementById("drum");
+const winSound = document.getElementById("winSound");
 
-function saveState(extra = {}) {
-  const payload = { ...state, ...extra };
-  sessionStorage.setItem(STORE_KEY, JSON.stringify(payload));
-}
-
-function loadState() {
-  // 強制解除可能殘留的旋轉鎖
-  rotating = false;
-  spinToken++;
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
-
-  const raw = sessionStorage.getItem(STORE_KEY);
-  if (!raw) return;
-
-  try {
-    const s = JSON.parse(raw);
-    if (!s || typeof s !== "object") return;
-
-    // 僅採用白名單欄位，防止舊版污染
-    state.systemState = Object.values(SYS).includes(s.systemState) ? s.systemState : SYS.INIT;
-    state.names = Array.isArray(s.names) ? s.names : [];
-    state.idx = Number.isFinite(s.idx) ? s.idx : 0;
-    state.currentName = s.currentName || null;
-    state.currentVerseNo = s.currentVerseNo || null;
-    state.finished = !!s.finished;
-
-  } catch(e) {
-    console.warn("⚠ loadState failed:", e);
-  }
-}
-
-// 唯一改狀態出口
-function setState(next, extra = {}) {
-  state.systemState = next;
-  Object.assign(state, extra);
-  saveState();
-  applyUI();
-  // console.log("STATE →", next, JSON.parse(JSON.stringify(state)));
-}
-
-/* -------------------------
-   4) 音效解鎖（行動裝置）
-------------------------- */
 let audioUnlocked = false;
 
-function unlockAudioOnce() {
-  if (audioUnlocked) return;
-  try {
-    [el.drum, el.win].forEach(a => {
-      if (!a) return;
+function unlockAudio(){
+  if(audioUnlocked) return;
+  [drum, winSound].forEach(a=>{
+    if(!a) return;
+    try{
       a.muted = true;
-      const p = a.play();
-      if (p && typeof p.then === "function") {
-        p.then(() => {
-          a.pause();
-          a.currentTime = 0;
-          a.muted = false;
-        }).catch(()=>{});
-      }
-    });
-    audioUnlocked = true;
-    console.log("🔓 Audio unlocked");
-  } catch(e){}
+      a.play().then(()=>{
+        a.pause();a.currentTime=0;a.muted=false;
+      }).catch(()=>{});
+    }catch(e){}
+  });
+  audioUnlocked = true;
+  console.log("🔓 Audio unlocked");
 }
 
-// 一定會點的地方綁一次
-["pointerdown","touchstart","click"].forEach(evt=>{
-  document.addEventListener(evt, unlockAudioOnce, { once:true, passive:true });
-});
-el.lockBtn.addEventListener("click", unlockAudioOnce, { once:true });
-el.spinBtn.addEventListener("click", unlockAudioOnce, { once:true });
-el.secondBtn.addEventListener("click", unlockAudioOnce, { once:true });
-el.viewBtn.addEventListener("click", unlockAudioOnce, { once:true });
+document.addEventListener("pointerdown", unlockAudio, { once:true });
 
-/* -------------------------
-   5) 預載（不影響主流程）
-------------------------- */
-(function preload(){
-  // 修正資源路徑（子目錄）
-  el.logo.src = ASSET("logo3524.png");
-
-  // LOGO warm
-  const img = new Image();
-  img.src = ASSET("logo3524.png");
-
-  // 音效 warm（但不自動播放）
-  if (el.drum) el.drum.src = ASSET("audio/drum.mp3");
-  if (el.win)  el.win.src  = ASSET("audio/win.mp3");
-
-  // 紅包圖片 warm
-  const MAX = (window.innerWidth < 768 ? 24 : 128);
-  let ok = 0;
-  for (let i=1;i<=MAX;i++){
-    const n = String(i).padStart(3,"0");
-    const im = new Image();
-    im.onload = () => { ok++; if (ok===MAX) console.log("✅ 紅包圖片暖機完成（"+MAX+" 張）"); };
-    im.src = ASSET("cards/"+n+".png");
-  }
-})();
-
-/* -------------------------
-   6) 轉盤繪製
-------------------------- */
-function resizeCanvasForDPR() {
-  if (!el.wheel || !el.ctx) return;
-  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-  const css = Math.min(window.innerWidth * 0.92, 520);
-  el.wheel.style.width = css + "px";
-  el.wheel.style.height = css + "px";
-  el.wheel.width  = Math.floor(css * dpr);
-  el.wheel.height = Math.floor(css * dpr);
-  el.ctx.setTransform(dpr,0,0,dpr,0,0);
-  drawWheel(rotation);
+function setStatus(cls, text){
+  statusBar.className = "status-bar " + cls;
+  statusDiv.textContent = text;
 }
-window.addEventListener("resize", () => resizeCanvasForDPR(), { passive:true });
 
-function drawWheel(angle=0, labels=null){
-  if (!el.ctx || !el.wheel) return;
-  const ctx = el.ctx;
-  const w = parseFloat(el.wheel.style.width || "520");
-  const cx = w/2, cy = w/2;
-  const r = w/2 - 6;
-
-  ctx.clearRect(0,0,w,w);
-
-  // background circle
-  ctx.save();
-  ctx.translate(cx,cy);
-  ctx.rotate(angle);
-
-  const list = labels || ["1","2","3"]; // placeholder
-  const N = Math.max(1, list.length);
-
-  for (let i=0;i<N;i++){
-    const a0 = (i/N) * Math.PI*2;
-    const a1 = ((i+1)/N)* Math.PI*2;
-
+function drawWheel(){
+  const n = names.length || 1;
+  const R = 180;
+  ctx.clearRect(0,0,360,360);
+  for(let i=0;i<n;i++){
+    const a1 = (i/n)*2*Math.PI + rotation;
+    const a2 = ((i+1)/n)*2*Math.PI + rotation;
     ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.arc(0,0,r,a0,a1);
+    ctx.moveTo(180,180);
+    ctx.arc(180,180,R,a1,a2);
     ctx.closePath();
-    ctx.fillStyle = (i%2===0) ? "#f6d890" : "#f1d48b";
+    ctx.fillStyle = i%2 ? "#ffe082" : "#ffd54f";
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
 
-    // text
     ctx.save();
-    ctx.rotate((a0+a1)/2);
-    ctx.textAlign="right";
-    ctx.textBaseline="middle";
-    ctx.fillStyle="#4b3a20";
-    ctx.font="18px system-ui";
-    ctx.fillText(String(list[i]), r-14, 0);
+    ctx.translate(180,180);
+    ctx.rotate((a1+a2)/2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#5b3a00";
+    ctx.font = "14px sans-serif";
+    ctx.fillText(names[i] || "", R-10, 5);
     ctx.restore();
   }
-
-  ctx.restore();
-
-  // pointer
-  ctx.save();
-  ctx.translate(cx,cy);
-  ctx.beginPath();
-  ctx.moveTo(0,-r-2);
-  ctx.lineTo(-8,-r+18);
-  ctx.lineTo(8,-r+18);
-  ctx.closePath();
-  ctx.fillStyle="#ffffff";
-  ctx.fill();
-  ctx.strokeStyle="#d9c08a";
-  ctx.lineWidth=2;
-  ctx.stroke();
-  ctx.restore();
 }
 
-/* -------------------------
-   7) Spin（保命版）
-------------------------- */
-const DURATION = 2600;
+function spin(list, callback){
+  if(!list.length || rotating) return;
 
-function ease(t){
-  // easeOutCubic
-  return 1 - Math.pow(1-t, 3);
-}
-
-function spin(list, clockwise, onDone){
-  if (!Array.isArray(list) || list.length === 0) return;
-
-  // 作廢舊動畫
   const myToken = ++spinToken;
-
-  // 強制停舊 rAF
-  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if(animId){ cancelAnimationFrame(animId); animId=null; }
 
   rotating = true;
+  setStatus("status-warn","旋轉中...");
 
-  // 顯示 UI
-  el.result.textContent = "";
-  el.summary.textContent = "";
-
-  // 播 drum（被阻擋也不報錯）
   try{
-    unlockAudioOnce();
-    if (el.drum){
-      el.drum.currentTime = 0;
-      const p = el.drum.play();
-      if (p && typeof p.catch === "function") p.catch(()=>{});
-    }
+    unlockAudio();
+    if(drum){ drum.currentTime=0; drum.play().catch(()=>{}); }
   }catch(e){}
 
   const target = list[Math.floor(Math.random()*list.length)];
   const idx = list.indexOf(target);
 
   const base = rotation;
-  const N = list.length;
-  const slice = (Math.PI*2)/N;
-  // 指針在上方（-pi/2），旋轉讓 idx 對到指針：多轉 5~6 圈
-  const rounds = 5 + Math.random(); // 5~6
-  const sign = clockwise ? 1 : -1;
-  const end = base + sign*(rounds*Math.PI*2 + idx*slice);
+  const delta = 6*Math.PI + idx*(2*Math.PI/list.length);
+  const end = base + delta;
 
   const start = performance.now();
-  const hardStopAt = start + DURATION + 350;
-  let finished = false;
-
-  const failSafeId = setTimeout(()=>{
-    if (myToken !== spinToken) return;
-    if (finished) return;
-    console.warn("🧯 spin failsafe fired");
-    finish();
-  }, DURATION + 1400);
-
-  function finish(){
-    if (myToken !== spinToken) return;
-    if (finished) return;
-    finished = true;
-    clearTimeout(failSafeId);
-
-    if (animId) { cancelAnimationFrame(animId); animId = null; }
-
-    rotation = end;
-    drawWheel(rotation, list);
-
-    rotating = false;
-    try { onDone(target, idx); } catch(e){ console.error("spin callback crashed:", e); }
-    applyUI();
-  }
+  const DURATION = 3000;
 
   function frame(now){
-    if (myToken !== spinToken) return; // 舊動畫自殺
-    if (finished) return;
-
-    if (now >= hardStopAt) { finish(); return; }
-
-    let t = (now - start) / DURATION;
-    if (t < 0) t = 0;
-    if (t >= 1) { finish(); return; }
-
-    rotation = base + (end - base) * ease(t);
-    drawWheel(rotation, list);
+    if(myToken !== spinToken) return;
+    const t = (now-start)/DURATION;
+    if(t>=1){
+      rotation = end;
+      drawWheel();
+      rotating = false;
+      callback(target, idx);
+      return;
+    }
+    rotation = base + delta*(1-Math.pow(1-t,3));
+    drawWheel();
     animId = requestAnimationFrame(frame);
   }
 
-  drawWheel(rotation, list);
   animId = requestAnimationFrame(frame);
 }
 
-/* -------------------------
-   8) UI 對應
-------------------------- */
-function setDot(kind){
-  el.dot.className = "dot " + (kind || "");
-}
+lockBtn.onclick = ()=>{
+  const raw = nameInput.value.split(/,|\n/).map(s=>s.trim()).filter(Boolean);
+  if(!raw.length) return alert("請輸入姓名");
 
-function applyUI(){
-  // reset blink
-  [el.spinBtn, el.secondBtn, el.viewBtn].forEach(b=>b.classList.remove("blink"));
+  names = raw;
+  usedName.clear();
 
-  // default disable
-  el.spinBtn.disabled = true;
-  el.secondBtn.disabled = true;
-  el.viewBtn.disabled = true;
-  el.pdfBtn.disabled = false;
-  el.lockBtn.disabled = false;
+  drawWheel();
+  spinBtn.disabled = false;
+  spinBtn.classList.add("blink-btn");
 
-  if (!state.names.length) {
-    setDot("warn");
-    el.status.textContent = "請輸入姓名並鎖定名單";
-    el.lockBtn.disabled = false;
-    return;
-  }
-
-  switch(state.systemState){
-    case SYS.INIT:
-      setDot("warn");
-      el.status.textContent = "請輸入姓名並鎖定名單";
-      el.lockBtn.disabled = false;
-      break;
-
-    case SYS.READY:
-      setDot("ok");
-      el.status.textContent = "名單已鎖定，請開始第一輪抽籤";
-      el.spinBtn.disabled = false;
-      el.spinBtn.classList.add("blink");
-      break;
-
-    case SYS.ROUND1:
-      setDot("warn");
-      el.status.textContent = "第一輪旋轉中…";
-      break;
-
-    case SYS.ROUND2_READY:
-      setDot("ok");
-      el.status.textContent = "第一輪完成，請按第二輪抽紅包";
-      el.secondBtn.disabled = false;
-      el.secondBtn.classList.add("blink");
-      break;
-
-    case SYS.ROUND2:
-      setDot("warn");
-      el.status.textContent = "第二輪旋轉中…";
-      break;
-
-    case SYS.VIEWER_READY:
-      setDot("ok");
-      el.status.textContent = "第二輪完成：可看紅包，或下一位";
-      el.viewBtn.disabled = false;
-      el.viewBtn.classList.add("blink");
-      // 若你仍要允許重抽第二輪，可打開 secondBtn
-      el.secondBtn.disabled = true;
-      break;
-
-    case SYS.FINISHED:
-      setDot("ok");
-      el.status.textContent = "本輪完成，可下載 PDF 或重置";
-      el.pdfBtn.disabled = false;
-      el.lockBtn.disabled = false;
-      break;
-
-    default:
-      setDot("bad");
-      el.status.textContent = "系統狀態異常，請按「強制解除卡死」";
-      el.hardResetBtn.classList.add("blink");
-      break;
-  }
-}
-
-/* -------------------------
-   9) 主要流程
-------------------------- */
-function parseNames(input){
-  return input
-    .split(/[\s,，]+/g)
-    .map(s=>s.trim())
-    .filter(Boolean);
-}
-
-function appendLog(name, verseNo, refText){
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,"0");
-  const mm = String(now.getMinutes()).padStart(2,"0");
-  const ss = String(now.getSeconds()).padStart(2,"0");
-  const time = `${hh}:${mm}:${ss}`;
-
-  let logs = [];
-  try { logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch {}
-  if (!Array.isArray(logs)) logs = [];
-  logs.push({ time, name, no: verseNo, ref: refText || verseNo });
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-}
-
-function hardResetToReady(){
-  // 完整解除旋轉/動畫/狀態
-  rotating = false;
-  spinToken++;
-  if (animId) { cancelAnimationFrame(animId); animId=null; }
-  rotation = 0;
-  state.currentName = null;
-  state.currentVerseNo = null;
-  setState(state.names.length ? SYS.READY : SYS.INIT);
-  drawWheel(rotation, state.names.length ? state.names : ["1","2","3"]);
-  el.result.textContent = "";
-  el.summary.textContent = "";
-  console.warn("🧯 HARD RESET executed");
-}
-
-function advanceIndex(){
-  state.idx = Math.min(state.idx + 1, state.names.length);
-  state.currentName = null;
-  state.currentVerseNo = null;
-
-  if (state.idx >= state.names.length){
-    setState(SYS.FINISHED, { finished:true });
-  } else {
-    setState(SYS.READY);
-  }
-}
-
-// 讀取 viewer 回流旗標：只做一次，避免殘留
-(function handleViewerReturn(){
-  const flag = sessionStorage.getItem("BC_RETURN");
-  if (!flag) return;
-  sessionStorage.removeItem("BC_RETURN");
-
-  if (flag === "NEXT") {
-    // viewer 按了「下一位」
-    console.log("🔄 Viewer return → NEXT");
-    advanceIndex();
-  } else if (flag === "BACK") {
-    // viewer 只是返回（不前進）
-    console.log("🔄 Viewer return → BACK");
-    setState(SYS.VIEWER_READY);
-  }
-})();
-
-/* -------------------------
-   10) Buttons
-------------------------- */
-el.lockBtn.onclick = () => {
-  unlockAudioOnce();
-  const list = parseNames(el.nameInput.value);
-
-  if (!list.length){
-    alert("請先輸入至少一個姓名");
-    return;
-  }
-  state.names = list;
-  state.idx = 0;
-  state.currentName = null;
-  state.currentVerseNo = null;
-  state.finished = false;
-
-  saveState();
-  setState(SYS.READY);
-
-  drawWheel(rotation, state.names);
+  setStatus("status-ok","請開始第一輪抽籤");
 };
 
-el.spinBtn.onclick = () => {
-  if (rotating) return;
-  if (!state.names.length) return;
+spinBtn.onclick = ()=>{
+  const remain = names.filter(n=>!usedName.has(n));
+  if(!remain.length) return alert("已抽完");
 
-  // 第一輪：抽姓名 + 經句編號（這裡用「經句編號」先抽出）
-  setState(SYS.ROUND1);
+  spin(remain, (winner)=>{
+    usedName.add(winner);
+    centerText.textContent = `🎯 抽中：${winner}`;
 
-  spin(state.names, true, (namePicked, idx)=>{
-    // 抽到姓名：固定成當前
-    state.currentName = namePicked;
-
-    // 抽經句編號 001-128（避免重覆：靠 localStorage logs 的 no 去排除）
-    let used = new Set();
     try{
-      const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-      if (Array.isArray(logs)) logs.forEach(l => l && l.no && used.add(String(l.no)));
+      if(winSound){ winSound.currentTime=0; winSound.play().catch(()=>{}); }
     }catch(e){}
-    let tries = 0;
-    let no = null;
-    while(tries < 500){
-      tries++;
-      const r = String(Math.floor(Math.random()*128)+1).padStart(3,"0");
-      if (!used.has(r)) { no = r; break; }
+
+    secondBtn.disabled = false;
+    secondBtn.classList.add("blink-btn");
+    setStatus("status-ok","請抽紅包");
+  });
+};
+
+secondBtn.onclick = ()=>{
+  centerText.textContent += "\n📜 請看紅包圖片";
+  secondBtn.classList.remove("blink-btn");
+  setStatus("status-ok","本位完成，請進行下一位");
+};
+
+// =============================
+// 🚀 延後預載（不搶 LOGO 頻寬）
+// =============================
+window.addEventListener("load", ()=>{
+  setTimeout(()=>{
+    console.log("🔥 資源暖機中...");
+
+    const p1 = new Audio();
+    p1.src = "audio/drum.mp3";
+
+    const p2 = new Audio();
+    p2.src = "audio/win.mp3";
+
+    const MAX = (window.innerWidth < 768 ? 12 : 128);
+    for(let i=1;i<=MAX;i++){
+      const img = new Image();
+      img.src = "cards/"+String(i).padStart(3,"0")+".png";
     }
-    no = no || String(Math.floor(Math.random()*128)+1).padStart(3,"0");
-    state.currentVerseNo = no;
-
-    el.result.textContent = `🎯 抽中姓名：「${namePicked}」`;
-    el.summary.textContent = `📖 經句紅包編號：${no}\n（請按第二輪確認並可看紅包）`;
-
-    setState(SYS.ROUND2_READY);
-  });
-};
-
-el.secondBtn.onclick = () => {
-  if (rotating) return;
-  if (!state.currentName || !state.currentVerseNo) {
-    alert("請先完成第一輪（姓名＋經句編號）");
-    return;
-  }
-
-  setState(SYS.ROUND2);
-
-  // 第二輪：直接「確認經句」——這裡我們讓轉盤轉一下做儀式感，但結果固定是 currentVerseNo
-  const list = ["A","B","C","D","E","F"]; // 只是效果，不影響結果
-  spin(list, false, ()=>{
-    const no = state.currentVerseNo;
-    const name = state.currentName;
-
-    // 記錄抽籤（ref 先用 no，viewer 再顯示圖片）
-    appendLog(name, no, no);
-
-    el.result.textContent = `🎉 抽中經句「${no}」`;
-    el.summary.textContent = `➡️ 請按「看紅包」查看圖片\n✅ 看完按 viewer 的「下一位」回來繼續`;
-
-    setState(SYS.VIEWER_READY);
-  });
-};
-
-el.viewBtn.onclick = () => {
-  if (!state.currentVerseNo) {
-    alert("尚未產生經句編號");
-    return;
-  }
-  // 進 viewer
-  const no = state.currentVerseNo;
-  saveState();
-  window.location.href = `viewer.html?no=${encodeURIComponent(no)}`;
-};
-
-el.resetBtn.onclick = () => {
-  if (!confirm("確定要全部歸零？（名單、狀態、旋轉鎖會清空；抽籤紀錄不會清）")) return;
-  sessionStorage.removeItem(STORE_KEY);
-  state.systemState = SYS.INIT;
-  state.names = [];
-  state.idx = 0;
-  state.currentName = null;
-  state.currentVerseNo = null;
-  state.finished = false;
-  rotating = false;
-  spinToken++;
-  if (animId) { cancelAnimationFrame(animId); animId=null; }
-  rotation = 0;
-
-  el.nameInput.value = "";
-  drawWheel(rotation, ["1","2","3"]);
-  applyUI();
-};
-
-el.hardResetBtn.onclick = () => hardResetToReady();
-
-/* PDF：這裡只保留入口，避免你的舊版 null.fillStyle 崩潰
-   若你要恢復 pdfmake 版，我再把「已確認可用」的 pdf 模組單獨接回來 */
-el.pdfBtn.onclick = () => {
-  alert("PDF 模組目前未綁定（避免崩潰）。\n若你要我接回 pdfmake 版本，我會用「固定介面 + 可選載入」方式整合。");
-};
-
-/* -------------------------
-   11) 啟動
-------------------------- */
-loadState();
-
-// 首次若還沒名單，給 placeholder；有名單則畫名單
-drawWheel(rotation, state.names.length ? state.names : ["1","2","3"]);
-applyUI();
+  }, 800);
+});
 
 </script>
 </body>
