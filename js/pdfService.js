@@ -1,0 +1,1 @@
+export function downloadPDF(){alert('PDF Service Ready');}

@@ -1,0 +1,1 @@
+import {DURATION} from './config.js'; let animId=null;let spinToken=0; export function spin(list,cb){const my=++spinToken;const start=performance.now(); function frame(now){if(my!==spinToken) return; if(now-start>DURATION){cb();return;} animId=requestAnimationFrame(frame);} animId=requestAnimationFrame(frame);}

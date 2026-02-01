@@ -1,0 +1,1 @@
+export function launchConfetti(){console.log('FX fired');}

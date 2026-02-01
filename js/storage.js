@@ -1,0 +1,1 @@
+export function saveState(o){sessionStorage.setItem('spinState',JSON.stringify(o));} export function loadState(){try{return JSON.parse(sessionStorage.getItem('spinState')||'{}');}catch{return {}}} export function clearState(){sessionStorage.clear();}

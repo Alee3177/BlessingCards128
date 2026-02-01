@@ -1,0 +1,1 @@
+export function resetAll(){sessionStorage.clear();location.reload();}

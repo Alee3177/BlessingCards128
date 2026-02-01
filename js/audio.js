@@ -1,0 +1,1 @@
+let unlocked=false; export function unlockAudio(drum,win){ if(unlocked) return; [drum,win].forEach(a=>{if(!a)return;a.muted=true;a.play().then(()=>{a.pause();a.currentTime=0;a.muted=false;}).catch(()=>{});}); unlocked=true;}

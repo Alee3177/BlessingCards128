@@ -1,0 +1,1 @@
+import {PATHS} from './config.js'; const img=new Image();img.src=PATHS.LOGO; const a1=new Audio(PATHS.AUDIO+'drum.mp3'); const a2=new Audio(PATHS.AUDIO+'win.mp3');

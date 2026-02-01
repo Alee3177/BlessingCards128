@@ -1,0 +1,1 @@
+import {saveState} from './storage.js'; export const SYS_STATE={INIT:'INIT',READY:'READY',ROUND1:'ROUND1',ROUND2:'ROUND2',VIEWER:'VIEWER',FINISHED:'FINISHED'}; export let systemState=SYS_STATE.INIT; export function setState(next,extra={}){systemState=next;saveState({systemState:next,...extra});document.dispatchEvent(new CustomEvent('statechange',{detail:next}));}

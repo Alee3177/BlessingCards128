@@ -1,0 +1,1 @@
+export const CENTER=180;export const R=170;export const DURATION=4200;export const PATHS={CARDS:'cards/',AUDIO:'audio/',LOGO:'logo3524.png'};

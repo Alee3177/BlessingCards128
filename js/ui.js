@@ -1,0 +1,1 @@
+import {systemState} from './state.js'; export function applyUIState(){const status=document.getElementById('status');const label=status.querySelector('.label');label.textContent=systemState;}
