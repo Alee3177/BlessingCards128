@@ -48,7 +48,10 @@ body{
   <canvas id="fxCanvas"></canvas>
 
 <script type="module">
-import { launchViewerFX } from "/BlessingCards128/host/js/fxViewer.js";
+  // ===== 路徑鎖死（Repo Root 模式）=====
+  const BASE = "/BlessingCards128/";
+
+  import { launchViewerFX } from "/BlessingCards128/host/js/fxViewer.js";
 
   const img = document.getElementById("imgVerse");
   const loading = document.getElementById("loading");
@@ -57,13 +60,12 @@ import { launchViewerFX } from "/BlessingCards128/host/js/fxViewer.js";
 
   const q = new URLSearchParams(location.search);
 
-  // SOP：只用經句代碼，不信任外部 name
+  // SOP：只用經句代碼
   const noRaw = (q.get("code") || "").trim();
   const no = noRaw.padStart(3, "0");
 
-  // cards 在 repo root，viewer 在 host → 回上一層
-  const ASSET_BASE = "../";
-  const src = `${ASSET_BASE}cards/${no}.png`;
+  // cards 一律從 repo root 讀
+  const src = `${BASE}cards/${no}.png`;
 
   // ===== 防呆 =====
   if (!noRaw || no === "000") {
