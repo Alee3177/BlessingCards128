@@ -47,57 +47,61 @@ body{
   <div><button id="saveBtn" class="btn">存圖片</button></div>
   <canvas id="fxCanvas"></canvas>
 
-  <script type="module">
-    import { launchViewerFX } from "./js/fxViewer.js";
+<script type="module">
+import { launchViewerFX } from "/BlessingCards128/host/js/fxViewer.js";
 
-    const img = document.getElementById("imgVerse");
-    const loading = document.getElementById("loading");
-    const infoBox = document.getElementById("infoBox");
-    const saveBtn = document.getElementById("saveBtn");
+  const img = document.getElementById("imgVerse");
+  const loading = document.getElementById("loading");
+  const infoBox = document.getElementById("infoBox");
+  const saveBtn = document.getElementById("saveBtn");
 
-    const q = new URLSearchParams(location.search);
-    const noRaw = (q.get("no") || "").trim();
-    const no = noRaw.padStart(3, "0");
-    const name = (q.get("name") || "").trim();
+  const q = new URLSearchParams(location.search);
 
-    // ✅ cards 在 repo root：Host 子目錄要回上一層
-    const ASSET_BASE = "../";
-    const src = ASSET_BASE + "cards/" + no + ".png";
+  // SOP：只用經句代碼，不信任外部 name
+  const noRaw = (q.get("code") || "").trim();
+  const no = noRaw.padStart(3, "0");
 
-    if (!noRaw || no === "000"){
-      loading.textContent = "⚠ 缺少經句編號";
+  // cards 在 repo root，viewer 在 host → 回上一層
+  const ASSET_BASE = "../";
+  const src = `${ASSET_BASE}cards/${no}.png`;
+
+  // ===== 防呆 =====
+  if (!noRaw || no === "000") {
+    loading.textContent = "⚠ 缺少經句編號";
+    saveBtn.disabled = true;
+  } else {
+    img.onload = () => {
+      loading.style.display = "none";
+      img.classList.add("animate");
+      infoBox.textContent = `🎁 經句紅包\n#${no}`;
+      try { launchViewerFX(); } catch (e) {}
+    };
+
+    img.onerror = () => {
+      loading.textContent = "⚠ 圖片載入失敗（請確認 cards 資料夾）";
       saveBtn.disabled = true;
-    } else {
-      img.onload = () => {
-        loading.style.display = "none";
-        img.classList.add("animate");
-        infoBox.textContent = name ? `🎁 ${name} 的經句紅包\n#${no}` : `🎁 經句紅包\n#${no}`;
-        try { launchViewerFX(); } catch(e) {}
-      };
-      img.onerror = () => {
-        loading.textContent = "⚠ 圖片載入失敗（請確認 cards 資料夾）";
-        saveBtn.disabled = true;
-      };
-      img.src = src;
+    };
 
-      // ✅ 唯讀 viewer：只存圖，沒有任何返回/下一位
-      saveBtn.onclick = async () => {
-        try{
-          const res = await fetch(src, { cache:"no-store" });
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `verse_${no}.png`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }catch(e){
-          alert("存圖失敗，請改用：手機長按圖片 → 存圖");
-        }
-      };
-    }
-  </script>
+    img.src = src;
+
+    // ===== 唯讀存圖模式 =====
+    saveBtn.onclick = async () => {
+      try {
+        const res = await fetch(src, { cache: "no-store" });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `verse_${no}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("存圖失敗，請改用：手機長按圖片 → 存圖");
+      }
+    };
+  }
+</script>
 </body>
 </html>
