@@ -3,7 +3,7 @@
 // Production Locked Build
 // =======================================
 
-import { SYS_STATE, state, saveState, loadState } from "./state.js";
+import { SYS_STATE, state, saveState, restore } from "./state.js";
 import { applyUIState } from "./ui.js";
 import {
   initWheel,
@@ -39,7 +39,7 @@ const win = new Audio("../win.mp3");
 // INIT
 // ================================
 function boot() {
-  loadState();
+  restore();
   initWheel();
   drawWheel();
   applyUIState();
