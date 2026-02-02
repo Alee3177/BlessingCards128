@@ -4,7 +4,7 @@
 // =======================================
 
 import { SYS_STATE, state, saveState, loadState } from "./state.js";
-import { applyUIState, canAct, onViewerReturn } from "./ui.js";
+import { applyUIState } from "./ui.js";
 import {
   initWheel,
   drawWheel,
@@ -84,7 +84,6 @@ document.body.addEventListener("click", unlockAudio, { once: true });
 // LOCK NAMES
 // ================================
 lockBtn.onclick = () => {
-  if (!canAct()) return;
 
   const raw = nameInput.value;
   const list = parseNames(raw);
@@ -111,7 +110,6 @@ lockBtn.onclick = () => {
 // ROUND 1 — 抽姓名
 // ================================
 spinBtn.onclick = () => {
-  if (!canAct()) return;
   if (!state.names.length) return;
 
   state.system = SYS_STATE.ROUND1;
@@ -143,7 +141,6 @@ spinBtn.onclick = () => {
 // ROUND 2 — 抽經句
 // ================================
 secondBtn.onclick = () => {
-  if (!canAct()) return;
   if (state.lastWinnerIndex == null) return;
 
   drum.currentTime = 0;
@@ -204,7 +201,6 @@ viewBtn.onclick = () => {
 // PDF
 // ================================
 pdfBtn.onclick = async () => {
-  if (!canAct()) return;
 
   try {
     const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
@@ -243,7 +239,6 @@ pdfBtn.onclick = async () => {
 // RESET
 // ================================
 resetBtn.onclick = () => {
-  if (!canAct()) return;
 
   const ok = confirm(
     "資料紀錄將被清空 & 歸零\n需重新輸入姓名並開始新一輪\n確定要執行嗎？"
