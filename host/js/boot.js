@@ -3,6 +3,7 @@
 // Production Locked Build
 // =============================
 
+<<<<<<< HEAD
 import { state, SYS_STATE, restore, saveState } from "./state.js";
 import { bindUI, applyUIState, setStatus } from "./ui.js";
 import { drawInitialWheel } from "./wheel.js";
@@ -54,3 +55,11 @@ async function boot() {
 // 啟動
 // =============================
 boot();
+=======
+import "./state.js";
+import "./ui.js";
+import "./wheel.js";
+import "./main.js";
+
+console.log("🚀 BlessingCards128 BOOT OK");
+>>>>>>> 3e1de9f8218d6cc0ecbdaf47c1059e360bef13e9
