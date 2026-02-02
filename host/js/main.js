@@ -4,7 +4,7 @@
 // =======================================
 
 import { SYS_STATE, state, saveState, loadState } from "./state.js";
-import { applyUIState, audit, canAct, onViewerReturn } from "./ui.js";
+import { applyUIState, canAct, onViewerReturn } from "./ui.js";
 import {
   initWheel,
   drawWheel,
@@ -77,7 +77,6 @@ function pushLog(name, ref) {
 function unlockAudio() {
   drum.play().then(() => drum.pause()).catch(() => {});
   win.play().then(() => win.pause()).catch(() => {});
-  audit("AUDIO_UNLOCKED");
 }
 document.body.addEventListener("click", unlockAudio, { once: true });
 
@@ -105,7 +104,6 @@ lockBtn.onclick = () => {
   applyUIState();
   drawWheel();
 
-  audit("LOCK_NAMES", { count: list.length });
   statusDiv.textContent = "名單已鎖定，可開始抽籤";
 };
 
@@ -138,7 +136,6 @@ spinBtn.onclick = () => {
     saveState();
     applyUIState();
 
-    audit("ROUND1_WINNER", { name });
   });
 };
 
@@ -172,11 +169,6 @@ secondBtn.onclick = () => {
     win.play().catch(() => {});
     launchConfetti();
 
-    audit("ROUND2_VERSE", {
-      name: state.names[state.lastWinnerIndex],
-      verse: verse.code
-    });
-
 // ROUND2 結束一定進 VIEWER
 state.system = SYS_STATE.VIEWER;
 
@@ -206,10 +198,6 @@ viewBtn.onclick = () => {
 
   window.open(url, "_blank");
 
-  audit("OPEN_VIEWER", {
-    code: state.currentVerse.code,
-    state: "VIEWER"
-  });
 };
 
 // ================================
@@ -245,7 +233,6 @@ pdfBtn.onclick = async () => {
     saveState();
     applyUIState();
 
-    audit("PDF_DOWNLOADED");
   } catch (e) {
     console.error(e);
     alert("PDF 產生失敗");
@@ -262,8 +249,6 @@ resetBtn.onclick = () => {
     "資料紀錄將被清空 & 歸零\n需重新輸入姓名並開始新一輪\n確定要執行嗎？"
   );
   if (!ok) return;
-
-  audit("SYSTEM_RESET");
 
   state.names = [];
   state.usedName.clear();
