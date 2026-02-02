@@ -4,7 +4,7 @@
 // =======================================
 
 import { SYS_STATE, state, saveState, loadState } from "./state.js";
-import { applyUIState, audit, canAct } from "./ui.js";
+import { applyUIState, audit, canAct, onViewerReturn } from "./ui.js";
 import {
   initWheel,
   drawWheel,
@@ -177,11 +177,8 @@ secondBtn.onclick = () => {
       verse: verse.code
     });
 
-    if (allDrawn()) {
-      state.system = SYS_STATE.FINISHED;
-    } else {
-      state.system = SYS_STATE.READY;
-    }
+// ROUND2 結束一定進 VIEWER
+state.system = SYS_STATE.VIEWER;
 
     saveState();
     applyUIState();
@@ -189,17 +186,30 @@ secondBtn.onclick = () => {
 };
 
 // ================================
-// VIEWER（只讀）
+// VIEWER（只讀｜SOP 鎖死版）
 // ================================
 viewBtn.onclick = () => {
   if (!state.currentVerse) return;
 
+  // 🛡 推進狀態機
+  state.system = SYS_STATE.VIEWER;
+  saveState();
+  applyUIState();
+
+  // 🧭 Viewer 回流旗標
+  sessionStorage.setItem("showSummaryOnReturn", "1");
+
+  // 🔗 組 Viewer URL（只帶經句代碼）
   const url = `viewer.html?code=${encodeURIComponent(
     state.currentVerse.code
   )}`;
 
   window.open(url, "_blank");
-  audit("OPEN_VIEWER", { code: state.currentVerse.code });
+
+  audit("OPEN_VIEWER", {
+    code: state.currentVerse.code,
+    state: "VIEWER"
+  });
 };
 
 // ================================
@@ -283,4 +293,23 @@ resetBtn.onclick = () => {
 // ================================
 window.addEventListener("beforeunload", () => {
   saveState();
+});
+
+// ================================
+// Viewer 關閉 / 回到主持機 → 狀態機續跑
+// ================================
+window.addEventListener("focus", () => {
+  if (state.system !== SYS_STATE.VIEWER) return;
+
+  console.log("🔄 Viewer closed → resume state machine");
+
+  // 🛡 只用狀態機，不用數量猜狀態
+  if (state.usedName.size >= state.names.length) {
+    state.system = SYS_STATE.FINISHED;
+  } else {
+    state.system = SYS_STATE.READY;
+  }
+
+  saveState();
+  applyUIState();
 });

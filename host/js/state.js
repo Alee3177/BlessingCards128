@@ -1,11 +1,8 @@
 // =============================
-// BlessingCards128 – State Machine Core
+// BlessingCards128 State Core
 // Production Locked Build
 // =============================
 
-// ===============================
-// 系統狀態列舉
-// ===============================
 export const SYS_STATE = Object.freeze({
   INIT: "INIT",
   READY: "READY",
@@ -15,34 +12,25 @@ export const SYS_STATE = Object.freeze({
   FINISHED: "FINISHED"
 });
 
-// ===============================
-// 全域狀態
-// ===============================
 export const state = {
   system: SYS_STATE.INIT,
 
-  // 名單 / 抽籤
   names: [],
   usedName: new Set(),
   verseUsed: new Set(),
 
-  // 當前輪狀態
   lastWinnerIndex: null,
   currentVerse: null,
 
-  // PDF 防呆
   pdfRoundSerial: null,
   pdfRepeatCount: 0,
   pdfDownloadedThisRound: false
 };
 
-// ===============================
-// 儲存 / 還原
-// ===============================
 const KEY = "BLESSING_STATE_V1";
 
-// 🔹 內部實作
-function persistInternal() {
+// ===== 儲存 =====
+export function saveState() {
   try {
     const snapshot = {
       system: state.system,
@@ -56,18 +44,12 @@ function persistInternal() {
       pdfDownloadedThisRound: state.pdfDownloadedThisRound
     };
     sessionStorage.setItem(KEY, JSON.stringify(snapshot));
-    console.log("💾 State persisted:", state.system);
   } catch (e) {
-    console.warn("⚠ state persist failed", e);
+    console.warn("⚠ saveState failed", e);
   }
 }
 
-// 🔹 對外穩定 API（UI / main 用這個）
-export function saveState() {
-  persistInternal();
-}
-
-// 🔹 還原
+// ===== 還原 =====
 export function restore() {
   try {
     const raw = sessionStorage.getItem(KEY);
@@ -89,34 +71,12 @@ export function restore() {
     console.log("🔄 State restored:", state.system);
     return true;
   } catch (e) {
-    console.warn("⚠ state restore failed", e);
+    console.warn("⚠ restore failed", e);
     return false;
   }
 }
 
-// ===============================
-// 清空狀態（全部歸零用）
-// ===============================
-export function resetState() {
-  sessionStorage.removeItem(KEY);
-
-  state.system = SYS_STATE.INIT;
-  state.names = [];
-  state.usedName.clear();
-  state.verseUsed.clear();
-  state.lastWinnerIndex = null;
-  state.currentVerse = null;
-
-  state.pdfRoundSerial = null;
-  state.pdfRepeatCount = 0;
-  state.pdfDownloadedThisRound = false;
-
-  console.log("🧹 State reset → INIT");
-}
-
-// ===============================
-// 工具
-// ===============================
+// ===== 工具 =====
 export function isFinished() {
   return (
     state.names.length > 0 &&
