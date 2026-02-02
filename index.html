@@ -1,1 +1,95 @@
-<!DOCTYPE html><html lang='zh-Hant'><head><meta charset='UTF-8'><title>BlessingCards128 — Standalone Edition</title><link rel='preload' as='image' href='logo3524.png'><link rel='stylesheet' href='style.css'></head><body><img id='logo' class='logo' src='logo3524.png' alt='LOGO'><h2>祝福經句紅包（應許等您拿）</h2><input id='nameInput' placeholder='請輸入姓名，可用空白或逗號分隔'><div class='btn-row'><button id='lockBtn' class='btn'>鎖定名單</button><button id='spinBtn' class='btn' disabled>開始抽姓名</button><button id='secondBtn' class='btn' disabled>抽紅包</button><button id='viewBtn' class='btn' disabled>看紅包</button><button id='pdfBtn' class='btn' disabled>抽籤紀錄 PDF</button><button id='resetBtn' class='btn'>全部歸零</button></div><div id='wheel-container'><canvas id='wheel' width='360' height='360'></canvas><svg id='hl-svg'></svg><canvas id='confettiCanvas'></canvas><div id='centerText'></div></div><div id='status' class='status-bar status-ok'><span class='dot'></span><span class='label'>系統初始化中</span></div><div id='summaryBox'></div><audio id='drum' src='audio/drum.mp3' preload='auto'></audio><audio id='winSound' src='audio/win.mp3' preload='auto'></audio><script type='module' src='js/config.js'></script><script type='module' src='js/storage.js'></script><script type='module' src='js/state.js'></script><script type='module' src='js/ui.js'></script><script type='module' src='js/audio.js'></script><script type='module' src='js/fx.js'></script><script type='module' src='js/wheel.js'></script><script type='module' src='js/preload.js'></script><script type='module' src='js/pdfService.js'></script><script type='module' src='js/resetService.js'></script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>BlessingCards128（Standalone Locked）</title>
+  <style>
+body{font-family:"Noto Sans TC",system-ui;background:#fbf2df;text-align:center;margin:0;padding:16px;color:#5b3a00;}
+.logo{width:220px;margin:10px auto 0;display:block;}
+#nameInput{width:90%;max-width:480px;padding:10px 14px;margin-top:10px;border-radius:10px;border:2px solid #e3c78c;font-size:18px;text-align:center;box-sizing:border-box;}
+.btn-row{margin-top:8px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+.btn{min-width:110px;padding:8px 16px;border-radius:999px;border:none;background:#f4b63a;color:#5b3a00;font-size:15px;font-weight:600;box-shadow:0 3px 0 #d59b25;cursor:pointer;}
+.btn:disabled{background:#f0ddaa;cursor:default;}
+.blink-btn{animation:flash .8s infinite alternate;}@keyframes flash{from{opacity:1}to{opacity:.35}}
+#wheel-container{position:relative;width:360px;height:360px;margin:16px auto;}
+#wheel{width:360px;height:360px;}
+#hl-svg{position:absolute;left:0;top:0;width:360px;height:360px;pointer-events:none;}
+#confettiCanvas{position:absolute;left:0;top:0;width:360px;height:360px;pointer-events:none;}
+@keyframes blink{from{opacity:1;}to{opacity:.25;}}.blink{animation:blink .55s ease-in-out infinite alternate;}
+#centerText{position:absolute;left:0;top:0;width:360px;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;font-size:18px;font-weight:700;white-space:pre-line;}
+#summaryBox{margin-top:10px;white-space:pre-line;font-weight:700;}
+.btn-pdf-ready{background:#1976D2 !important;color:#fff !important;box-shadow:0 3px 0 #0d47a1;}
+.btn-reset-danger{background:#E53935;color:#fff;box-shadow:0 3px 0 #B71C1C;}
+.status-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px auto 4px auto;font-size:14px;font-weight:700;transform:scale(1.2);transform-origin:center;}
+.status-bar .dot{width:12px;height:12px;border-radius:50%;background:#999;box-shadow:0 0 4px rgba(0,0,0,.3);}
+.status-ok .dot{background:#2e7d32;box-shadow:0 0 8px rgba(46,125,50,.8);}
+.status-warn .dot{background:#f9a825;box-shadow:0 0 8px rgba(249,168,37,.8);}
+.status-error .dot{background:#c62828;box-shadow:0 0 8px rgba(198,40,40,.8);}
+#result{margin-top:6px;font-weight:700;}
+#viewerLinkBox{margin:10px auto 0;width:min(92vw,520px);background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 0 10px rgba(0,0,0,.12);display:none;text-align:left;font-size:13px;}
+#viewerLink{word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;color:#5b3a00;}
+#qrWrap{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;}
+#qrImg{width:120px;height:120px;border-radius:10px;border:2px solid #f0ddaa;display:none;}
+.small-btn{min-width:auto;padding:6px 10px;font-size:13px;box-shadow:0 2px 0 #d59b25;}
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <img id="logo" class="logo" alt="logo" />
+  <h2 style="margin:10px 0 0 0;">祝福經句紅包（應許等您拿）</h2>
+
+  <div class="status-bar" id="masterStatus">
+    <span class="dot"></span>
+    <span id="status">系統初始化中</span>
+  </div>
+
+  <input id="nameInput" placeholder="請輸入姓名，可用空白或逗號分隔" />
+
+  <div class="btn-row">
+    <button id="lockBtn" class="btn">鎖定名單</button>
+    <button id="spinBtn" class="btn" disabled>開始抽姓名＋經句（第一輪）</button>
+    <button id="viewBtn" class="btn" disabled>看紅包</button>
+    <button id="secondBtn" class="btn" disabled>抽紅包（第二輪）</button>
+    <button id="resetBtn" class="btn" disabled>全部歸零</button>
+    <button id="pdfBtn" class="btn" disabled>抽籤紀錄 PDF</button>
+  </div>
+
+  <div id="viewerLinkBox">
+    <div style="font-weight:700;margin-bottom:6px;">🔗 參與者讀取紅包（唯讀 viewer.html）</div>
+    <div id="viewerLink"></div>
+    <div id="qrWrap">
+      <img id="qrImg" alt="QR" />
+      <div>
+        <button id="copyLinkBtn" class="btn small-btn">複製連結</button>
+        <button id="openViewerBtn" class="btn small-btn">在新分頁開啟</button>
+      </div>
+    </div>
+    <div style="opacity:.75;margin-top:6px;">（viewer 僅能存圖，沒有返回/下一位，避免打架）</div>
+  </div>
+
+  <div id="wheel-container">
+    <canvas id="wheel" width="360" height="360"></canvas>
+    <svg id="hl-svg" viewBox="0 0 360 360"></svg>
+    <canvas id="confettiCanvas" width="360" height="360"></canvas>
+    <div id="centerText"></div>
+  </div>
+
+  <div id="result"></div>
+  <div id="summaryBox"></div>
+
+  <audio id="drum" preload="auto"></audio>
+  <audio id="winSound" preload="auto"></audio>
+
+  <script src="js/utils.js"></script>
+  <script src="js/wheel.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/preload.js"></script>
+  <script src="js/qrService.js"></script>
+  <script src="js/pdfService.js"></script>
+  <script src="js/resetService.js"></script>
+  <script src="js/stateMachine.js"></script>
+  <script src="js/boot.js"></script>
+</body>
+</html>
