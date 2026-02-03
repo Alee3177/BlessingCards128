@@ -291,9 +291,6 @@ function launchFx(){
 /* 🔒 必須先設定，否則 canvas 會被污染 */
 img.crossOrigin = "anonymous";
 
-/*======== 設定圖片來源 ========*/
-img.src = "../cards/" + verseNo + ".png";
-
 /*======== 圖片讀取完成 ========*/
 img.onload = () => {
 
@@ -403,12 +400,12 @@ img.onerror = ()=>{
 
   const loading = document.getElementById("loading");
   if(loading){
-    loading.textContent = "⚠ 找不到圖片 cards/" + verseNo + ".png";
+    loading.textContent =  "⚠ 找不到圖片 " + IMG_SRC;
   }
 
-  img.alt = "⚠ 找不到圖片 cards/" + verseNo + ".png";
+  img.alt =  "⚠ 找不到圖片 " + IMG_SRC;
   
-  // 🛡 允許下次成功載入時 onload 重新執行
+  // 🛡 允許下次成功載入時 onload 再跑
   delete img.dataset.loaded;
 };
 
