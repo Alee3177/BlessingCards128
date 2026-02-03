@@ -44,6 +44,14 @@ const drum = new Audio("../drum.mp3");
 const win = new Audio("../win.mp3");
 
 // ================================
+// STATE 工具（除錯 / 保險鎖）
+// ================================
+function setSystem(next) {
+  console.log("🔁 STATE:", state.system, "→", next);
+  state.system = next;
+}
+
+// ================================
 // INIT
 // ================================
 function boot() {
@@ -105,7 +113,7 @@ lockBtn.onclick = () => {
   state.usedName.clear();
   state.verseUsed.clear();
 
-  state.system = SYS_STATE.READY;
+  setSystem(SYS_STATE.READY);
 
   saveState();
   applyUIState();
@@ -120,7 +128,7 @@ lockBtn.onclick = () => {
 spinBtn.onclick = () => {
   if (!state.names.length) return;
 
-  state.system = SYS_STATE.ROUND1;
+  setSystem(SYS_STATE.ROUND1);
   applyUIState();
 
   drum.currentTime = 0;
@@ -138,7 +146,7 @@ spinBtn.onclick = () => {
     centerText.textContent = name;
     resultDiv.textContent = `🎯 抽中：${name}`;
 
-    state.system = SYS_STATE.ROUND2;
+    setSystem(SYS_STATE.ROUND2);
     saveState();
     applyUIState();
 
@@ -174,11 +182,9 @@ secondBtn.onclick = () => {
     win.play().catch(() => {});
     launchConfetti();
 
-// ROUND2 結束一定進 VIEWER
-state.system = SYS_STATE.VIEWER;
-
-    saveState();
-    applyUIState();
+// 停在 ROUND2，等使用者按「看紅包」
+saveState();
+applyUIState();
   });
 };
 
@@ -189,7 +195,7 @@ viewBtn.onclick = () => {
   if (!state.currentVerse) return;
 
   // 🛡 推進狀態機
-  state.system = SYS_STATE.VIEWER;
+  setSystem(SYS_STATE.VIEWER);
   saveState();
   applyUIState();
 
@@ -233,7 +239,7 @@ pdfBtn.onclick = async () => {
 
     pdf.save("BlessingCards128_Record.pdf");
 
-    state.system = SYS_STATE.FINISHED;
+    setSystem(SYS_STATE.FINISHED);
     saveState();
     applyUIState();
 
@@ -261,7 +267,7 @@ resetBtn.onclick = () => {
 
   localStorage.removeItem("drawLogs");
 
-  state.system = SYS_STATE.INIT;
+  setSystem(SYS_STATE.INIT);
 
   nameInput.value = "";
   centerText.textContent = "";
@@ -291,11 +297,11 @@ window.addEventListener("focus", () => {
 
   console.log("🔄 Viewer closed → resume state machine");
 
-  // 🛡 只用狀態機，不用數量猜狀態
+  // 🛡 只走狀態機出口
   if (state.usedName.size >= state.names.length) {
-    state.system = SYS_STATE.FINISHED;
+    setSystem(SYS_STATE.FINISHED);
   } else {
-    state.system = SYS_STATE.READY;
+    setSystem(SYS_STATE.READY);
   }
 
   saveState();
