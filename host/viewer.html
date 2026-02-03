@@ -292,7 +292,7 @@ function launchFx(){
 img.crossOrigin = "anonymous";
 
 /*======== 設定圖片來源 ========*/
-img.src = "cards/" + verseNo + ".png";
+img.src = "../cards/" + verseNo + ".png";
 
 /*======== 圖片讀取完成 ========*/
 img.onload = () => {
@@ -500,7 +500,7 @@ document.getElementById("btnNext").onclick = ()=>{
 
   // 標記：從 viewer 回到首頁
   sessionStorage.setItem("showSummaryOnReturn","1");
-  window.location.href = `${BASE}/index.html`;
+  window.location.href = "./index.html";
 };
 
 /*======== 抽籤紀錄顯示（Patch 5） ========*/
