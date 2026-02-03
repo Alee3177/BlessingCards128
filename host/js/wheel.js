@@ -3,8 +3,6 @@
 // Production Locked Build
 // =======================================
 
-import { SYS_STATE, state, saveState } from "./state.js";
-import { applyUIState } from "./ui.js";
 
 // ================================
 // Canvas & SVG
@@ -234,7 +232,7 @@ export function spin(list, clockwise, callback, options = {}) {
   }
 
   rotating = true;
-  applyUIState();
+  // applyUIState() moved to main.js
 
   const target = list[Math.floor(Math.random() * list.length)];
   const idx = list.indexOf(target);
@@ -280,7 +278,7 @@ export function spin(list, clockwise, callback, options = {}) {
     }
 
     saveState();
-    applyUIState();
+    // applyUIState() moved to main.js
   }
 
   function frame(now) {
