@@ -155,29 +155,56 @@ const ENABLE_DUN_SOUND = false;   // ← 改成 true 就全部恢復
 // 可選："dun" | "dun1" | "dun2"
 const DUN_SOUND_VARIANT = "dun";   // ← 改這一行就好
 
+/* ================================
+   PATH + PARAM FIXED CORE
+================================ */
+
+// host 在 /BlessingCards128/host/
+// 所有資源都要回上一層
+const BASE = "..";
+
 /* 取得 URL 參數 */
 function getParam(n){
-  const u = new URL(window.location.href);
-  return u.searchParams.get(n);
+  return new URL(window.location.href).searchParams.get(n);
 }
 
-const verseNo = getParam("no");
-const userName = getParam("name") || "";
+// 主控傳的是 ?code=XXX
+const verseNoRaw = (getParam("code") || "").trim();
+const verseNo = verseNoRaw.padStart(3, "0");
 
-// 🧠 預載紅包圖片，避免顯示延遲
+// DOM
+const img = document.getElementById("imgVerse");
+const loading = document.getElementById("loading");
+const infoBox = document.getElementById("infoBox");
+const saveBtn = document.getElementById("btnDownload");
+
+// 防 canvas 污染
+img.crossOrigin = "anonymous";
+
+// 正確圖片路徑
+const IMG_SRC = `${BASE}/cards/${verseNo}.png`;
+
+// 🧠 預載圖片
 const preload = new Image();
-preload.src = "cards/" + verseNo + ".png";
+preload.src = IMG_SRC;
 
-/*======== 找出書卷＋章節（用 VERSE_REF_MAP） ========*/
+/*======== 找出書卷＋章節 ========*/
 let refText = "";
 if (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verseNo]) {
   refText = window.VERSE_REF_MAP[verseNo];
 }
 
-/*======== 上方兩行顯示 ========*/
-document.getElementById("infoBox").textContent =
-`「${userName}」｜抽中的經句紅包
+/*======== 上方顯示 ========*/
+if (!verseNoRaw || verseNo === "000") {
+  loading.textContent = "⚠ 缺少經句編號";
+  saveBtn.disabled = true;
+} else {
+  infoBox.textContent =
+`🎁 抽中的經句紅包
 📜 經句編號: ${verseNo}｜📖 ${refText}`;
+
+  img.src = IMG_SRC;
+}
 
 /*======== 彩帶＋金粉特效 ========*/
 const fxCanvas = document.getElementById("fxCanvas");
@@ -347,7 +374,7 @@ if (ENABLE_DUN_SOUND) {
 
 // ⭐ 動態選擇音效檔（防呆：避免變數未定義炸掉）
 const variant = window.DUN_SOUND_VARIANT || "dun";
-dun.src = `${variant}.mp3`;
+dun.src = `${BASE}/${variant}.mp3`;
 
       dun.currentTime = 0;
 
@@ -473,7 +500,7 @@ document.getElementById("btnNext").onclick = ()=>{
 
   // 標記：從 viewer 回到首頁
   sessionStorage.setItem("showSummaryOnReturn","1");
-  window.location.href = "index.html";
+  window.location.href = `${BASE}/index.html`;
 };
 
 /*======== 抽籤紀錄顯示（Patch 5） ========*/
