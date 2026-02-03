@@ -302,7 +302,7 @@ img.onload = () => {
   img.dataset.loaded = "1";
 
   // 🔄 換新經句 → 重置下載防呆
-  const verseNo = new URLSearchParams(location.search).get("no");
+const verseNo = (getParam("code") || "").padStart(3, "0");
   imageDownloadedThisView = false;
   imageRepeatCount = 0;
   lastVerseNo = verseNo;
@@ -415,46 +415,49 @@ img.onerror = ()=>{
 /*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
 document.getElementById("btnDownload").onclick = async () => {
   try {
-    // 🔒 防止狂點（500ms 內只能進來一次）
+    // 🔒 防止狂點
     if (downloading) return;
     downloading = true;
-	
-    // 目前顯示的經句編號
-    const verseNo = new URLSearchParams(window.location.search).get("no");
-	if (!verseNo) {
-  alert("經句編號遺失，請返回重新打開紅包");
-  downloading = false;   // 🔓 保命解鎖
-  return;
-}
 
-    // ===== 0️⃣ 防重複下載（只擋「同一經句」）=====
+    // ✅ 統一用 code 參數
+    const verseNo = (getParam("code") || "").padStart(3, "0");
+
+    if (!verseNo || verseNo === "000") {
+      alert("經句編號遺失，請返回重新打開紅包");
+      downloading = false;
+      return;
+    }
+
+    // ===== 防重複下載 =====
     if (lastVerseNo === verseNo && imageDownloadedThisView) {
-      const ok = confirm(
-        "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
-      );
-      if (!ok) return;
+      const ok = confirm("您已經下載過圖片了，是否要再下載一次？");
+      if (!ok) {
+        downloading = false;
+        return;
+      }
       imageRepeatCount++;
     } else {
-      // 新經句 → 視為第一次下載
       imageDownloadedThisView = true;
       imageRepeatCount = 0;
       lastVerseNo = verseNo;
     }
 
-    // ===== 1️⃣ 檔名規則 =====
+    // ===== 檔名規則 =====
     let filename = `verse_no_${verseNo}`;
     if (imageRepeatCount > 0) {
       filename += `-${imageRepeatCount}`;
     }
     filename += `.png`;
 
-// ===== 2️⃣ 取圖 =====
-if (!img || !img.complete) {
-  alert("圖片尚未載入完成，請稍候再試");
-  return;
-}
+    // ===== 取圖 =====
+    const img = document.getElementById("imgVerse");
+    if (!img || !img.complete) {
+      alert("圖片尚未載入完成，請稍候再試");
+      downloading = false;
+      return;
+    }
 
-    // ===== 3️⃣ Canvas 轉 PNG =====
+    // ===== Canvas 轉 PNG =====
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -462,34 +465,33 @@ if (!img || !img.complete) {
     canvas.height = img.naturalHeight;
 
     if (img.decode) {
-  await img.decode();
-}
-ctx.drawImage(img, 0, 0);
+      await img.decode();
+    }
+    ctx.drawImage(img, 0, 0);
 
-// ===== 4️⃣ 觸發下載（保命版）=====
-canvas.toBlob(blob => {
-  if (!blob) {
-    alert("瀏覽器不支援圖片下載，請改用截圖");
-    downloading = false;   // 🔓 失敗也要解鎖
-    return;
-  }
+    // ===== 觸發下載 =====
+    canvas.toBlob(blob => {
+      if (!blob) {
+        alert("瀏覽器不支援圖片下載，請改用截圖");
+        downloading = false;
+        return;
+      }
 
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
 
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
-
-  downloading = false;   // 🔓 成功下載後解鎖
-});
+      URL.revokeObjectURL(url);
+      downloading = false;
+    });
 
   } catch (e) {
-    downloading = false; // 🔓 出錯也要解鎖
+    downloading = false;
     console.error("❌ PNG download failed:", e);
     alert("圖片下載失敗，請查看 console");
   }
