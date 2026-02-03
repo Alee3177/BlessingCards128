@@ -27,9 +27,17 @@ const pdfBtn = document.getElementById("pdfBtn");
 const resetBtn = document.getElementById("resetBtn");
 
 const centerText = document.getElementById("centerText");
-const resultDiv = document.getElementById("resultDiv");
+const resultDiv = document.getElementById("result");
 const summaryBox = document.getElementById("summaryBox");
-const statusDiv = document.getElementById("statusDiv");
+const statusDiv = document.getElementById("status");
+
+if (!resultDiv || !summaryBox || !statusDiv) {
+  console.error("❌ DOM binding failed", {
+    resultDiv,
+    summaryBox,
+    statusDiv
+  });
+}
 
 // Audio
 const drum = new Audio("../drum.mp3");
