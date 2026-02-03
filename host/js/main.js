@@ -32,8 +32,8 @@ const summaryBox = document.getElementById("summaryBox");
 const statusDiv  = document.getElementById("status");
 
 // Audio (host 目錄往上一層才是 repo root)
-const drum = new Audio("../drum.mp3");
-const win  = new Audio("../win.mp3");
+const drum = new Audio("../audio/drum.mp3");
+const win  = new Audio("../audio/win.mp3");
 
 function setSystem(next) {
   console.log("🔁 STATE:", state.system, "→", next);

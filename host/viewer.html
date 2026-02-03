@@ -375,7 +375,7 @@ if (ENABLE_DUN_SOUND) {
 
 // ⭐ 動態選擇音效檔（防呆：避免變數未定義炸掉）
 const variant = window.DUN_SOUND_VARIANT || "dun";
-dun.src = `${BASE}/${variant}.mp3`;
+dun.src = `../audio/${variant}.mp3`;
 
       dun.currentTime = 0;
 
