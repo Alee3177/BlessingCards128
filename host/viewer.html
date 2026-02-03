@@ -178,11 +178,15 @@ const loading = document.getElementById("loading");
 const infoBox = document.getElementById("infoBox");
 const saveBtn = document.getElementById("btnDownload");
 
+if (!img) {
+  console.error("❌ imgVerse not found in DOM");
+}
+
 // 防 canvas 污染
 img.crossOrigin = "anonymous";
 
 // 正確圖片路徑
-const IMG_SRC = `${BASE}/cards/${verseNo}.png`;
+const IMG_SRC = `../cards/${verseNo}.png`;
 
 // 🧠 預載圖片
 const preload = new Image();
@@ -283,9 +287,6 @@ function launchFx(){
   }
   requestAnimationFrame(frame);
 }
-
-/*======== 取得 img 元件 ========*/
-const img = document.getElementById("imgVerse");
 
 /* 🔒 必須先設定，否則 canvas 會被污染 */
 img.crossOrigin = "anonymous";
@@ -447,12 +448,11 @@ document.getElementById("btnDownload").onclick = async () => {
     }
     filename += `.png`;
 
-    // ===== 2️⃣ 取圖 =====
-    const img = document.getElementById("imgVerse");
-    if (!img || !img.complete) {
-      alert("圖片尚未載入完成，請稍候再試");
-      return;
-    }
+// ===== 2️⃣ 取圖 =====
+if (!img || !img.complete) {
+  alert("圖片尚未載入完成，請稍候再試");
+  return;
+}
 
     // ===== 3️⃣ Canvas 轉 PNG =====
     const canvas = document.createElement("canvas");
