@@ -27,6 +27,30 @@ export const state = {
   pdfDownloadedThisRound: false
 };
 
+// ================================
+// Debug 開關（正式上線改成 false）
+// ================================
+const DEBUG_STATE_GUARD = true;
+
+// ================================
+// 狀態寫入監控（Debug Guard）
+// ================================
+if (DEBUG_STATE_GUARD) {
+  let _sys = state.system;
+
+  Object.defineProperty(state, "system", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return _sys;
+    },
+    set(v) {
+      console.trace("🛑 state.system 被寫入:", v);
+      _sys = v;
+    }
+  });
+}
+
 const KEY = "BLESSING_STATE_V1";
 
 // ===== 儲存 =====
