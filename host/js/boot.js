@@ -60,3 +60,49 @@
 
   window.addEventListener("beforeunload", () => clearLock());
 })();
+
+// ================================
+// 🚀 SYSTEM BOOTSTRAP
+// ================================
+function bootSystem(){
+  try {
+    console.log("🚀 BlessingCards128 booting...");
+
+    // 1. 確認主持權限
+    if (!window.__BC_MASTER__.canAct()) {
+      console.warn("⚠ 非主持機模式（Viewer Only）");
+    } else {
+      console.log("🎤 主持機模式啟用");
+    }
+
+    // 2. 載入狀態
+    if (typeof loadState === "function") {
+      loadState();
+      console.log("💾 State loaded");
+    } else {
+      console.warn("⚠ loadState not found");
+    }
+
+    // 3. 套用 UI
+    if (typeof applyUIState === "function") {
+      applyUIState();
+      console.log("🎛 UI applied");
+    } else {
+      console.warn("⚠ applyUIState not found");
+    }
+
+    // 4. 初始化輪盤（關鍵）
+    if (typeof initWheel === "function") {
+      initWheel();
+      console.log("🎡 Wheel initialized");
+    } else {
+      console.error("❌ initWheel not found — 輪盤不會顯示");
+    }
+
+  } catch (e) {
+    console.error("💥 BOOT FAILED", e);
+  }
+}
+
+// 等 DOM 與 Script 全部載入再啟動
+window.addEventListener("load", bootSystem);
