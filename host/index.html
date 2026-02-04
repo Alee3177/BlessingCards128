@@ -1684,14 +1684,31 @@ spin(remain, false, (v) => {
     // ✔ 紀錄
     appendLog(names[lastWinnerIndex], v, ref);
 
-    // 🟢 進 Viewer 狀態
-    systemState = SYS_STATE.VIEWER;
-    applyUIState();
+// ================================
+// SOP：ROUND2 結束 → 判斷是否最後一位
+// ================================
+const total = names.length;
+const drawn = usedName.size;
 
-    saveState({
+// 最後一位 → 直接進 FINISHED
+if (drawn >= total) {
+  console.log("🏁 All players finished → FINISHED");
+  systemState = SYS_STATE.FINISHED;
+} 
+// 還有人 → 進 VIEWER
+else {
+  console.log("👁 Go to VIEWER");
+  systemState = SYS_STATE.VIEWER;
+}
+
+// 狀態同步
+applyUIState();
+saveState({
   round2Done: true,
-  currentVerse: currentVerse
+  currentVerse: currentVerse,
+  system: systemState
 });
+
 // 🔔 提示主持人可以看紅包
 if (typeof viewBtn !== "undefined" && viewBtn) {
   viewBtn.classList.add("blink-all");
@@ -1764,7 +1781,7 @@ pdfBtn.onclick = async () => {
 
     /* ===== 畫布尺寸與版型鎖死（等同 010.pdf） ===== */
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("⁷");
+    const ctx = canvas.getContext("2d");
 
     const MARGIN = 60;
     const LINE_H = 32;

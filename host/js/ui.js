@@ -36,19 +36,21 @@ function blink(el, on) {
 // 核心：狀態 → UI 同步（只讀）
 // ================================
 export function applyUIState() {
-  // 全部先鎖
+  // 全部先鎖 + 清除閃爍
   [lockBtn, spinBtn, secondBtn, viewBtn, pdfBtn, resetBtn].forEach(b => {
     if (!b) return;
     b.disabled = true;
     blink(b, false);
   });
 
+  // 預設清空提示區
+  if (summaryBox) summaryBox.textContent = "";
+  if (centerText) centerText.textContent = "";
+
   switch (state.system) {
     case SYS_STATE.INIT:
       setLamp("status-ok");
       if (statusDiv) statusDiv.textContent = "請輸入姓名並鎖定名單";
-      if (summaryBox) summaryBox.textContent = "";
-      if (centerText) centerText.textContent = "";
       if (lockBtn) lockBtn.disabled = false;
       if (resetBtn) resetBtn.disabled = false;
       break;
@@ -58,7 +60,7 @@ export function applyUIState() {
       if (statusDiv) statusDiv.textContent = "名單已鎖定，請開始抽第一位";
       if (spinBtn) {
         spinBtn.disabled = false;
-        blink(spinBtn, true);
+        blink(spinBtn, true);   // 只有第一輪閃
       }
       if (resetBtn) resetBtn.disabled = false;
       break;
@@ -68,7 +70,7 @@ export function applyUIState() {
       if (statusDiv) statusDiv.textContent = "已抽出中獎者，請抽紅包";
       if (secondBtn) {
         secondBtn.disabled = false;
-        blink(secondBtn, true);
+        blink(secondBtn, true); // 只有第二輪閃
       }
       if (resetBtn) resetBtn.disabled = false;
       break;
@@ -78,7 +80,7 @@ export function applyUIState() {
       if (statusDiv) statusDiv.textContent = "已抽出經句紅包，請查看紅包";
       if (viewBtn) {
         viewBtn.disabled = false;
-        blink(viewBtn, true);
+        blink(viewBtn, true);   // 只有查看紅包閃
       }
       if (resetBtn) resetBtn.disabled = false;
       break;
@@ -91,10 +93,13 @@ export function applyUIState() {
 
     case SYS_STATE.FINISHED:
       setLamp("status-ok");
-      if (statusDiv) statusDiv.textContent = "";
+      if (statusDiv) statusDiv.textContent = "本輪完成";
       if (summaryBox) summaryBox.textContent =
         "🎉 本輪完成\n📄 請下載 PDF\n🔁 或全部歸零重新開始";
-      if (pdfBtn) pdfBtn.disabled = false;
+      if (pdfBtn) {
+        pdfBtn.disabled = false;
+        blink(pdfBtn, true);   // 完成後 PDF 閃爍提示下載
+      }
       if (resetBtn) resetBtn.disabled = false;
       break;
 

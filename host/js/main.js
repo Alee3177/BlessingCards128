@@ -196,7 +196,7 @@ viewBtn.onclick = () => {
 };
 
 //
-// Viewer 關閉後：回到 READY 或 FINISHED（只靠狀態機，不用猜）
+// Viewer 關閉後：回到 ROUND1 或 FINISHED（嚴格狀態機）
 //
 window.addEventListener("focus", () => {
   if (state.system !== SYS_STATE.VIEWER) return;
@@ -208,15 +208,16 @@ window.addEventListener("focus", () => {
   state.currentVerse = null;
 
   if (state.usedName.size >= state.names.length) {
+    // 全部完成 → PDF / 歸零
     state.system = SYS_STATE.FINISHED;
   } else {
-    state.system = SYS_STATE.READY;
+    // 還有人 → 下一位抽人
+    state.system = SYS_STATE.ROUND1;
   }
 
   saveState();
   applyUIState();
 });
-
 
 // ================================
 // PDF
