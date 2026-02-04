@@ -1634,107 +1634,104 @@ if (!remain.length) {
   audit("ROUND2_START", { remaining: remain.length });
 
 spin(remain, false, (v) => {
+  // ===== 1️⃣ 記錄經句 =====
   verseUsed.add(v);
-  currentVerse = v;
-  updateQRCode();
+  state.currentVerse = v;
 
   const ref =
     (window.VERSE_REF_MAP && window.VERSE_REF_MAP[v])
       ? window.VERSE_REF_MAP[v]
       : "";
 
-  // ⭐ 廣播給所有 Viewer：最後抽中的經句
+  // ===== 2️⃣ 廣播給 Viewer =====
   localStorage.setItem("LAST_VERSE", JSON.stringify({
     verse: v,
     ref: ref,
     time: Date.now()
   }));
 
-  // ⭐ 立刻更新 QR Code（一定要在 currentVerse 設定之後）
+  // ===== 3️⃣ UI 顯示 =====
+  statusDiv.textContent = "";
+  resultDiv.textContent = `第二輪完成：抽中經句「${v}」`;
+  centerText.textContent = `📜 抽中經句「${v}」\n📖 ${ref}`;
+
   updateQRCode();
 
-    // UI 顯示
-    statusDiv.textContent = "";
-    resultDiv.textContent =
-      `第二輪完成：抽中經句「${v}」`;
+  // ===== 4️⃣ 音效 + 特效 =====
+  try {
+    winSound.currentTime = 0;
+    winSound.play();
+  } catch (e) {}
 
-    centerText.textContent =
-      `📜 抽中經句「${v}」\n📖 ${ref}`;
-	updateQRCode();   // 📱 產生 QR  
+  launchConfetti();
 
-    // 🔊 音效
-    try {
-      winSound.currentTime = 0;
-      winSound.play();
-    } catch (e) {}
+  // ===== 5️⃣ 鎖死按鈕 =====
+  spinBtn.disabled = true;
+  secondBtn.disabled = true;
+  spinBtn.classList.remove("blink-btn");
+  secondBtn.classList.remove("blink-btn");
 
-    // 🎉 彩帶
-    launchConfetti();
+  // ===== 6️⃣ 記錄抽籤 =====
+  const winnerName = state.names[state.lastWinnerIndex] || "";
+  appendLog(winnerName, v, ref);
 
-    // 🔒 鎖死抽籤鍵
-    spinBtn.disabled = true;
-    secondBtn.disabled = true;
-    spinBtn.classList.remove("blink-btn");
-    secondBtn.classList.remove("blink-btn");
+  // ================================
+  // SOP：標記這個人「已完成」
+  // ================================
+  state.usedName.add(state.lastWinnerIndex);
 
-    // 👁 啟用 Viewer
-    viewBtn.disabled = false;
-    
+  // ================================
+  // SOP：判斷是否最後一位
+  // ================================
+  const total = state.names.length;
+  const drawn = state.usedName.size;
 
-    // ✔ 紀錄
-    appendLog(names[lastWinnerIndex], v, ref);
+  if (drawn >= total) {
+    console.log("🏁 All players finished → FINISHED");
+    state.system = SYS_STATE.FINISHED;
+  } else {
+    console.log("👁 Go to VIEWER");
+    state.system = SYS_STATE.VIEWER;
+  }
 
-// ================================
-// SOP：ROUND2 結束 → 判斷是否最後一位
-// ================================
-const total = names.length;
-const drawn = usedName.size;
-
-// 最後一位 → 直接進 FINISHED
-if (drawn >= total) {
-  console.log("🏁 All players finished → FINISHED");
-  systemState = SYS_STATE.FINISHED;
-} 
-// 還有人 → 進 VIEWER
-else {
-  console.log("👁 Go to VIEWER");
-  systemState = SYS_STATE.VIEWER;
-}
-
-// 狀態同步
-applyUIState();
-saveState({
-  round2Done: true,
-  currentVerse: currentVerse,
-  system: systemState
-});
-
-// 🔔 提示主持人可以看紅包
-if (typeof viewBtn !== "undefined" && viewBtn) {
-  viewBtn.classList.add("blink-all");
-}
+  // ================================
+  // SOP：同步狀態
+  // ================================
+  applyUIState();
+  saveState({
+    round2Done: true,
+    currentVerse: state.currentVerse,
+    system: state.system
   });
+
+  // ================================
+  // SOP：提示主持人可以看紅包
+  // ================================
+  if (viewBtn && viewBtn.classList) {
+    viewBtn.classList.add("blink-all");
+  }
+});
   };
 
 /* ========= 看紅包 ========= */
 viewBtn.onclick = () => {
   if (!canAct()) return;
-  if (!currentVerse) return;
+  if (!state.currentVerse) return;
 
-  const winnerName = names[lastWinnerIndex] || "";
-
-  // 僅儲存狀態，不自動轉動
-  systemState = SYS_STATE.VIEWER;
-  applyUIState();
-  saveState();
+  const winnerName = state.names[state.lastWinnerIndex] || "";
 
   // 🔕 進 Viewer 前停止閃爍（防呆）
   if (viewBtn && viewBtn.classList) {
     viewBtn.classList.remove("blink-all");
+    viewBtn.classList.remove("blink-btn");
   }
 
+  // ❗ 不再改狀態，狀態已經在 ROUND2 spin callback 設為 VIEWER
+  saveState();
+
+  // 🚀 導航到 Viewer
   window.location.href =
-    `viewer.html?no=${currentVerse}&name=${encodeURIComponent(winnerName)}`;
+    `viewer.html?code=${state.currentVerse}&name=${encodeURIComponent(winnerName)}`;
 };
 
 /* ========= PDF：下載抽籤紀錄（Canvas → Image → PDF 穩定版｜唯一版本） ========= */

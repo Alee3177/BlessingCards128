@@ -189,21 +189,26 @@ viewBtn.onclick = () => {
   // 🧭 Viewer 回流旗標（回到首頁要顯示三行摘要用）
   sessionStorage.setItem("showSummaryOnReturn", "1");
 
-  const url = `viewer.html?code=${encodeURIComponent(state.currentVerse.code)}&name=${encodeURIComponent(state.names[state.lastWinnerIndex] || "")}`;
+  const winnerName = state.names[state.lastWinnerIndex] || "";
+  const code = state.currentVerse.code || state.currentVerse;
+
+  const url =
+    `viewer.html?code=${encodeURIComponent(code)}` +
+    `&name=${encodeURIComponent(winnerName)}`;
 
   window.open(url, "_blank");
-  audit("OPEN_VIEWER", { code: state.currentVerse.code });
+  audit("OPEN_VIEWER", { code });
 };
 
 //
-// Viewer 關閉後：回到 ROUND1 或 FINISHED（嚴格狀態機）
+// Viewer 關閉後：只回到 READY 或 FINISHED（嚴格 SOP）
 //
 window.addEventListener("focus", () => {
   if (state.system !== SYS_STATE.VIEWER) return;
 
   console.log("🔄 Viewer closed → resume state machine");
 
-  // 釋放本輪暫存
+  // 釋放本輪暫存（但不動 usedName）
   state.lastWinnerIndex = null;
   state.currentVerse = null;
 
@@ -211,8 +216,8 @@ window.addEventListener("focus", () => {
     // 全部完成 → PDF / 歸零
     state.system = SYS_STATE.FINISHED;
   } else {
-    // 還有人 → 下一位抽人
-    state.system = SYS_STATE.ROUND1;
+    // 還有人 → 等主持人再按「開始抽姓名」
+    state.system = SYS_STATE.READY;
   }
 
   saveState();
