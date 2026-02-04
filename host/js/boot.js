@@ -64,15 +64,15 @@
 // ================================
 // 🚀 SYSTEM BOOTSTRAP
 // ================================
-function bootSystem(){
+function bootSystem() {
   try {
     console.log("🚀 BlessingCards128 booting...");
 
     // 1. 確認主持權限
-    if (!window.__BC_MASTER__.canAct()) {
-      console.warn("⚠ 非主持機模式（Viewer Only）");
-    } else {
+    if (window.__BC_MASTER__ && window.__BC_MASTER__.canAct()) {
       console.log("🎤 主持機模式啟用");
+    } else {
+      console.warn("⚠ 非主持機模式（Viewer Only）");
     }
 
     // 2. 載入狀態
@@ -91,29 +91,35 @@ function bootSystem(){
       console.warn("⚠ applyUIState not found");
     }
 
-// 4. 初始化輪盤（關鍵 - 等 DOM 穩定再綁）
-if (typeof initWheel === "function") {
-  console.log("⏳ Waiting for wheel canvas...");
+    // ================================
+    // 4. 初始化輪盤（關鍵 - 等 DOM 穩定再綁）
+    // ================================
+    if (typeof initWheel === "function") {
+      console.log("⏳ Waiting for wheel canvas...");
 
-  const bindWheel = () => {
-    const c =
-      document.getElementById("wheel") ||
-      document.getElementById("wheelCanvas") ||
-      document.querySelector("canvas");
+      const bindWheel = () => {
+        const c =
+          document.getElementById("wheel") ||
+          document.getElementById("wheelCanvas") ||
+          document.querySelector("canvas");
 
-    if (c) {
-      initWheel(window.state?.names || []);
-      console.log("🎡 Wheel initialized:", c.id || "(no id)");
+        if (c) {
+          initWheel(window.state?.names || []);
+          console.log("🎡 Wheel initialized:", c.id || "(no id)");
+        } else {
+          // 每 50ms 重試一次
+          setTimeout(bindWheel, 50);
+        }
+      };
+
+      bindWheel();
     } else {
-      // 每 50ms 重試一次，直到畫布出現
-      setTimeout(bindWheel, 50);
+      console.error("❌ initWheel not found — 輪盤不會顯示");
     }
-  };
 
-  bindWheel();
-} else {
-  console.error("❌ initWheel not found — 輪盤不會顯示");
-}
+  } catch (e) {
+    console.error("💥 BOOT FAILED", e);
+  }
 }
 
 // 等 DOM 與 Script 全部載入再啟動
