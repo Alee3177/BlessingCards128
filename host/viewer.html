@@ -1,114 +1,27 @@
-<!doctype html>
-<html lang="zh-Hant">
+
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BlessingCards128 Viewer</title>
-  <style>
-    :root{--bg:#fbf2dc;--panel:#ffffffcc;--text:#5a3b1f;--btn:#f3c05c;--shadow:0 10px 30px rgba(0,0,0,.08);}
-    body{margin:0;background:var(--bg);font-family: system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--text);}
-    .wrap{max-width:860px;margin:0 auto;padding:20px 14px 40px;}
-    .card{background:var(--panel);border-radius:22px;box-shadow:var(--shadow);padding:16px;}
-    h1{margin:0 0 10px;font-size:20px;}
-    .info{white-space:pre-line;font-weight:800;line-height:1.35;margin:10px 0 12px;}
-    .imgBox{display:flex;justify-content:center;align-items:center;min-height:280px;}
-    img{max-width:100%;max-height:75vh;border-radius:16px;box-shadow:var(--shadow);display:none;}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
-    a.btn{border:0;border-radius:999px;padding:10px 14px;background:var(--btn);cursor:pointer;font-weight:800;color:#4a2f15;box-shadow:0 6px 16px rgba(0,0,0,.08);text-decoration:none;display:inline-block;}
-    .muted{opacity:.78;font-size:13px;}
-    .warn{color:#b45309;font-weight:800;}
-  </style>
+<meta charset="utf-8"/>
+<title>BlessingCards128 Viewer</title>
+<script src="../verseRefMap.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>祝福經句紅包（Viewer｜只讀）</h1>
-      <div class="muted">模式 A：此頁會自動跟隨主持機「最新抽到的紅包」。</div>
+<h2>祝福經句紅包（Viewer）</h2>
+<div id="info"></div>
+<img id="cardImg" style="max-width:90vw"/>
+<button id="btnBack">返回首頁</button>
 
-      <div class="info" id="infoBox">等待主持機抽出紅包…</div>
+<script>
+const p=new URLSearchParams(location.search);
+const code=(p.get("code")||"").padStart(3,"0");
+document.getElementById("info").textContent="經句編號："+code;
+const img=document.getElementById("cardImg");
+img.src="../cards/"+code+".png";
 
-      <div class="imgBox">
-        <img id="imgVerse" alt="verse" />
-      </div>
-
-      <div class="row">
-        <a id="downloadLink" class="btn" href="#" download>下載經句圖片</a>
-      </div>
-
-      <div class="row" style="margin-top:8px;">
-        <div class="muted">若無法自動更新，請重新整理本頁。</div>
-        <div class="muted warn" id="warn"></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const BASE = "..";
-    const PATHS = { CARDS: `${BASE}/cards` };
-    const KEY_LAST_DRAW = "LAST_DRAW";
-
-    const infoBox = document.getElementById("infoBox");
-    const img = document.getElementById("imgVerse");
-    const downloadLink = document.getElementById("downloadLink");
-    const warn = document.getElementById("warn");
-
-    function getParam(n){ return new URL(location.href).searchParams.get(n); }
-
-    function setView({verse, ref, name}){
-      if (!verse) return;
-      const v = String(verse).padStart(3,"0");
-      const title = name ? `「${name}」｜抽中的經句紅包` : "抽中的經句紅包";
-      infoBox.textContent = `${title}\n📜 經句編號: ${v}｜📖 ${ref||""}`;
-      const src = `${PATHS.CARDS}/${v}.png`;
-      img.src = src;
-      img.style.display = "block";
-      downloadLink.href = src;
-      downloadLink.download = `verse_no_${v}.png`;
-      warn.textContent = "";
-    }
-
-    function readLastDraw(){
-      try{
-        const raw = localStorage.getItem(KEY_LAST_DRAW);
-        if (!raw) return null;
-        return JSON.parse(raw);
-      }catch{ return null; }
-    }
-
-    function tick(){
-      const last = readLastDraw();
-      if (last && last.verse){
-        setView(last);
-      }else{
-        infoBox.textContent = "等待主持機抽出紅包…";
-        img.style.display = "none";
-        downloadLink.href = "#";
-        warn.textContent = "尚未收到主持機的最新抽籤資料";
-      }
-    }
-
-    // Initial: use param as fallback, but Mode A always follows host
-    const pVerse = getParam("code") || getParam("no");
-    const pName = getParam("name") || "";
-    if (pVerse){
-      setView({ verse: pVerse, ref: "", name: pName });
-    }else{
-      tick();
-    }
-
-    window.addEventListener("storage", (e)=>{
-      if (e.key === KEY_LAST_DRAW) tick();
-    });
-
-    setInterval(tick, 1200);
-
-    img.onerror = ()=>{
-      const last = readLastDraw();
-      const v = last?.verse ? String(last.verse).padStart(3,"0") : (pVerse ? String(pVerse).padStart(3,"0") : "???");
-      infoBox.textContent = `⚠ 找不到圖片 ${PATHS.CARDS}/${v}.png`;
-      warn.textContent = "請確認 repo 內 cards/001.png ~ 128.png 是否存在";
-      img.style.display = "none";
-    };
-  </script>
+document.getElementById("btnBack").onclick=()=>{
+  location.href="index.html";
+};
+</script>
 </body>
 </html>
