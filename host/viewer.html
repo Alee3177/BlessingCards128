@@ -141,44 +141,49 @@ body{
 </div>
 
 <script>
-
 /* ================================
    PATH + PARAM FIXED CORE
 ================================ */
+
 // host 在 /BlessingCards128/host/
+// 所有資源都要回上一層
 const BASE = "..";
 
-/* 取得 URL 參數 */
+/* 取得 URL 參數（只定義一次） */
 function getParam(n){
   return new URL(window.location.href).searchParams.get(n);
 }
 
 // 主控傳的是 ?code=XXX；相容舊版 ?no=XXX
 const verseNoRaw = ((getParam("code") || getParam("no") || "").trim());
+
+// 防呆：沒帶參數直接停
+if (!verseNoRaw) {
+  document.body.innerHTML = "❌ 缺少經句參數 ?code=XXX";
+  throw new Error("Missing verse code");
+}
+
+// 補成 3 碼：001–128
 const verseNo = verseNoRaw.padStart(3, "0");
 const userName = (getParam("name") || "").trim();
+
+// ⭐ 全頁唯一圖片來源（所有地方都用這個）
+const IMG_SRC = `${BASE}/cards/${verseNo}.png`;
+
+console.log("🧭 Viewer loading:", IMG_SRC);
 
 // ==== viewer 圖片下載防重複狀態 ====
 let imageDownloadedThisView = false;
 let imageRepeatCount = 0;
-let lastVerseNo = null; // ✅ 記住目前顯示的經句編號，防止跨經句誤判重複下載
-let downloading = false; // ✅ 防止連續狂點下載
+let lastVerseNo = null;
+let downloading = false;
 
 /* ==== 主控旗標 ==== */
 const IS_MASTER = false;
+const ENABLE_DUN_SOUND = false;
 
-const ENABLE_DUN_SOUND = false;   // ← 改成 true 就全部恢復
-
-// ⭐ 新增：進場音效選擇
-// 可選："dun" | "dun1" | "dun2"
-const DUN_SOUND_VARIANT = "dun";   // ← 改這一行就好
-
-/* 取得 URL 參數 */
-function getParam(n){
-  const u = new URL(window.location.href);
-  return u.searchParams.get(n);
-}
-
+// ⭐ 進場音效選擇
+const DUN_SOUND_VARIANT = "dun";
 
 // 🧠 預載紅包圖片，避免顯示延遲
 const preload = new Image();
@@ -370,16 +375,20 @@ dun.src = `${variant}.mp3`;
 };
 
 /*======== 圖片載入失敗 ========*/
-img.onerror = ()=>{
-  // 若有煙火，先清掉
+img.onerror = () => {
 
   const loading = document.getElementById("loading");
-  if(loading){
-    loading.textContent = "⚠ 找不到圖片 ../../cards/" + verseNo + ".png";
+
+  const msg = `⚠ 找不到圖片 ${IMG_SRC}`;
+  
+  if (loading) {
+    loading.textContent = msg;
   }
 
-  img.alt = "⚠ 找不到圖片 ../../cards/" + verseNo + ".png";
-  
+  img.alt = msg;
+
+  console.error("❌ Image load failed:", IMG_SRC);
+
   // 🛡 允許下次成功載入時 onload 重新執行
   delete img.dataset.loaded;
 };
