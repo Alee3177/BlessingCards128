@@ -1362,13 +1362,15 @@ if (cameFromViewer) {
   }
   rotating = false;
 
-  // 強制回第一輪待命
-  s.round2Done = false;
-  s.round2Started = false;
-  s.lastWinnerIndex = -1;
-  s.systemState = SYS_STATE.READY;
+// 強制回第一輪待命
+const s = BC.getState();
 
-  systemState = SYS_STATE.READY;
+s.round2Done = false;
+s.round2Started = false;
+s.lastWinnerIndex = null;
+
+// 狀態一律走橋
+BC.setSystem("READY");
 
   // 同步存回狀態（關鍵！）
   saveState({
@@ -1527,9 +1529,8 @@ lockBtn.onclick = () => {
   pdfBtn.classList.remove("btn-pdf-ready");
   resetBtn.classList.remove("btn-reset-danger");
 
-  statusDiv.textContent = "名單已鎖定，請開始抽籤";
-  systemState = SYS_STATE.READY;
-  applyUIState();
+statusDiv.textContent = "名單已鎖定，請開始抽籤";
+BC.setSystem("READY");
 
   saveState({
     round2Done: false,

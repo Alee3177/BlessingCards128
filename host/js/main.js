@@ -265,7 +265,7 @@ pdfBtn.onclick = async () => {
 };
 
 // ================================
-// RESET
+// RESET (BC Bridge Safe Version)
 // ================================
 resetBtn.onclick = () => {
   if (!canAct()) return;
@@ -277,16 +277,22 @@ resetBtn.onclick = () => {
 
   audit("SYSTEM_RESET");
 
-  state.names = [];
-  state.usedName.clear();
-  state.verseUsed.clear();
-  state.lastWinnerIndex = null;
-  state.currentVerse = null;
+  const s = BC.getState();
 
+  // 🧹 清空狀態
+  s.names = [];
+  s.usedName.clear();
+  s.verseUsed.clear();
+  s.lastWinnerIndex = null;
+  s.currentVerse = null;
+
+  // 🧹 清紀錄
   localStorage.removeItem("drawLogs");
 
-  state.system = SYS_STATE.INIT;
+  // 🟢 狀態機回 INIT
+  BC.setSystem("INIT");
 
+  // 🖥 UI 重置
   nameInput.value = "";
   centerText.textContent = "";
   resultDiv.textContent = "";
@@ -295,9 +301,6 @@ resetBtn.onclick = () => {
 
   clearHL();
   initWheel();
-
-  saveState();
-  applyUIState();
 };
 
 // ================================
