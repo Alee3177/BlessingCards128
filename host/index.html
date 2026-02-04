@@ -75,7 +75,18 @@
           <div class="status" id="statusLine">系統初始化中…</div>
           <div class="muted" id="centerLine" style="margin-top:6px"></div>
         </div>
-
+		
+<!-- ========================= -->
+<!-- 🎡 輪盤顯示區 -->
+<!-- ========================= -->
+  <div class="card" style="margin-top:16px; text-align:center">
+  <div id="wheelBox" style="display:flex; justify-content:center">
+    <canvas id="wheelCanvas" width="420" height="420"
+      style="max-width:90vw; background:#fff; border-radius:50%; box-shadow:0 8px 20px rgba(0,0,0,.15)">
+    </canvas>
+  </div>
+</div>
+		
         <div style="margin-top:12px">
           <div class="muted">抽籤紀錄</div>
           <div class="log" id="logBox">（尚無）</div>
