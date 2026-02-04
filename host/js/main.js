@@ -225,6 +225,7 @@
 
     const name = state.names[state.lastWinnerIndex] || "";
     const url = `viewer.html?code=${encodeURIComponent(state.currentVerse.code)}&name=${encodeURIComponent(name)}`;
+    localStorage.setItem("BC_VIEWER_OPEN", "1");
     window.open(url, "_blank");
     setStatus("Viewer 已開啟（請參與者看紅包/下載），看完後按「下一位」");
   };

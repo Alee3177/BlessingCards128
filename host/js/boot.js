@@ -90,6 +90,24 @@ function bootSystem() {
     } else {
       console.warn("⚠ applyUIState not found");
     }
+	
+	// ================================
+// 🔔 Viewer 回流修復（關鍵）
+// ================================
+if (sessionStorage.getItem("showSummaryOnReturn") === "1") {
+  sessionStorage.removeItem("showSummaryOnReturn");
+
+  if (window.state) {
+    console.log("↩ Viewer returned → resume ROUND1");
+
+    state.lastWinnerIndex = null;
+    state.currentVerse = null;
+    state.system = SYS_STATE.ROUND1;
+
+    saveState();
+    applyUIState();
+  }
+}
 
     // ================================
     // 4. 初始化輪盤（關鍵 - 等 DOM 穩定再綁）
