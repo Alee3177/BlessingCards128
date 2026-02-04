@@ -1,10 +1,10 @@
 // =======================================
 // BlessingCards128 — Main Controller
-// SOP Locked Build (state machine owner)
+// Production Locked Build
 // =======================================
 
-import { SYS_STATE, state, saveState, restore, isFinished } from "./state.js";
-import { applyUIState } from "./ui.js";
+import { SYS_STATE, state, saveState, loadState } from "./state.js";
+import { applyUIState, audit, canAct } from "./ui.js";
 import {
   initWheel,
   drawWheel,
@@ -19,47 +19,33 @@ import {
 // ================================
 const nameInput = document.getElementById("nameInput");
 
-const lockBtn   = document.getElementById("lockBtn");
-const spinBtn   = document.getElementById("spinBtn");
+const lockBtn = document.getElementById("lockBtn");
+const spinBtn = document.getElementById("spinBtn");
 const secondBtn = document.getElementById("secondBtn");
-const viewBtn   = document.getElementById("viewBtn");
-const pdfBtn    = document.getElementById("pdfBtn");
-const resetBtn  = document.getElementById("resetBtn");
+const viewBtn = document.getElementById("viewBtn");
+const pdfBtn = document.getElementById("pdfBtn");
+const resetBtn = document.getElementById("resetBtn");
 
 const centerText = document.getElementById("centerText");
-const resultDiv  = document.getElementById("result");
+const resultDiv = document.getElementById("resultDiv");
 const summaryBox = document.getElementById("summaryBox");
-const statusDiv  = document.getElementById("status");
+const statusDiv = document.getElementById("statusDiv");
 
-// Audio (host 目錄往上一層才是 repo root)
+// Audio
 const drum = new Audio("../audio/drum.mp3");
-const win  = new Audio("../audio/win.mp3");
-
-function setSystem(next) {
-  console.log("🔁 STATE:", state.system, "→", next);
-  state.system = next;
-}
+const win = new Audio("../audio/win.mp3");
 
 // ================================
-// INIT / BOOT
+// INIT
 // ================================
 function boot() {
-  restore();
-
-  // 防呆：如果停在 VIEWER（但其實沒有開著），回到 ROUND2 讓使用者可按「看紅包」
-  if (state.system === SYS_STATE.VIEWER) setSystem(SYS_STATE.ROUND2);
-
+  loadState();
   initWheel();
   drawWheel();
-
   applyUIState();
-
-  if (statusDiv && state.system === SYS_STATE.INIT) {
-    statusDiv.textContent = "請輸入姓名並鎖定名單";
-  }
-
-  saveState();
+  statusDiv.textContent = "系統初始化中";
 }
+
 window.addEventListener("load", boot);
 
 // ================================
@@ -72,10 +58,15 @@ function parseNames(input) {
     .filter(Boolean);
 }
 
+function allDrawn() {
+  return state.usedName.size >= state.names.length;
+}
+
 function pushLog(name, ref) {
   const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
   const now = new Date();
   const time = now.toTimeString().slice(0, 8);
+
   logs.push({ name, ref, time });
   localStorage.setItem("drawLogs", JSON.stringify(logs));
 }
@@ -86,14 +77,19 @@ function pushLog(name, ref) {
 function unlockAudio() {
   drum.play().then(() => drum.pause()).catch(() => {});
   win.play().then(() => win.pause()).catch(() => {});
+  audit("AUDIO_UNLOCKED");
 }
 document.body.addEventListener("click", unlockAudio, { once: true });
 
 // ================================
-// 鎖名單 (INIT → READY)
+// LOCK NAMES
 // ================================
 lockBtn.onclick = () => {
-  const list = parseNames(nameInput?.value || "");
+  if (!canAct()) return;
+
+  const raw = nameInput.value;
+  const list = parseNames(raw);
+
   if (!list.length) {
     alert("請輸入至少一個姓名");
     return;
@@ -102,90 +98,77 @@ lockBtn.onclick = () => {
   state.names = list;
   state.usedName.clear();
   state.verseUsed.clear();
-  state.lastWinnerIndex = null;
-  state.currentVerse = null;
 
-  setSystem(SYS_STATE.READY);
+  state.system = SYS_STATE.READY;
 
   saveState();
-  drawWheel();
   applyUIState();
+  drawWheel();
 
-  if (statusDiv) statusDiv.textContent = "名單已鎖定，可開始抽籤";
+  audit("LOCK_NAMES", { count: list.length });
+  statusDiv.textContent = "名單已鎖定，可開始抽籤";
 };
 
 // ================================
-// 抽人 (READY → ROUND1)
+// ROUND 1 — 抽姓名
 // ================================
 spinBtn.onclick = () => {
+  if (!canAct()) return;
   if (!state.names.length) return;
 
-  setSystem(SYS_STATE.ROUND1);
+  state.system = SYS_STATE.ROUND1;
   applyUIState();
 
   drum.currentTime = 0;
   drum.play().catch(() => {});
 
   const pool = state.names.filter(n => !state.usedName.has(n));
-  if (!pool.length) {
-    setSystem(SYS_STATE.FINISHED);
-    saveState();
-    applyUIState();
-    return;
-  }
 
-  spin(pool, true, (name) => {
+  spin(pool, true, (name, idx) => {
     state.lastWinnerIndex = state.names.indexOf(name);
     state.usedName.add(name);
 
     clearHL();
     showHL(state.lastWinnerIndex);
 
-    if (centerText) centerText.textContent = name;
-    if (resultDiv) resultDiv.textContent = `🎯 抽中：${name}`;
+    centerText.textContent = name;
+    resultDiv.textContent = `🎯 抽中：${name}`;
 
-    // 抽完人後：仍是 ROUND1（等待按「抽紅包」）
-    setSystem(SYS_STATE.ROUND1);
-
+    state.system = SYS_STATE.ROUND1;
     saveState();
     applyUIState();
+
+    audit("ROUND1_WINNER", { name });
   });
 };
 
 // ================================
-// 抽經句 (ROUND1 → ROUND2)
+// ROUND 2 — 抽經句
 // ================================
 secondBtn.onclick = () => {
   if (state.lastWinnerIndex == null) return;
-
-  setSystem(SYS_STATE.ROUND2);
-  applyUIState();
 
   drum.currentTime = 0;
   drum.play().catch(() => {});
 
   const verses = window.VERSE_LIST || [];
   const pool = verses.filter(v => !state.verseUsed.has(v.code));
-  if (!pool.length) {
-    alert("經句已抽完（verseUsed 已滿）");
-    return;
-  }
 
   spin(pool, false, (verse) => {
     state.currentVerse = verse;
     state.verseUsed.add(verse.code);
 
-    if (centerText) centerText.textContent = `📜 ${verse.book}\n${verse.chapter}:${verse.verse}`;
-    if (resultDiv) resultDiv.textContent = verse.text || "";
+    centerText.textContent = `📜 ${verse.book}\n${verse.chapter}:${verse.verse}`;
+    resultDiv.textContent = verse.text;
 
     pushLog(state.names[state.lastWinnerIndex], verse.code);
 
     win.currentTime = 0;
     win.play().catch(() => {});
-    try { launchConfetti(); } catch (_) {}
+    launchConfetti();
 
-    // 抽完經句後：仍是 ROUND2（等待按「看紅包」）
-    setSystem(SYS_STATE.ROUND2);
+    // ✅ 抽到經句後：進入 ROUND2（UI 會 enable「看紅包」）
+    state.system = SYS_STATE.ROUND2;
 
     saveState();
     applyUIState();
@@ -193,56 +176,61 @@ secondBtn.onclick = () => {
 };
 
 // ================================
-// 看紅包 (ROUND2 → VIEWER)
+// VIEWER（只讀）
 // ================================
 viewBtn.onclick = () => {
   if (!state.currentVerse) return;
 
-  setSystem(SYS_STATE.VIEWER);
+  // 🛡 進入 VIEWER 狀態（UI 鎖死在「紅包顯示中…」）
+  state.system = SYS_STATE.VIEWER;
   saveState();
   applyUIState();
 
-  const url = `viewer.html?code=${encodeURIComponent(state.currentVerse.code)}`;
+  // 🧭 Viewer 回流旗標（回到首頁要顯示三行摘要用）
+  sessionStorage.setItem("showSummaryOnReturn", "1");
+
+  const url = `viewer.html?code=${encodeURIComponent(state.currentVerse.code)}&name=${encodeURIComponent(state.names[state.lastWinnerIndex] || "")}`;
+
   window.open(url, "_blank");
+  audit("OPEN_VIEWER", { code: state.currentVerse.code });
 };
 
-// ================================
-// Viewer 關閉回來：VIEWER → READY / FINISHED
-// ================================
+//
+// Viewer 關閉後：回到 READY 或 FINISHED（只靠狀態機，不用猜）
+//
 window.addEventListener("focus", () => {
   if (state.system !== SYS_STATE.VIEWER) return;
 
-  console.log("🔄 Viewer closed → resume SOP");
+  console.log("🔄 Viewer closed → resume state machine");
 
-  if (isFinished()) {
-    setSystem(SYS_STATE.FINISHED);
+  // 釋放本輪暫存
+  state.lastWinnerIndex = null;
+  state.currentVerse = null;
+
+  if (state.usedName.size >= state.names.length) {
+    state.system = SYS_STATE.FINISHED;
   } else {
-    // 清掉本次抽籤暫存，準備下一位
-    state.currentVerse = null;
-    state.lastWinnerIndex = null;
-    setSystem(SYS_STATE.READY);
+    state.system = SYS_STATE.READY;
   }
 
   saveState();
   applyUIState();
 });
 
+
 // ================================
-// PDF（只允許 FINISHED）
+// PDF
 // ================================
 pdfBtn.onclick = async () => {
-  if (state.system !== SYS_STATE.FINISHED) {
-    alert("尚未全部抽完，完成後才可下載 PDF");
-    return;
-  }
-
-  const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-  if (!logs.length) {
-    alert("沒有可下載的抽籤紀錄");
-    return;
-  }
+  if (!canAct()) return;
 
   try {
+    const logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
+    if (!logs.length) {
+      alert("沒有可下載的抽籤紀錄");
+      return;
+    }
+
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF();
 
@@ -258,6 +246,12 @@ pdfBtn.onclick = async () => {
     });
 
     pdf.save("BlessingCards128_Record.pdf");
+
+    state.system = SYS_STATE.FINISHED;
+    saveState();
+    applyUIState();
+
+    audit("PDF_DOWNLOADED");
   } catch (e) {
     console.error(e);
     alert("PDF 產生失敗");
@@ -265,11 +259,17 @@ pdfBtn.onclick = async () => {
 };
 
 // ================================
-// RESET（任意 → INIT）
+// RESET
 // ================================
 resetBtn.onclick = () => {
-  const ok = confirm("資料紀錄將被清空 & 歸零\n需重新輸入姓名並開始新一輪\n確定要執行嗎？");
+  if (!canAct()) return;
+
+  const ok = confirm(
+    "資料紀錄將被清空 & 歸零\n需重新輸入姓名並開始新一輪\n確定要執行嗎？"
+  );
   if (!ok) return;
+
+  audit("SYSTEM_RESET");
 
   state.names = [];
   state.usedName.clear();
@@ -279,20 +279,24 @@ resetBtn.onclick = () => {
 
   localStorage.removeItem("drawLogs");
 
-  setSystem(SYS_STATE.INIT);
+  state.system = SYS_STATE.INIT;
 
-  if (nameInput) nameInput.value = "";
-  if (centerText) centerText.textContent = "";
-  if (resultDiv) resultDiv.textContent = "";
-  if (summaryBox) summaryBox.textContent = "";
-  if (statusDiv) statusDiv.textContent = "請輸入姓名並鎖定名單";
+  nameInput.value = "";
+  centerText.textContent = "";
+  resultDiv.textContent = "";
+  summaryBox.textContent = "";
+  statusDiv.textContent = "請輸入姓名並鎖定名單";
 
   clearHL();
   initWheel();
-  drawWheel();
 
   saveState();
   applyUIState();
 };
 
-window.addEventListener("beforeunload", () => saveState());
+// ================================
+// 防意外離開
+// ================================
+window.addEventListener("beforeunload", () => {
+  saveState();
+});
