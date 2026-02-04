@@ -13,14 +13,18 @@ function pickRandom(arr){
 }
 
 // ================================
-// 初始化輪盤
+// 初始化輪盤（保命綁定版）
 // ================================
 function initWheel(list = []) {
   console.log("🎡 initWheel called");
 
-  canvas = document.getElementById("wheel");
+  canvas =
+    document.getElementById("wheel") ||
+    document.getElementById("wheelCanvas") ||
+    document.querySelector("canvas");
+
   if (!canvas) {
-    console.error("❌ wheel canvas not found");
+    console.error("❌ wheel canvas not found (no <canvas> in DOM)");
     return;
   }
 
@@ -32,6 +36,8 @@ function initWheel(list = []) {
 
   rotation = 0;
   drawWheel();
+
+  console.log("✅ wheel canvas bound:", canvas.id || "(no id)");
 }
 
 // ================================

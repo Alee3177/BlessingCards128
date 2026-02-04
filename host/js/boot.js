@@ -91,17 +91,29 @@ function bootSystem(){
       console.warn("⚠ applyUIState not found");
     }
 
-    // 4. 初始化輪盤（關鍵）
-    if (typeof initWheel === "function") {
-      initWheel();
-      console.log("🎡 Wheel initialized");
-    } else {
-      console.error("❌ initWheel not found — 輪盤不會顯示");
-    }
+// 4. 初始化輪盤（關鍵 - 等 DOM 穩定再綁）
+if (typeof initWheel === "function") {
+  console.log("⏳ Waiting for wheel canvas...");
 
-  } catch (e) {
-    console.error("💥 BOOT FAILED", e);
-  }
+  const bindWheel = () => {
+    const c =
+      document.getElementById("wheel") ||
+      document.getElementById("wheelCanvas") ||
+      document.querySelector("canvas");
+
+    if (c) {
+      initWheel(window.state?.names || []);
+      console.log("🎡 Wheel initialized:", c.id || "(no id)");
+    } else {
+      // 每 50ms 重試一次，直到畫布出現
+      setTimeout(bindWheel, 50);
+    }
+  };
+
+  bindWheel();
+} else {
+  console.error("❌ initWheel not found — 輪盤不會顯示");
+}
 }
 
 // 等 DOM 與 Script 全部載入再啟動
