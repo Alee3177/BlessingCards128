@@ -1,747 +1,114 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<title>祝福經句紅包</title>
-
-<style>
-body{
-  font-family:"Noto Sans TC",system-ui;
-  background:#fbf2df;
-  text-align:center;
-  margin:0;
-  padding:16px;
-  color:#5b3a00;
-}
-
-/* 顯示標題區域 */
-#infoBox{
-  font-size:18px;
-  white-space:pre-line;
-  margin-bottom:10px;
-}
-
-/* 經句圖片（含金邊） */
-#imgVerse{
-  /* 自動適應裝置尺寸（桌機 / 手機） */
-  width: min(98vw, 720px);   /* 原本 520px → 放大約 30% */
-  max-height: 92vh;         /* 原本 72vh → 放大顯示高度 */
-  object-fit: contain;      /* ← 關鍵: 完整顯示、不裁切 */
-  border-radius:18px;
-  display:block;
-  margin:16px auto;
-  border:6px solid gold;
-}
-
-/* 金邊發光＋彈跳 */
-@keyframes glow{
-  0%{ box-shadow:0 0 10px gold; }
-  50%{ box-shadow:0 0 32px gold; }
-  100%{ box-shadow:0 0 10px gold; }
-}
-@keyframes jump{
-  0%{ transform:scale(.8); opacity:.2; }
-  40%{ transform:scale(1.05); opacity:1;}
-  80%{ transform:scale(1.0);}
-  100%{ transform:scale(1.0);}
-}
-.animate{
-  animation:glow 2.2s infinite, jump 1.2s ease-out;
-}
-
-/* 按鈕樣式與 index 一致 */
-.btn{
-  min-width:110px;
-  padding:8px 16px;
-  border-radius:999px;
-  border:none;
-  background:#f4b63a;
-  color:#5b3a00;
-  font-size:15px;
-  font-weight:600;
-  box-shadow:0 3px 0 #d59b25;
-  cursor:pointer;
-  margin:10px 6px 0 6px;
-}
-.btn:disabled{
-  background:#f0ddaa;
-  cursor:default;
-}
-
-/* 抽籤紀錄框 */
-#recordBox{
-  margin-top:18px;
-  max-width:560px;
-  margin-left:auto;
-  margin-right:auto;
-  text-align:left;
-  padding:10px 12px;
-  border-radius:12px;
-  background:#ffffff;
-  box-shadow:0 0 10px rgba(0,0,0,.15);
-  font-size:14px;
-}
-
-/* 彩帶＋金粉畫布（全畫面） */
-#fxCanvas{
-  position:fixed;
-  left:0;
-  top:0;
-  width:100%;
-  height:100%;
-  pointer-events:none;
-}
-
-#loading{
-  margin: 12px 0;
-  font-size: 15px;
-  color: #8a5a00;
-}
-
-/* 📱 手機專用放大模式 */
-@media (max-width: 768px) {
-  #imgVerse{
-    width: 98vw;
-    max-height: 90vh;
-  }
-}
-
-</style>
-
-<script src="verseRefMap.js?v=20260105"></script>
-
-<!-- PATCH-2：煙火 / 彩帶（canvas-confetti） -->
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BlessingCards128 Viewer</title>
+  <style>
+    :root{--bg:#fbf2dc;--panel:#ffffffcc;--text:#5a3b1f;--btn:#f3c05c;--shadow:0 10px 30px rgba(0,0,0,.08);}
+    body{margin:0;background:var(--bg);font-family: system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--text);}
+    .wrap{max-width:860px;margin:0 auto;padding:20px 14px 40px;}
+    .card{background:var(--panel);border-radius:22px;box-shadow:var(--shadow);padding:16px;}
+    h1{margin:0 0 10px;font-size:20px;}
+    .info{white-space:pre-line;font-weight:800;line-height:1.35;margin:10px 0 12px;}
+    .imgBox{display:flex;justify-content:center;align-items:center;min-height:280px;}
+    img{max-width:100%;max-height:75vh;border-radius:16px;box-shadow:var(--shadow);display:none;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+    a.btn{border:0;border-radius:999px;padding:10px 14px;background:var(--btn);cursor:pointer;font-weight:800;color:#4a2f15;box-shadow:0 6px 16px rgba(0,0,0,.08);text-decoration:none;display:inline-block;}
+    .muted{opacity:.78;font-size:13px;}
+    .warn{color:#b45309;font-weight:800;}
+  </style>
 </head>
-
 <body>
-
-<h2>祝福經句紅包（應許等您拿）</h2>
-
-<div id="infoBox"></div>
-
-<canvas id="fxCanvas"></canvas>
-
-<!-- ✅ 新增：圖片載入提示 -->
-<div id="loading">經句圖片載入中……</div>
-
-<img id="imgVerse" src="" alt="經句圖片載入中……">
-
-<div>
-  <button id="btnDownload" class="btn">下載經句圖片</button>
-  <button id="btnNext" class="btn">下一位</button>
-</div>
-
-<div id="recordBox">
-  <b>📜 抽籤紀錄</b>
-  <div id="logText"></div>
-</div>
-
-<script>
-
-/* ==== 主控旗標 ==== */
-const IS_MASTER = false;
-
-// =============================
-// 📱 Viewer 音效解鎖（保險機制）
-// =============================
-document.addEventListener("pointerdown", () => {
-  try {
-    const a1 = document.getElementById("drum");
-    const a2 = document.getElementById("winSound");
-
-    if (a1) {
-      a1.muted = true;
-      a1.play().then(() => {
-        a1.pause();
-        a1.currentTime = 0;
-        a1.muted = false;
-      }).catch(() => {});
-    }
-
-    if (a2) {
-      a2.muted = true;
-      a2.play().then(() => {
-        a2.pause();
-        a2.currentTime = 0;
-        a2.muted = false;
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.warn("viewer unlockAudio failed", e);
-  }
-}, { capture: true });
-
-// ==== viewer 圖片下載防重複狀態 ====
-let imageDownloadedThisView = false;
-let imageRepeatCount = 0;
-let lastVerseNo = null; // ✅ 記住目前顯示的經句編號，防止跨經句誤判重複下載
-let downloading = false; // ✅ 防止連續狂點下載
-
-// =============================
-// 👥 Viewer 心跳回報主持機
-// =============================
-const VIEWER_KEY = "BLESSING_VIEWERS";
-const VIEWER_ID = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,6);
-const VIEWER_TTL = 30000; // 30 秒存活
-
-function heartbeatViewer() {
-  const now = Date.now();
-  let viewers = {};
-
-  try {
-    viewers = JSON.parse(localStorage.getItem(VIEWER_KEY) || "{}");
-  } catch {
-    viewers = {};
-  }
-
-  viewers[VIEWER_ID] = now;
-  localStorage.setItem(VIEWER_KEY, JSON.stringify(viewers));
-}
-
-// =============================
-// 👥 Viewer 心跳排程（穩定版 PATCH F）
-// =============================
-
-// 保證只會有一個心跳計時器
-if (window.__viewerHeartbeatTimer) {
-  clearInterval(window.__viewerHeartbeatTimer);
-}
-
-// 立即報到一次
-heartbeatViewer();
-
-// 每 5 秒報到一次
-window.__viewerHeartbeatTimer = setInterval(heartbeatViewer, 5000);
-
-// 分頁關閉 / 切背景 → 主動下線
-window.addEventListener("pagehide", () => {
-  try {
-    const KEY = "BLESSING_VIEWERS";
-    const viewers = JSON.parse(localStorage.getItem(KEY) || "{}");
-    delete viewers[VIEWER_ID];
-    localStorage.setItem(KEY, JSON.stringify(viewers));
-  } catch {}
-});
-
-// 手機鎖屏 / 切回前景 → 立刻補一次心跳
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    heartbeatViewer();
-  }
-});
-
-// =============================
-// 🔒 防作弊（安全版）
-// =============================
-(function lockInputCheat(){
-  document.addEventListener("keydown", function(e) {
-    // ✅ 允許系統快捷鍵 / 下載
-    if (
-      e.ctrlKey || e.metaKey || e.altKey ||
-      e.key === "F5" || e.key === "Escape" || e.key === "Tab" ||
-      e.key === "F12" ||
-      (e.ctrlKey && e.shiftKey && ["I","J","C"].includes((e.key||"").toUpperCase()))
-    ) {
-      return;
-    }
-
-    // ✅ 不干擾按鈕（Enter/Space）
-    if (e.key === "Enter" || e.key === " ") return;
-
-    e.preventDefault();
-  }, true);
-
-  document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-  }, true);
-})();
-
-const ENABLE_DUN_SOUND = false;   // ← 改成 true 就全部恢復
-
-// ⭐ 新增：進場音效選擇
-// 可選："dun" | "dun1" | "dun2"
-const DUN_SOUND_VARIANT = "dun";   // ← 改這一行就好
-
-/* 取得 URL 參數 */
-function getParam(n){
-  const u = new URL(window.location.href);
-  return u.searchParams.get(n);
-}
-
-// =============================
-// 🛡 Viewer 顯示保命機制（防閃 / 防重刷）
-// =============================
-let currentShownVerse = null;
-
-function showVerseSafe(verse, ref) {
-  if (!verse) return;
-
-  // 🔒 同一張圖就不重刷
-  if (currentShownVerse === verse) return;
-  currentShownVerse = verse;
-
-  const img = document.getElementById("imgVerse");
-  if (!img) return;
-
-  // 重置 onload 保險鎖
-  delete img.dataset.loaded;
-
-  const src = "cards/" + verse + ".png";
-
-// 🔒 如果目前顯示的就是這一張，不重刷（防閃爍）
-if (img.src && img.src.includes(verse + ".png")) return;
-
-  img.src = src;
-
-  // 更新標題資訊
-  const infoBox = document.getElementById("infoBox");
-  if (infoBox) {
-    infoBox.textContent =
-      `抽中的經句紅包\n📜 ${verse}｜📖 ${ref || ""}`;
-  }
-}
-
-// ===== 經句編號（URL → 主持機同步保命）=====
-let verseNo = getParam("no");
-
-// 🛟 如果網址沒帶 no，就從主持機同步拿
-if (!verseNo) {
-  try {
-    const raw = localStorage.getItem("LAST_VERSE");
-    if (raw) {
-      const data = JSON.parse(raw);
-      verseNo = data.verse;
-    }
-  } catch (e) {
-    console.warn("LAST_VERSE parse failed", e);
-  }
-}
-
-// ===== 使用者名稱 =====
-const userName = getParam("name") || "";
-
-// 🧠 預載紅包圖片，避免顯示延遲
-const preload = new Image();
-preload.src = "cards/" + verseNo + ".png";
-
-/*======== 找出書卷＋章節（用 VERSE_REF_MAP） ========*/
-let refText = "";
-if (window.VERSE_REF_MAP && window.VERSE_REF_MAP[verseNo]) {
-  refText = window.VERSE_REF_MAP[verseNo];
-}
-
-/*======== 上方兩行顯示 ========*/
-document.getElementById("infoBox").textContent =
-`「${userName}」｜抽中的經句紅包
-📜 經句編號: ${verseNo}｜📖 ${refText}`;
-
-/*======== 彩帶＋金粉特效 ========*/
-const fxCanvas = document.getElementById("fxCanvas");
-const fxCtx = fxCanvas.getContext("2d");
-
-function resizeFx(){
-  fxCanvas.width = window.innerWidth;
-  fxCanvas.height = window.innerHeight;
-}
-window.addEventListener("resize", resizeFx);
-resizeFx();
-
-function launchFx(){
-  const pieces=[];
-  const dots=[];
-  const colors=["#ffd54f","#ffb300","#ffca28","#ffe082","#fff8e1"];
-
-  for(let i=0;i<150;i++){
-    pieces.push({
-      x:Math.random()*fxCanvas.width,
-      y:Math.random()*-80,
-      w:6+Math.random()*6,
-      h:12+Math.random()*10,
-      vx:-1+Math.random()*2,
-      vy:2+Math.random()*3,
-      r:Math.random()*Math.PI,
-      vr:(Math.random()-0.5)*0.25,
-      color:colors[Math.floor(Math.random()*colors.length)]
-    });
-  }
-  for(let i=0;i<90;i++){
-    dots.push({
-      x:fxCanvas.width/2 + (Math.random()-0.5)*260,
-      y:fxCanvas.height/2 + (Math.random()-0.5)*120,
-      r:1+Math.random()*2.8,
-      vy:-0.3-Math.random()*0.6,
-      alpha:0.9,
-      va:-0.012-Math.random()*0.02
-    });
-  }
-
-  const start=performance.now();
-  const duration=2000;
-
-  function frame(now){
-    const t = now-start;
-    fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
-
-    pieces.forEach(p=>{
-      p.x+=p.vx;
-      p.y+=p.vy;
-      p.r+=p.vr;
-      fxCtx.save();
-      fxCtx.translate(p.x,p.y);
-      fxCtx.rotate(p.r);
-      fxCtx.fillStyle=p.color;
-      fxCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
-      fxCtx.restore();
-    });
-
-    dots.forEach(d=>{
-      d.y+=d.vy;
-      d.alpha+=d.va;
-      if(d.alpha<0)d.alpha=0;
-      fxCtx.beginPath();
-      fxCtx.fillStyle=`rgba(255,215,130,${d.alpha})`;
-      fxCtx.arc(d.x,d.y,d.r,0,Math.PI*2);
-      fxCtx.fill();
-    });
-
-    if(t<duration){
-      requestAnimationFrame(frame);
-    }else{
-      fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
-    }
-  }
-  requestAnimationFrame(frame);
-}
-
-/*======== 取得 img 元件 ========*/
-const img = document.getElementById("imgVerse");
-
-/* 🔒 必須先設定，否則 canvas 會被污染 */
-img.crossOrigin = "anonymous";
-
-/*======== 設定圖片來源 ========*/
-showVerseSafe(verseNo, refText);
-
-/*======== 圖片讀取完成 ========*/
-img.onload = () => {
-
-  // 🛡 防止 onload 被觸發兩次（快取 / src 重設）
-  if (img.dataset.loaded === "1") return;
-  img.dataset.loaded = "1";
-
-// 🔄 換新經句 → 重置下載防呆
-imageDownloadedThisView = false;
-imageRepeatCount = 0;
-lastVerseNo = verseNo;
-
-  /* ① 關閉 loading（一定要先做） */
-  const loading = document.getElementById("loading");
-  if (loading) {
-    loading.style.display = "none";
-  }
-
-  /* ② 顯示圖片本體（保底） */
-  img.style.display = "block";
-  
-  // 📱 自動最佳化顯示比例（手機特化）
-if (window.innerWidth < 768) {
-  const vw = window.innerWidth;
-  const ratio = img.naturalWidth / img.naturalHeight;
-
-  if (ratio < 0.8) {
-    // 直式圖 → 高度優先
-    img.style.maxHeight = "95vh";
-    img.style.width = "auto";
-  } else {
-    // 橫式或方形 → 寬度優先
-    img.style.width = "98vw";
-    img.style.maxHeight = "90vh";
-  }
-}
-
-  /* ③ 金邊閃爍 */
-if (!img.classList.contains("animate")) {
-  img.classList.add("animate");
-}
-
-  /* ④ 清一次 confetti 狀態（只一次） */
-  if (typeof confetti === "function") {
-    confetti.reset();
-  }
-
-  /* ⑤ 你原本的 canvas 金粉＋彩帶 */
-  launchFx();
-
-  /* ⑥ 煙火 → 彩帶（節奏加快版） */
-  if (typeof confetti === "function") {
-
-    confetti({
-      particleCount: 120,
-      spread: 360,
-      startVelocity: 60,
-      gravity: 0.7,
-      ticks: 180,
-      origin: { x: 0.5, y: 0.32 }
-    });
-
-    setTimeout(() => {
-      confetti({
-        particleCount: 160,
-        spread: 100,
-        startVelocity: 50,
-        gravity: 1.3,
-        ticks: 260,
-        origin: { x: 0.5, y: -0.15 }
-      });
-    }, 200);
-  }
-
-// 🔊 viewer 進場音效（dun / dun1 / dun2）
-if (ENABLE_DUN_SOUND) {
-  try {
-    const dun = document.getElementById("dunSound");
-    if (dun) {
-
-// ⭐ 動態選擇音效檔（防呆：避免變數未定義炸掉）
-const variant = window.DUN_SOUND_VARIANT || "dun";
-dun.src = `${variant}.mp3`;
-
-      dun.currentTime = 0;
-
-      // 等圖片 decode 完再播（你原本的設計）
-      if (img.decode) {
-        img.decode().then(() => {
-          dun.play();
-        }).catch(() => {
-          dun.play();
-        });
-      } else {
-        dun.play();
-      }
-    }
-  } catch (e) {
-    console.warn("dun sound blocked:", e);
-  }
-}
-
-};
-
-/*======== 圖片載入失敗 ========*/
-img.onerror = () => {
-  const v = new URLSearchParams(location.search).get("no") || "unknown";
-
-  const loading = document.getElementById("loading");
-  if (loading) {
-    loading.textContent = "⚠ 找不到圖片 cards/" + v + ".png";
-  }
-
-  img.alt = "⚠ 找不到圖片 cards/" + v + ".png";
-
-  // 🛡 允許下次成功載入時 onload 重新執行
-  delete img.dataset.loaded;
-};
-
-/*======== PATCH-B2：強制下載 PNG（離線也穩 + 防重複 + 命名規則） ========*/
-
-// =============================
-// 🧩 唯一下載入口（封裝）
-// =============================
-async function handleDownloadClick() {
-  try {
-    // 🔒 防止狂點（500ms 內只能進來一次）
-    if (downloading) return;
-    downloading = true;
-
-    const params = new URLSearchParams(window.location.search);
-    const verseNo = params.get("no");
-    const name = params.get("name") || "Blessing";
-
-    if (!verseNo) {
-      alert("經句編號遺失，請返回重新打開紅包");
-      downloading = false;
-      return;
-    }
-
-    // ===== 0️⃣ 防重複下載（只擋「同一經句」=====
-    if (lastVerseNo === verseNo && imageDownloadedThisView) {
-      const ok = confirm(
-        "您已經下載過圖片了, 是否要再下載一次呢 (Yes or No)?"
-      );
-      if (!ok) {
-        downloading = false;
-        return;
-      }
-      imageRepeatCount++;
-    } else {
-      imageDownloadedThisView = true;
-      imageRepeatCount = 0;
-      lastVerseNo = verseNo;
-    }
-
-    // ===== 1️⃣ 找到圖片元素 =====
-    // 如果你用的是 id="cardImage"，請改成：
-    // const img = document.getElementById("cardImage");
+  <div class="wrap">
+    <div class="card">
+      <h1>祝福經句紅包（Viewer｜只讀）</h1>
+      <div class="muted">模式 A：此頁會自動跟隨主持機「最新抽到的紅包」。</div>
+
+      <div class="info" id="infoBox">等待主持機抽出紅包…</div>
+
+      <div class="imgBox">
+        <img id="imgVerse" alt="verse" />
+      </div>
+
+      <div class="row">
+        <a id="downloadLink" class="btn" href="#" download>下載經句圖片</a>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <div class="muted">若無法自動更新，請重新整理本頁。</div>
+        <div class="muted warn" id="warn"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE = "..";
+    const PATHS = { CARDS: `${BASE}/cards` };
+    const KEY_LAST_DRAW = "LAST_DRAW";
+
+    const infoBox = document.getElementById("infoBox");
     const img = document.getElementById("imgVerse");
+    const downloadLink = document.getElementById("downloadLink");
+    const warn = document.getElementById("warn");
 
-if (!img || !img.complete || img.naturalWidth === 0) {
-  alert("圖片尚未載入完成或載入失敗，請稍候再試");
-  downloading = false;
-  return;
-}
+    function getParam(n){ return new URL(location.href).searchParams.get(n); }
 
-    // ===== 2️⃣ Canvas 轉 PNG =====
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-
-    if (img.decode) {
-      await img.decode();
-    }
-    ctx.drawImage(img, 0, 0);
-
-    // ===== 3️⃣ 組檔名（混合規則）=====
-    const safeName = name.replace(/[^\w\u4e00-\u9fa5]+/g, "_");
-    const repeatTag = imageRepeatCount > 0 ? `_R${imageRepeatCount}` : "";
-
-    // 同時保留你原本的 verse_no 風格
-    const filename = `${safeName}_verse_no_${verseNo}${repeatTag}.png`;
-
-    // ===== 4️⃣ 強制下載 =====
-const blob = await new Promise((resolve, reject) => {
-  canvas.toBlob(b => {
-    if (!b) reject("toBlob failed");
-    else resolve(b);
-  }, "image/png", 1.0);
-});
-
-    if (!blob) {
-      alert("瀏覽器不支援圖片下載，請改用截圖");
-      downloading = false;
-      return;
+    function setView({verse, ref, name}){
+      if (!verse) return;
+      const v = String(verse).padStart(3,"0");
+      const title = name ? `「${name}」｜抽中的經句紅包` : "抽中的經句紅包";
+      infoBox.textContent = `${title}\n📜 經句編號: ${v}｜📖 ${ref||""}`;
+      const src = `${PATHS.CARDS}/${v}.png`;
+      img.src = src;
+      img.style.display = "block";
+      downloadLink.href = src;
+      downloadLink.download = `verse_no_${v}.png`;
+      warn.textContent = "";
     }
 
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+    function readLastDraw(){
+      try{
+        const raw = localStorage.getItem(KEY_LAST_DRAW);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      }catch{ return null; }
+    }
 
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    function tick(){
+      const last = readLastDraw();
+      if (last && last.verse){
+        setView(last);
+      }else{
+        infoBox.textContent = "等待主持機抽出紅包…";
+        img.style.display = "none";
+        downloadLink.href = "#";
+        warn.textContent = "尚未收到主持機的最新抽籤資料";
+      }
+    }
 
-    URL.revokeObjectURL(url);
+    // Initial: use param as fallback, but Mode A always follows host
+    const pVerse = getParam("code") || getParam("no");
+    const pName = getParam("name") || "";
+    if (pVerse){
+      setView({ verse: pVerse, ref: "", name: pName });
+    }else{
+      tick();
+    }
 
-    console.log("📥 PNG downloaded:", filename);
-  } catch (e) {
-    console.error("❌ PNG download failed:", e);
-    alert("圖片下載失敗，請查看 console");
-  } finally {
-    setTimeout(() => {
-      downloading = false;
-    }, 500);
-  }
-}
+    window.addEventListener("storage", (e)=>{
+      if (e.key === KEY_LAST_DRAW) tick();
+    });
 
-// =============================
-// 👇 按鈕只負責呼叫入口
-// =============================
-document.getElementById("btnDownload").onclick = () => {
-  handleDownloadClick();
-};
+    setInterval(tick, 1200);
 
-/*======== 下一位：回首頁；由 index 自己根據狀態判斷是否顯示三行 ========*/
-document.getElementById("btnNext").onclick = ()=>{
-
-  // 標記：從 viewer 回到首頁
-  sessionStorage.setItem("showSummaryOnReturn","1");
-  window.location.href = "index.html";
-};
-
-/*======== 抽籤紀錄顯示（Patch 5） ========*/
-/* 來源：index.html 的 appendLog() 寫入 drawLogs */
-const logBox = document.getElementById("logText");
-
-let logs;
-try{
-  logs = JSON.parse(localStorage.getItem("drawLogs") || "[]");
-  if(!Array.isArray(logs)) logs = [];
-}catch(e){
-  logs = [];
-}
-
-/* 顯示規則：
-   - 最新一筆放最上面
-   - 格式固定
-*/
-/* 顯示格式：
-   [時間] 「姓名」 → 抽中經句紅包: 書卷章節
-*/
-logBox.innerHTML = logs
-  .slice()          // 不動原資料
-  .reverse()        // 最新在最上
-  .map(l =>
-    `[${l.time}] 「${l.name}」 → 抽中經句紅包: ${l.ref}`
-  )
-  .join("<br>"); 
-  
-// =============================
-// 🔁 與主持機同步（靜態站停用）
-// =============================
-function syncFromMaster() {
-  // GitHub Pages 為唯讀靜態環境
-  // 跨裝置同步一律改用 QR Code URL (?no=...&ts=...)
-  return;
-}
-// 不再 setInterval
-  
-</script>
-
-<!-- PATCH-1：viewer 專用音效 -->
-<audio id="drum" src="audio/drum.mp3" preload="auto"></audio>
-<audio id="winSound" src="audio/win.mp3" preload="auto"></audio>
-
-</audio>
-
+    img.onerror = ()=>{
+      const last = readLastDraw();
+      const v = last?.verse ? String(last.verse).padStart(3,"0") : (pVerse ? String(pVerse).padStart(3,"0") : "???");
+      infoBox.textContent = `⚠ 找不到圖片 ${PATHS.CARDS}/${v}.png`;
+      warn.textContent = "請確認 repo 內 cards/001.png ~ 128.png 是否存在";
+      img.style.display = "none";
+    };
+  </script>
 </body>
 </html>
-
-
-<!-- === VIEWER PATCH v1.0 === -->
-<script>
-// 停用任何遠端同步（GitHub Pages 靜態）
-if(window.syncFromMaster){
-  try{ window.syncFromMaster=function(){}; }catch(e){}
-}
-
-// 音效解鎖
-let __audioUnlocked=false;
-function __unlockAudio(){
-  if(__audioUnlocked) return;
-  const a1=document.getElementById('drum');
-  const a2=document.getElementById('winSound');
-  [a1,a2].forEach(a=>{
-    if(!a) return;
-    try{
-      a.muted=true;
-      const p=a.play();
-      if(p&&p.then){
-        p.then(()=>{a.pause();a.currentTime=0;a.muted=false;});
-      }
-    }catch(e){}
-  });
-  __audioUnlocked=true;
-}
-document.addEventListener('pointerdown', __unlockAudio, {capture:true});
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) __unlockAudio(); });
-window.addEventListener('pageshow', __unlockAudio);
-
-// 防重複宣告
-window.downloading=false;
-window.lastVerseNo=null;
-window.imageDownloadedThisView=false;
-window.imageRepeatCount=0;
-</script>
