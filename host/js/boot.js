@@ -60,8 +60,24 @@
   }, HEARTBEAT_MS);
 
   // Also refresh when returning from background (mobile)
-  window.addEventListener("focus", () => { tryAcquire(); heartbeat(); });
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible"){ tryAcquire(); heartbeat(); }
-  });
-})();
+window.addEventListener("focus", () => {
+
+  if (tryAcquire()) {
+    heartbeat();
+    console.log("🎤 主持鎖重新取得");
+  }
+
+});
+
+document.addEventListener("visibilitychange", () => {
+
+  if (document.visibilityState === "visible") {
+
+    if (tryAcquire()) {
+      heartbeat();
+      console.log("🎤 主持鎖重新取得");
+    }
+
+  }
+
+});
