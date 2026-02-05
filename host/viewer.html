@@ -2,108 +2,116 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BlessingCards128（Viewer｜只讀）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BlessingCards128 Viewer</title>
   <style>
-    :root{--bg:#f6f1e6;--card:#fff;--ink:#2b2b2b;--muted:#666;--btn:#f0c35a;--blue:#5b7cff;}
-    body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);}
-    .wrap{max-width:760px;margin:0 auto;padding:14px;}
-    .card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px;}
-    h1{font-size:18px;margin:0 0 10px;}
+    :root{--bg:#f6f0e6;--card:#fff;--line:#e7ddcf;--text:#4c3b2a;--muted:#7a6b5c;--btn:#f2c15d;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+    .wrap{max-width:720px;margin:0 auto;padding:12px;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.06);padding:14px;}
+    .title{font-weight:900;font-size:18px;margin:0 0 6px}
     .muted{color:var(--muted);font-size:13px}
-    .imgbox{background:#fff;border-radius:14px;border:1px solid rgba(0,0,0,.12);overflow:hidden}
-    img{display:block;width:100%;height:auto}
-    button{appearance:none;border:0;border-radius:999px;padding:10px 14px;font-weight:800;background:var(--btn);cursor:pointer}
-    button.blue{background:var(--blue);color:#fff}
-    button:disabled{opacity:.45;cursor:not-allowed}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    img#verseImg{width:100%;border-radius:14px;border:1px solid var(--line);background:#fff;display:block}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    button{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer;background:var(--btn)}
+    .secondary{background:#f3efe8}
+    .sticky{position:sticky;bottom:0;background:linear-gradient(transparent, var(--bg));padding:10px 0;margin-top:10px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>祝福經句紅包（Viewer｜只讀）</h1>
-      <div class="muted" id="infoBox">讀取中…</div>
-      <div class="muted" id="refBox" style="margin-top:6px"></div>
+<div class="wrap">
+  <div class="card">
+    <div class="title">祝福經句紅包（Viewer｜只讀）</div>
+    <div class="muted" id="line1">模式：自動追蹤主持機「最新抽到的紅包」。</div>
+    <div class="muted" id="line2" style="margin-top:4px"></div>
+    <div class="muted" id="line3" style="margin-top:2px"></div>
 
-      <div style="margin-top:12px" class="imgbox">
-        <img id="imgVerse" alt="紅包圖片" />
+    <div style="margin-top:12px">
+      <img id="verseImg" alt="紅包圖片">
+    </div>
+
+    <div class="sticky">
+      <div class="row">
+        <button id="btnSave">下載經句圖片</button>
+        <button id="btnBack" class="secondary">回主持機</button>
+        <button id="btnRefresh" class="secondary">重新整理</button>
       </div>
-
-      <div class="row" style="margin-top:12px">
-        <button id="btnDownload">下載經句圖片</button>
-        <button id="btnBack" class="blue">返回主持機</button>
-      </div>
-
-      <div class="muted" style="margin-top:8px">若未自動更新，請重新整理本頁。</div>
+      <div class="muted" style="margin-top:6px">若未自動更新，請點「重新整理」。</div>
     </div>
   </div>
+</div>
 
-  <script src="../verseRefMap.js"></script>
-  <script>
-    const BASE = "..";
-    const qs = new URL(window.location.href).searchParams;
+<script src="../verseRefMap.js"></script>
+<script>
+(function(){
+  const img = document.getElementById("verseImg");
+  const line2 = document.getElementById("line2");
+  const line3 = document.getElementById("line3");
 
-    function pad3(x){
-      const s = String(x||"").trim();
-      if (!s) return "";
-      return s.padStart(3,"0");
-    }
+  function getParam(n){
+    return new URL(location.href).searchParams.get(n);
+  }
+  function pad3(s){ s = (s||"").trim(); return s ? s.padStart(3,"0") : ""; }
 
-    let code = pad3(qs.get("code") || qs.get("no"));
-    const name = (qs.get("name")||"").trim();
-
+  function setByCode(code, name){
     if (!code) {
-      try{
-        const last = JSON.parse(localStorage.getItem("LAST_VERSE")||"null");
-        if (last && last.verse) code = pad3(last.verse);
-      }catch{}
+      line2.textContent = "尚未抽到紅包，請稍候…";
+      line3.textContent = "";
+      img.removeAttribute("src");
+      img.alt = "尚未抽到紅包";
+      return;
+    }
+    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : "";
+    line2.textContent = `「${name||""}」抽中的經句紅包`;
+    line3.textContent = `經句編號：${code}` + (ref ? `｜${ref}` : "");
+    img.src = `../cards/${code}.png`;
+    img.alt = `cards/${code}.png`;
+  }
+
+  function load(){
+    const codeQ = pad3(getParam("code") || getParam("no"));
+    const nameQ = (getParam("name")||"").trim();
+
+    if (codeQ) {
+      setByCode(codeQ, nameQ);
+      return;
     }
 
-    const infoBox = document.getElementById("infoBox");
-    const refBox  = document.getElementById("refBox");
-    const img = document.getElementById("imgVerse");
-
-    if (!code){
-      infoBox.textContent = "⚠ 尚未有抽到的紅包，請等待主持機抽籤。";
-    }else{
-      const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : "";
-      infoBox.textContent = name ? `「${name}」抽中的經句紅包` : `最新抽中的經句紅包`;
-      refBox.textContent = `📜 經句編號：${code}` + (ref ? `｜📖 ${ref}` : "");
-
-      const IMG_SRC = `${BASE}/cards/${code}.png`;
-      img.src = IMG_SRC;
-
-      img.onerror = () => {
-        infoBox.textContent = "⚠ 找不到圖片：" + IMG_SRC;
-      };
+    // Mode A: follow LAST_VERSE
+    try{
+      const last = JSON.parse(localStorage.getItem("LAST_VERSE")||"null");
+      if (last && last.verse) setByCode(String(last.verse).padStart(3,"0"), "");
+      else setByCode("", "");
+    }catch{
+      setByCode("", "");
     }
+  }
 
-    document.getElementById("btnDownload").onclick = async () => {
-      if (!code) return;
-      const url = `${BASE}/cards/${code}.png`;
-      try{
-        const r = await fetch(url, {cache:"no-store"});
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const blob = await r.blob();
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `BlessingCard_${code}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-      }catch(e){
-        alert("下載失敗：" + (e && e.message ? e.message : e));
-      }
-    };
+  // storage event: auto update
+  window.addEventListener("storage", (e)=>{
+    if (e.key !== "LAST_VERSE") return;
+    load();
+  });
 
-    document.getElementById("btnBack").onclick = () => {
-      try{
-        localStorage.setItem("VIEWER_DONE", JSON.stringify({time:Date.now(), code: code || ""}));
-      }catch{}
-      window.location.href = "index.html";
-    };
-  </script>
+  document.getElementById("btnRefresh").onclick = ()=> load();
+
+  document.getElementById("btnBack").onclick = ()=>{
+    location.href = "./index.html";
+  };
+
+  document.getElementById("btnSave").onclick = async ()=>{
+    const src = img.getAttribute("src");
+    if (!src) return;
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = src.split("/").pop() || "verse.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  load();
+})();
+</script>
 </body>
 </html>

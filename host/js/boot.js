@@ -1,10 +1,13 @@
 // host/js/boot.js
 (() => {
+  // =============================
+  // Master lock (single host)
+  // =============================
   const MASTER_KEY = "BC_MASTER_LOCK_V1";
-  const TTL = 15000; // 15s
+  const TTL = 15000;      // 15s
   const HEARTBEAT_MS = 5000;
 
-  const TAB_ID = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random();
+  const TAB_ID = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (String(Date.now()) + "-" + Math.random());
 
   function now(){ return Date.now(); }
 
@@ -15,13 +18,6 @@
 
   function writeLock(){
     localStorage.setItem(MASTER_KEY, JSON.stringify({ tabId: TAB_ID, ts: now() }));
-  }
-
-  function clearLock(){
-    try{
-      const cur = readLock();
-      if (cur && cur.tabId === TAB_ID) localStorage.removeItem(MASTER_KEY);
-    }catch{}
   }
 
   function isExpired(lock){ return !lock || !lock.ts || (now() - lock.ts > TTL); }
@@ -35,11 +31,11 @@
     return false;
   }
 
-  function heartbeat(){
-    const cur = readLock();
-    if (cur && cur.tabId === TAB_ID){
-      writeLock();
-    }
+  function clearLock(){
+    try{
+      const cur = readLock();
+      if (cur && cur.tabId === TAB_ID) localStorage.removeItem(MASTER_KEY);
+    }catch{}
   }
 
   window.__BC_MASTER__ = {
@@ -48,97 +44,46 @@
       const cur = readLock();
       return cur && cur.tabId === TAB_ID && !isExpired(cur);
     },
-    forceUnlock: () => {
-      localStorage.removeItem(MASTER_KEY);
-    }
+    forceUnlock: () => localStorage.removeItem(MASTER_KEY),
   };
 
+  // Acquire and heartbeat
   tryAcquire();
-  setInterval(() => {
-    if (tryAcquire()) heartbeat();
-  }, HEARTBEAT_MS);
-
+  setInterval(() => { if (tryAcquire()) writeLock(); }, HEARTBEAT_MS);
   window.addEventListener("beforeunload", () => clearLock());
-})();
 
-// ================================
-// 🚀 SYSTEM BOOTSTRAP
-// ================================
-function bootSystem() {
-  try {
+  // =============================
+  // Boot system
+  // =============================
+  function boot(){
     console.log("🚀 BlessingCards128 booting...");
+    loadState();
 
-    // 1. 確認主持權限
-    if (window.__BC_MASTER__ && window.__BC_MASTER__.canAct()) {
-      console.log("🎤 主持機模式啟用");
-    } else {
-      console.warn("⚠ 非主持機模式（Viewer Only）");
-    }
+    // Ensure INIT if not locked
+    if (!state.locked) state.system = SYS_STATE.INIT;
 
-    // 2. 載入狀態
-    if (typeof loadState === "function") {
-      loadState();
-      console.log("💾 State loaded");
-    } else {
-      console.warn("⚠ loadState not found");
-    }
+    // Init wheel (canvas exists after DOM)
+    initWheel(["1","2"]);
 
-    // 3. 套用 UI
-    if (typeof applyUIState === "function") {
-      applyUIState();
-      console.log("🎛 UI applied");
-    } else {
-      console.warn("⚠ applyUIState not found");
-    }
-	
-	// ================================
-// 🔔 Viewer 回流修復（關鍵）
-// ================================
-if (sessionStorage.getItem("showSummaryOnReturn") === "1") {
-  sessionStorage.removeItem("showSummaryOnReturn");
+    // Bind main handlers
+    if (typeof window.__bc_bindMain === "function") window.__bc_bindMain();
 
-  if (window.state) {
-    console.log("↩ Viewer returned → resume ROUND1");
-
-    state.lastWinnerIndex = null;
-    state.currentVerse = null;
-    state.system = SYS_STATE.ROUND1;
-
-    saveState();
+    // Apply UI
     applyUIState();
-  }
-}
 
-    // ================================
-    // 4. 初始化輪盤（關鍵 - 等 DOM 穩定再綁）
-    // ================================
-    if (typeof initWheel === "function") {
-      console.log("⏳ Waiting for wheel canvas...");
-
-      const bindWheel = () => {
-        const c =
-          document.getElementById("wheel") ||
-          document.getElementById("wheelCanvas") ||
-          document.querySelector("canvas");
-
-        if (c) {
-          initWheel(window.state?.names || []);
-          console.log("🎡 Wheel initialized:", c.id || "(no id)");
-        } else {
-          // 每 50ms 重試一次
-          setTimeout(bindWheel, 50);
-        }
-      };
-
-      bindWheel();
-    } else {
-      console.error("❌ initWheel not found — 輪盤不會顯示");
+    // Update QR
+    if (window.__BC_MAIN__ && typeof window.__BC_MAIN__.updateQR === "function"){
+      window.__BC_MAIN__.updateQR();
     }
 
-  } catch (e) {
-    console.error("💥 BOOT FAILED", e);
-  }
-}
+    // If locked, show wheel for current round
+    if (state.locked && window.__BC_MAIN__){
+      window.__BC_MAIN__.updateWheelForRound();
+      applyUIState();
+    }
 
-// 等 DOM 與 Script 全部載入再啟動
-window.addEventListener("load", bootSystem);
+    console.log("✅ Boot OK");
+  }
+
+  window.addEventListener("load", boot);
+})();
