@@ -4,8 +4,11 @@
   let segments = ["1","2"];
   let rotation = 0; // radians
 
-  function getCanvas(){
-    return document.getElementById("wheelCanvas");
+  function bindCanvas(){
+    canvas = document.getElementById("wheelCanvas");
+    if (!canvas) return false;
+    ctx = canvas.getContext("2d");
+    return true;
   }
 
   function setSegments(list){
@@ -13,122 +16,113 @@
   }
 
   function drawWheel(){
-    if (!canvas) return;
-    const w = canvas.width, h = canvas.height;
-    const cx = w/2, cy = h/2;
-    const r = Math.min(cx,cy) - 8;
+    if (!canvas || !ctx) return;
+    const W = canvas.width, H = canvas.height;
+    const cx = W/2, cy = H/2;
+    const R = Math.min(W,H)*0.46;
 
-    ctx.clearRect(0,0,w,h);
+    ctx.clearRect(0,0,W,H);
 
-    // rim
+    // outer ring
     ctx.save();
-    ctx.beginPath(); ctx.arc(cx,cy,r+2,0,Math.PI*2); ctx.strokeStyle="#e7ddcf"; ctx.lineWidth=6; ctx.stroke();
-    ctx.restore();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation);
 
-    const n = segments.length;
-    const a = (Math.PI*2)/n;
+    const N = segments.length;
+    const step = (Math.PI*2)/N;
 
-    for (let i=0;i<n;i++){
-      const start = rotation + i*a;
-      const end = start + a;
+    for (let i=0;i<N;i++){
+      const a0 = i*step;
+      const a1 = a0 + step;
 
       ctx.beginPath();
-      ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,r,start,end);
+      ctx.moveTo(0,0);
+      ctx.arc(0,0,R,a0,a1);
       ctx.closePath();
-      ctx.fillStyle = (i%2===0) ? "#f7d37a" : "#f3c668";
+      ctx.fillStyle = (i%2===0) ? "#f5c64d" : "#f7dea2";
       ctx.fill();
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,.18)";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       // label
       ctx.save();
-      ctx.translate(cx,cy);
-      ctx.rotate(start + a/2);
-      ctx.textAlign="right";
-      ctx.fillStyle="#4c3b2a";
-      ctx.font="16px system-ui, -apple-system, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
+      ctx.rotate(a0 + step/2);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#1f2937";
+      ctx.font = "26px system-ui, -apple-system, Segoe UI, Roboto, Noto Sans TC";
       const label = String(segments[i]);
-      ctx.fillText(label.length>18? label.slice(0,18)+"…" : label, r-14, 6);
+      ctx.fillText(label, R-16, 10);
       ctx.restore();
     }
 
-    // center cap
+    // center disc
     ctx.beginPath();
-    ctx.arc(cx,cy,52,0,Math.PI*2);
-    ctx.fillStyle="#fff";
+    ctx.arc(0,0,R*0.22,0,Math.PI*2);
+    ctx.fillStyle = "#fff";
     ctx.fill();
-    ctx.strokeStyle="#e7ddcf";
-    ctx.lineWidth=2;
+    ctx.strokeStyle = "rgba(0,0,0,.1)";
+    ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.font = "20px system-ui, -apple-system, Segoe UI, Roboto, Noto Sans TC";
+    ctx.textAlign = "center";
+    ctx.fillText("BlessingCards128", 0, 8);
 
-    ctx.fillStyle="#7a6b5c";
-    ctx.font="12px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
-    ctx.textAlign="center";
-    ctx.fillText("BlessingCards128", cx, cy+4);
+    ctx.restore();
   }
 
   function initWheel(list){
-    canvas = getCanvas();
-    if (!canvas) {
-      console.error("❌ wheel canvas not found");
-      return;
-    }
-    ctx = canvas.getContext("2d");
+    if (!bindCanvas()) return;
     setSegments(list);
     rotation = 0;
     drawWheel();
   }
 
-  // Choose index at top (12 o'clock). Rotation increases clockwise? Canvas rotation uses rad clockwise? It's clockwise when positive? actually canvas arc uses standard (clockwise with +?) We'll just compute with rotation.
-  function currentIndex(){
-    const n = segments.length;
-    const a = (Math.PI*2)/n;
-    // pointer at -Math.PI/2 (top). compute relative angle
-    let ang = (-Math.PI/2 - rotation) % (Math.PI*2);
-    if (ang < 0) ang += Math.PI*2;
-    const idx = Math.floor(ang / a) % n;
-    return idx;
-  }
-
+  // Easing
   function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
 
-  function spinWheel(options){
-    const {
-      durationMs = 3800,
-      minTurns = 6,
-      maxTurns = 9,
-      onDone
-    } = options || {};
+  // Spin and return selected value
+  function spinWheel(direction, onDone){
+    if (!canvas || !ctx) bindCanvas();
+    const N = segments.length;
+    if (N <= 0) return;
 
-    const turns = (Math.random()*(maxTurns-minTurns)+minTurns);
-    const extra = Math.random() * Math.PI*2;
-    const startRot = rotation;
-    const targetRot = startRot + turns*Math.PI*2 + extra;
+    // choose target index randomly (selection independent of pointer)
+    const targetIndex = Math.floor(Math.random()*N);
 
-    const start = performance.now();
+    // land so that target label is near top (12 o'clock). We define top angle = -PI/2 in wheel coords
+    const step = (Math.PI*2)/N;
+    const targetAngle = (targetIndex*step + step/2); // center angle of segment
+    const desired = -Math.PI/2 - targetAngle; // rotation so that segment center goes to top
+
+    const spins = 6 + Math.floor(Math.random()*3); // 6-8 turns
+    const start = rotation;
+    const end = desired + direction*(Math.PI*2)*spins;
+
+    const dur = 1600;
+    const t0 = performance.now();
 
     function frame(now){
-      const t = Math.min(1, (now-start)/durationMs);
-      rotation = startRot + (targetRot-startRot)*easeOutCubic(t);
+      const t = Math.min(1, (now - t0)/dur);
+      const k = easeOutCubic(t);
+      rotation = start + (end-start)*k;
       drawWheel();
-      if (t < 1) {
+      if (t < 1){
         requestAnimationFrame(frame);
       } else {
-        // snap
-        rotation = targetRot % (Math.PI*2);
+        // normalize
+        rotation = ((rotation % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
         drawWheel();
-        const idx = currentIndex();
-        const value = segments[idx];
-        if (typeof onDone === "function") onDone({index: idx, value});
+        const val = segments[targetIndex];
+        if (onDone) onDone(val);
       }
     }
     requestAnimationFrame(frame);
   }
 
   window.initWheel = initWheel;
+  window.drawWheel = drawWheel;
   window.spinWheel = spinWheel;
   window.__wheelSetSegments = setSegments;
 })();

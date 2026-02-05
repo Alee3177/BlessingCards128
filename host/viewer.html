@@ -2,116 +2,85 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>BlessingCards128 Viewer</title>
   <style>
-    :root{--bg:#f6f0e6;--card:#fff;--line:#e7ddcf;--text:#4c3b2a;--muted:#7a6b5c;--btn:#f2c15d;}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
-    .wrap{max-width:720px;margin:0 auto;padding:12px;}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.06);padding:14px;}
-    .title{font-weight:900;font-size:18px;margin:0 0 6px}
-    .muted{color:var(--muted);font-size:13px}
-    img#verseImg{width:100%;border-radius:14px;border:1px solid var(--line);background:#fff;display:block}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
-    button{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer;background:var(--btn)}
-    .secondary{background:#f3efe8}
-    .sticky{position:sticky;bottom:0;background:linear-gradient(transparent, var(--bg));padding:10px 0;margin-top:10px}
+    :root{--bg:#f6f0e4;--card:#fff;--muted:#666;--pri:#3b82f6;}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,Arial;}
+    body{margin:0;background:var(--bg);color:#111;}
+    .wrap{max-width:700px;margin:0 auto;padding:12px}
+    .card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px}
+    .big{font-weight:800;font-size:18px}
+    .muted{color:var(--muted);font-size:12px}
+    .imgBox{margin-top:10px;background:#fff;border-radius:14px;border:1px solid #eee;padding:10px}
+    img#cardImg{width:100%;height:auto;border-radius:12px;display:block}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    button,a.btn{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .blue{background:var(--pri);color:#fff}
+    .secondary{background:#e5e7eb;color:#111}
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <div class="title">祝福經句紅包（Viewer｜只讀）</div>
-    <div class="muted" id="line1">模式：自動追蹤主持機「最新抽到的紅包」。</div>
-    <div class="muted" id="line2" style="margin-top:4px"></div>
-    <div class="muted" id="line3" style="margin-top:2px"></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="big">祝福經句紅包（Viewer｜只讀）</div>
+      <div id="meta" class="muted" style="margin-top:4px">載入中…</div>
 
-    <div style="margin-top:12px">
-      <img id="verseImg" alt="紅包圖片">
-    </div>
-
-    <div class="sticky">
-      <div class="row">
-        <button id="btnSave">下載經句圖片</button>
-        <button id="btnBack" class="secondary">回主持機</button>
-        <button id="btnRefresh" class="secondary">重新整理</button>
+      <div class="imgBox">
+        <img id="cardImg" alt="card" />
       </div>
-      <div class="muted" style="margin-top:6px">若未自動更新，請點「重新整理」。</div>
+
+      <div class="row">
+        <button id="btnDownload" class="blue">下載經句圖片</button>
+        <a class="btn secondary" id="btnBack" href="index.html">回主持機</a>
+      </div>
+
+      <div class="muted" style="margin-top:6px">若未自動更新，請重新整理此頁。</div>
     </div>
   </div>
-</div>
 
-<script src="../verseRefMap.js"></script>
-<script>
-(function(){
-  const img = document.getElementById("verseImg");
-  const line2 = document.getElementById("line2");
-  const line3 = document.getElementById("line3");
+  <script src="../verseRefMap.js"></script>
+  <script>
+    const BASE = "..";
+    const qs = new URL(location.href).searchParams;
+    const qcode = (qs.get("code")||qs.get("no")||"").trim();
+    const qname = (qs.get("name")||"").trim();
+    const img = document.getElementById("cardImg");
+    const meta = document.getElementById("meta");
 
-  function getParam(n){
-    return new URL(location.href).searchParams.get(n);
-  }
-  function pad3(s){ s = (s||"").trim(); return s ? s.padStart(3,"0") : ""; }
-
-  function setByCode(code, name){
-    if (!code) {
-      line2.textContent = "尚未抽到紅包，請稍候…";
-      line3.textContent = "";
-      img.removeAttribute("src");
-      img.alt = "尚未抽到紅包";
-      return;
-    }
-    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : "";
-    line2.textContent = `「${name||""}」抽中的經句紅包`;
-    line3.textContent = `經句編號：${code}` + (ref ? `｜${ref}` : "");
-    img.src = `../cards/${code}.png`;
-    img.alt = `cards/${code}.png`;
-  }
-
-  function load(){
-    const codeQ = pad3(getParam("code") || getParam("no"));
-    const nameQ = (getParam("name")||"").trim();
-
-    if (codeQ) {
-      setByCode(codeQ, nameQ);
-      return;
+    function pad3(x){ return String(x||"").padStart(3,"0"); }
+    function getRef(code){
+      try{ return (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : ""; }
+      catch{ return ""; }
     }
 
-    // Mode A: follow LAST_VERSE
-    try{
-      const last = JSON.parse(localStorage.getItem("LAST_VERSE")||"null");
-      if (last && last.verse) setByCode(String(last.verse).padStart(3,"0"), "");
-      else setByCode("", "");
-    }catch{
-      setByCode("", "");
+    function loadFromLast(){
+      try{
+        const last = JSON.parse(localStorage.getItem("LAST_VERSE")||"null");
+        if (last && last.verse) return { code: pad3(last.verse), name:"" };
+      }catch{}
+      return null;
     }
-  }
 
-  // storage event: auto update
-  window.addEventListener("storage", (e)=>{
-    if (e.key !== "LAST_VERSE") return;
-    load();
-  });
+    const payload = qcode ? { code: pad3(qcode), name: qname } : (loadFromLast() || { code:"", name:"" });
 
-  document.getElementById("btnRefresh").onclick = ()=> load();
-
-  document.getElementById("btnBack").onclick = ()=>{
-    location.href = "./index.html";
-  };
-
-  document.getElementById("btnSave").onclick = async ()=>{
-    const src = img.getAttribute("src");
-    if (!src) return;
-    const a = document.createElement("a");
-    a.href = src;
-    a.download = src.split("/").pop() || "verse.png";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
-  load();
-})();
-</script>
+    if (!payload.code){
+      meta.textContent = "尚未有最新紅包。請等待主持機抽出後再重新整理。";
+    } else {
+      const ref = getRef(payload.code);
+      meta.textContent = `經句編號：${payload.code}` + (ref?`｜${ref}`:"") + (payload.name?`｜抽中：${payload.name}`:"");
+      const src = `${BASE}/cards/${payload.code}.png`;
+      img.src = src;
+      img.onerror = () => { meta.textContent = "⚠ 找不到圖片：" + src; };
+      document.getElementById("btnDownload").onclick = () => {
+        const a = document.createElement("a");
+        a.href = src;
+        a.download = `Blessing_${payload.code}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+    }
+  </script>
 </body>
 </html>

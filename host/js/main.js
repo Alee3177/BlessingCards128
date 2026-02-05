@@ -1,284 +1,311 @@
 // host/js/main.js
 (() => {
-  const $ = (id)=>document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
+  const SYS = window.SYS;
 
-  function canAct(){
-    return window.__BC_MASTER__ ? window.__BC_MASTER__.canAct() : true;
+  // ---- Audio ----
+  const drum = new Audio("../audio/drum.mp3");
+  const win = new Audio("../audio/win.mp3");
+  drum.preload = "auto"; win.preload="auto";
+  let audioUnlocked = false;
+
+  async function unlockAudio(){
+    if (audioUnlocked) return;
+    try{
+      drum.muted = true;
+      await drum.play();
+      drum.pause(); drum.currentTime = 0;
+      drum.muted = false;
+      audioUnlocked = true;
+      console.log("🔓 Audio unlocked");
+    }catch(e){
+      // will retry on next user gesture
+      console.warn("unlockAudio failed", e);
+    }
   }
 
-  function hhmmss(ts){
-    const d = new Date(ts);
-    const pad=(n)=>String(n).padStart(2,"0");
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  // attach one-time gesture
+  window.addEventListener("pointerdown", unlockAudio, { once:true, passive:true });
+
+  function playDrum(){
+    try{ drum.currentTime = 0; drum.play(); }catch{}
+  }
+  function playWin(){
+    try{ win.currentTime = 0; win.play(); }catch{}
   }
 
+  function getRef(code){
+    try{ return (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : ""; }
+    catch{ return ""; }
+  }
+  const pad3 = (x) => String(x||"").padStart(3,"0");
+
+  // ---- QR ----
+  function updateQR(){
+    const url = location.origin + location.pathname.replace(/\/host\/index\.html.*$/,'/host/viewer.html');
+    // show as text too
+    const qrUrl = $("qrUrl"); if (qrUrl) qrUrl.value = url;
+    const qrImg = $("qrImg");
+    if (qrImg) qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(url);
+  }
+
+  function setMasterHint(){
+    const el = $("masterHint");
+    if (!el) return;
+    if (window.__BC_MASTER__?.canAct?.()){
+      el.textContent = "主持機模式：已鎖定";
+    } else {
+      el.textContent = "目前不是主持機（只讀）";
+    }
+  }
+
+  // ---- Name parsing ----
   function parseNames(raw){
     return raw
-      .split(/[\n,，\t ]+/)
-      .map(s=>s.trim())
+      .split(/[\n,，\s]+/g)
+      .map(s => s.trim())
       .filter(Boolean);
   }
 
   function remainingNames(){
-    const used = usedNameSet();
-    return state.names.filter(n=>!used.has(n));
+    const used = new Set(window.state.usedName||[]);
+    return window.state.names.filter(n => !used.has(n));
   }
 
-  function randomFrom(arr){
-    return arr[Math.floor(Math.random()*arr.length)];
+  function remainingVerses(){
+    const used = new Set(window.state.verseUsed||[]);
+    const all = [];
+    for (let i=1;i<=128;i++) all.push(pad3(i));
+    return all.filter(v => !used.has(v));
   }
 
-  function pickVerse(){
-    const used = verseUsedSet();
-    const max = 128;
-    for (let tries=0; tries<600; tries++){
-      const n = Math.floor(Math.random()*max)+1;
-      const code = String(n).padStart(3,"0");
-      if (!used.has(code)) return code;
+  // ---- Buttons ----
+  function wire(){
+    const btnLock = $("btnLock");
+    const btnR1 = $("btnRound1");
+    const btnR2 = $("btnRound2");
+    const btnView = $("btnView");
+    const btnNext = $("btnNext");
+    const btnReset = $("btnReset");
+    const btnCopy = $("btnCopy");
+    const btnUnlock = $("btnUnlock");
+
+    if (btnCopy){
+      btnCopy.onclick = async () => {
+        const v = $("qrUrl")?.value || "";
+        try{ await navigator.clipboard.writeText(v); }catch{}
+      };
     }
-    // fallback linear
-    for (let i=1;i<=max;i++){
-      const code = String(i).padStart(3,"0");
-      if (!used.has(code)) return code;
+    if (btnUnlock){
+      btnUnlock.onclick = () => {
+        window.__BC_MASTER__?.forceUnlock?.();
+        setMasterHint();
+        window.applyUIState();
+      };
     }
-    return "001";
+
+    if (btnLock){
+      btnLock.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+
+        unlockAudio();
+        const raw = $("nameInput")?.value || "";
+        const list = parseNames(raw);
+        if (!list.length){
+          alert("請先輸入至少 1 個姓名");
+          return;
+        }
+        window.state.names = list;
+        window.state.usedName = [];
+        window.state.verseUsed = [];
+        window.state.logs = [];
+        window.state.lastWinnerIndex = -1;
+        window.state.currentVerse = null;
+        window.state.locked = true;
+        window.state.system = SYS.ROUND1;
+        window.saveState();
+
+        // wheel for ROUND1
+        window.initWheel(remainingNames());
+        window.applyUIState();
+        updateQR();
+      };
+    }
+
+    if (btnR1){
+      btnR1.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+        if (!window.state.locked) return;
+
+        unlockAudio();
+        const remain = remainingNames();
+        if (!remain.length){
+          window.state.system = SYS.FINISHED;
+          window.saveState();
+          window.applyUIState();
+          return;
+        }
+
+        // update wheel segments to remaining names
+        window.__wheelSetSegments(remain);
+        playDrum();
+
+        // ROUND1: clockwise (+1)
+        window.spinWheel(+1, (winnerName) => {
+          // pick index in original list
+          const idx = window.state.names.indexOf(winnerName);
+          window.state.lastWinnerIndex = idx;
+          // mark used
+          const used = new Set(window.state.usedName||[]);
+          used.add(winnerName);
+          window.state.usedName = Array.from(used);
+
+          window.state.system = SYS.ROUND2;
+          window.saveState();
+
+          window.applyUIState();
+        });
+      };
+    }
+
+    if (btnR2){
+      btnR2.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+        if (window.state.system !== SYS.ROUND2) return;
+
+        unlockAudio();
+        const remain = remainingVerses();
+        if (!remain.length){
+          window.state.system = SYS.FINISHED;
+          window.saveState();
+          window.applyUIState();
+          return;
+        }
+
+        window.__wheelSetSegments(remain);
+        playDrum();
+
+        // ROUND2: counterclockwise (-1)
+        window.spinWheel(-1, (code) => {
+          const c = pad3(code);
+          const ref = getRef(c);
+          const used = new Set(window.state.verseUsed||[]);
+          used.add(c);
+          window.state.verseUsed = Array.from(used);
+
+          window.state.currentVerse = { code: c, ref };
+          // log
+          const name = window.state.names[window.state.lastWinnerIndex] || "";
+          const t = new Date();
+          const hh = String(t.getHours()).padStart(2,"0");
+          const mm = String(t.getMinutes()).padStart(2,"0");
+          const ss = String(t.getSeconds()).padStart(2,"0");
+          window.state.logs.push({ t:`${hh}:${mm}:${ss}`, name, code:c, ref });
+
+          // broadcast to viewer (Mode A)
+          localStorage.setItem("LAST_VERSE", JSON.stringify({ verse:c, ref, time: Date.now(), name }));
+
+          window.state.system = SYS.VIEWER;
+          window.saveState();
+          playWin();
+          window.applyUIState();
+        });
+      };
+    }
+
+    if (btnView){
+      btnView.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+        if (window.state.system !== SYS.VIEWER || !window.state.currentVerse) return;
+
+        unlockAudio();
+        const code = window.state.currentVerse.code;
+        const name = window.state.names[window.state.lastWinnerIndex] || "";
+        const url = `viewer.html?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`;
+        window.open(url, "_blank");
+      };
+    }
+
+    if (btnNext){
+      btnNext.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+        if (!window.state.locked) return;
+
+        // force next player's ROUND1
+        window.state.currentVerse = null;
+        window.state.system = (new Set(window.state.usedName||[]).size >= window.state.names.length) ? SYS.FINISHED : SYS.ROUND1;
+        window.saveState();
+
+        window.initWheel(remainingNames());
+        window.applyUIState();
+      };
+    }
+
+    if (btnReset){
+      btnReset.onclick = () => {
+        if (!window.__BC_MASTER__?.canAct?.()) return;
+        const ok = confirm("資料紀錄將被清空 & 歸零\n需重新輸入姓名並開始新一輪\n確定要執行嗎？");
+        if (!ok) return;
+        window.resetState();
+        window.applyUIState();
+        window.initWheel(["1","2"]);
+        updateQR();
+      };
+    }
   }
 
-  function updateWheelForRound(){
-    if (state.system === SYS_STATE.ROUND1){
-      window.__wheelSetSegments(remainingNames().length ? remainingNames() : ["1","2"]);
-      window.initWheel(remainingNames().length ? remainingNames() : ["1","2"]);
+  // ---- Focus return from Viewer ----
+  window.addEventListener("focus", () => {
+    if (!window.__BC_MASTER__?.canAct?.()) return;
+    if (window.state.system !== SYS.VIEWER) return;
+
+    // Close viewer => proceed to next player ROUND1 or FINISHED
+    window.state.currentVerse = null;
+
+    const usedCount = new Set(window.state.usedName||[]).size;
+    if (usedCount >= window.state.names.length){
+      window.state.system = SYS.FINISHED;
     } else {
-      // Round2: generic segments (not 128 slices)
-      const n = Math.max(2, Math.min(8, state.names.length || 2));
-      const seg = Array.from({length:n}, (_,i)=> `🎁 ${i+1}`);
-      window.__wheelSetSegments(seg);
-      window.initWheel(seg);
+      window.state.system = SYS.ROUND1;
+      // refresh wheel segments for next
+      window.initWheel(remainingNames());
     }
-  }
+    window.saveState();
+    window.applyUIState();
+  });
 
-  function setSystem(sys){
-    state.system = sys;
-    saveState();
-    applyUIState();
-    updateWheelForRound();
-  }
+  // ---- Simple PDF (text-only, avoids garbling by using built-in fonts; Chinese may still fail on some env) ----
+  // Keep button disabled until FINISHED in UI.js. User can extend later.
 
-  function broadcastLastVerse(){
-    const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[state.currentVerse]) ? window.VERSE_REF_MAP[state.currentVerse] : "";
-    localStorage.setItem("LAST_VERSE", JSON.stringify({ verse: state.currentVerse, ref, time: Date.now() }));
-  }
+  function boot(){
+    console.log("🚀 boot");
+    setMasterHint();
+    updateQR();
 
-  function buildViewerUrl(){
-    const base = `${location.origin}${location.pathname.replace(/\/index\.html.*/,"/viewer.html")}`;
-    const name = state.lastWinnerName || "";
-    return `${base}?code=${encodeURIComponent(state.currentVerse)}&name=${encodeURIComponent(name)}`;
-  }
+    if (typeof window.loadState === "function") window.loadState();
 
-  function updateQR(){
-    const link = buildViewerUrl().replace(/\/viewer\.html\?.*$/,"/viewer.html");
-    const el = $("viewerLink");
-    const qr = $("qrImg");
-    if (el) el.value = link;
-    if (qr) qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
-  }
-
-  async function downloadPdf(){
-    if (!canAct()) return;
-    if (!state.logs.length) { alert("沒有可下載的抽籤紀錄"); return; }
-    if (typeof window.jspdf === "undefined" || !window.jspdf.jsPDF){
-      alert("jsPDF 尚未載入"); return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({orientation:"p", unit:"pt", format:"a4"});
-
-    // Render to canvas as image (avoid font issues)
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    const W = 1240;
-    const H = 1754;
-    canvas.width = W;
-    canvas.height = H;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0,0,W,H);
-
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 44px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
-    ctx.fillText("BlessingCards128 抽籤紀錄", 60, 90);
-
-    ctx.fillStyle = "#666";
-    ctx.font = "28px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
-    ctx.fillText(`共 ${state.logs.length} 筆`, 60, 140);
-
-    let y = 210;
-    const lineH = 44;
-
-    ctx.fillStyle = "#111";
-    ctx.font = "30px 'Noto Sans TC', 'Microsoft JhengHei', sans-serif";
-
-    for (const l of state.logs){
-      const txt = `[${l.t}] ${l.name} -> ${l.verse}` + (l.ref ? ` | ${l.ref}` : "");
-      // wrap
-      const maxW = W - 120;
-      const words = txt.split("");
-      let line="";
-      for (const ch of words){
-        const test = line + ch;
-        if (ctx.measureText(test).width > maxW){
-          ctx.fillText(line, 60, y);
-          y += lineH;
-          line = ch;
-        } else line = test;
-      }
-      if (line){
-        ctx.fillText(line, 60, y);
-        y += lineH;
-      }
-      y += 10;
-      if (y > H-80) break; // single page for stability
-    }
-
-    const imgData = canvas.toDataURL("image/jpeg", 0.92);
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
-
-    pdf.save(`Blessing_envelop_${Date.now()}.pdf`);
-  }
-
-  function bind(){
-    // Buttons
-    $("btnLock").onclick = ()=>{
-      if (!canAct()) return;
-      const raw = $("nameInput").value || "";
-      const list = parseNames(raw);
-      if (!list.length){ alert("請輸入至少 1 個姓名"); return; }
-
-      state.names = list;
-      state.usedName = [];
-      state.verseUsed = [];
-      state.logs = [];
-      state.lastWinnerName = "";
-      state.lastWinnerIndex = -1;
-      state.currentVerse = "";
-      state.locked = true;
-      state.round += 1;
-
-      saveState();
-      setSystem(SYS_STATE.ROUND1);
-      updateQR();
-    };
-
-    $("btnRound1").onclick = ()=>{
-      if (!canAct()) return;
-      if (state.system !== SYS_STATE.ROUND1) return;
-      const remain = remainingNames();
-      if (!remain.length){ setSystem(SYS_STATE.FINISHED); return; }
-
-      updateWheelForRound();
-      // spin for visual, then commit winner
-      spinWheel({
-        onDone: ({value})=>{
-          const winner = remain.includes(value) ? value : randomFrom(remain);
-          state.lastWinnerName = winner;
-          state.usedName.push(winner);
-          saveState();
-          // move to round2
-          setSystem(SYS_STATE.ROUND2);
-        }
-      });
-    };
-
-    $("btnRound2").onclick = ()=>{
-      if (!canAct()) return;
-      if (state.system !== SYS_STATE.ROUND2) return;
-
-      // spin for visual, then assign verse
-      spinWheel({
-        onDone: ()=>{
-          const code = pickVerse();
-          state.currentVerse = code;
-          state.verseUsed.push(code);
-          const ref = (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : "";
-          state.logs.push({ t: hhmmss(Date.now()), name: state.lastWinnerName, verse: code, ref });
-          saveState();
-
-          broadcastLastVerse();
-          updateQR();
-
-          // After round2, ALWAYS go VIEWER (not finished yet). FINISHED only after viewer returned and no one left.
-          setSystem(SYS_STATE.VIEWER);
-        }
-      });
-    };
-
-    $("btnView").onclick = ()=>{
-      if (!canAct()) return;
-      if (state.system !== SYS_STATE.VIEWER || !state.currentVerse) return;
-
-      // open viewer in new tab
-      const url = `./viewer.html?code=${encodeURIComponent(state.currentVerse)}&name=${encodeURIComponent(state.lastWinnerName||"")}`;
-      window.open(url, "_blank");
-    };
-
-    $("btnNext").onclick = ()=>{
-      if (!canAct()) return;
-      // next player (round1) after viewer was shown, but allow manual
-      if (state.usedName.length >= state.names.length){
-        setSystem(SYS_STATE.FINISHED);
+    // init wheel based on state
+    if (!window.state.locked){
+      window.initWheel(["1","2"]);
+      const ni = $("nameInput"); if (ni) ni.value = "";
+      window.state.system = SYS.INIT;
+      window.saveState();
+    } else {
+      // fill textarea with names for reference
+      const ni = $("nameInput"); if (ni) ni.value = window.state.names.join("\n");
+      if (window.state.system === SYS.ROUND1){
+        window.initWheel(remainingNames());
+      } else if (window.state.system === SYS.ROUND2){
+        window.initWheel(remainingVerses());
       } else {
-        state.currentVerse = "";
-        state.lastWinnerName = "";
-        saveState();
-        setSystem(SYS_STATE.ROUND1);
+        // VIEWER / FINISHED
+        window.initWheel(remainingNames());
       }
-    };
+    }
 
-    $("btnPdf").onclick = ()=> downloadPdf();
-
-    $("btnReset").onclick = ()=>{
-      if (!canAct()) return;
-      const ok = confirm("資料紀錄將被清空並歸零，確定要執行嗎？");
-      if (!ok) return;
-      resetState();
-      $("nameInput").value = "";
-      updateWheelForRound();
-      updateQR();
-      applyUIState();
-    };
-
-    $("btnCopy").onclick = async ()=>{
-      const v = $("viewerLink").value || "";
-      try { await navigator.clipboard.writeText(v); alert("已複製"); } catch { prompt("請手動複製：", v); }
-    };
-
-    $("btnUnlock").onclick = ()=>{
-      if (window.__BC_MASTER__) window.__BC_MASTER__.forceUnlock();
-      location.reload();
-    };
-
-    // Viewer return handling: when focus returns and we were in VIEWER, proceed to next
-    window.addEventListener("focus", ()=>{
-      if (!canAct()) return;
-      if (state.system !== SYS_STATE.VIEWER) return;
-
-      // release current verse for UI summary already in logs; now decide next
-      state.currentVerse = "";
-      state.lastWinnerName = ""; // keep wheel clean
-      saveState();
-
-      if (state.usedName.length >= state.names.length){
-        setSystem(SYS_STATE.FINISHED);
-      } else {
-        setSystem(SYS_STATE.ROUND1);
-      }
-    });
+    wire();
+    window.applyUIState();
   }
 
-  window.__BC_MAIN__ = { updateQR, updateWheelForRound, setSystem };
-
-  window.__bc_bindMain = bind;
+  window.addEventListener("load", boot);
 })();

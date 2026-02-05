@@ -1,90 +1,63 @@
 // host/js/state.js
 (() => {
-  const KEY = "BC_STATE_V1";
+  const KEY = "BC_STATE_V2";
 
   const SYS = {
     INIT: "INIT",
     ROUND1: "ROUND1",
     ROUND2: "ROUND2",
     VIEWER: "VIEWER",
-    FINISHED: "FINISHED",
+    FINISHED: "FINISHED"
   };
+  window.SYS = SYS;
 
-  // serializable state
-  const state = {
+  const defaultState = () => ({
     system: SYS.INIT,
+    locked: false,
     names: [],
-    usedName: [],     // array of used name strings
-    verseUsed: [],    // array of used verse codes "001"
-    lastWinnerName: "",
+    usedName: [],   // array for storage
+    verseUsed: [],  // array for storage (e.g. ["001","002"])
     lastWinnerIndex: -1,
-    currentVerse: "", // "001"
-    round: 0,
-    logs: [],         // {t,name,verse,ref}
-    locked: false
-  };
+    currentVerse: null, // {code:"068", ref:"詩篇 121:5-8"}
+    logs: [] // {t,name,code,ref}
+  });
 
-  function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+  window.state = defaultState();
 
-  function normalizeAfterLoad(s){
-    if (!s || typeof s !== "object") return;
-    // Fix missing fields
-    for (const k of Object.keys(state)) {
-      if (!(k in s)) s[k] = clone(state[k]);
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      const d = defaultState();
+      for (const k of Object.keys(d)){
+        if (!(k in s)) s[k] = d[k];
+      }
+      // sanitize
+      if (!Array.isArray(s.names)) s.names = [];
+      if (!Array.isArray(s.usedName)) s.usedName = [];
+      if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
+      if (!Array.isArray(s.logs)) s.logs = [];
+      if (!Object.values(SYS).includes(s.system)) s.system = s.locked ? SYS.ROUND1 : SYS.INIT;
+
+      window.state = s;
+    }catch(e){
+      console.warn("loadState failed", e);
     }
-    // Basic sanity
-    if (!Array.isArray(s.names)) s.names = [];
-    if (!Array.isArray(s.usedName)) s.usedName = [];
-    if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
-    if (!Array.isArray(s.logs)) s.logs = [];
-    if (!s.locked || s.names.length === 0) {
-      s.locked = false;
-      s.system = SYS.INIT;
-    }
-    if (!Object.values(SYS).includes(s.system)) s.system = s.locked ? SYS.ROUND1 : SYS.INIT;
   }
 
   function saveState(){
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
-  }
-
-  function loadState(){
-    try {
-      const s = JSON.parse(localStorage.getItem(KEY) || "null");
-      if (s) {
-        Object.assign(state, s);
-        normalizeAfterLoad(state);
-      } else {
-        normalizeAfterLoad(state);
-      }
-    } catch {
-      normalizeAfterLoad(state);
-    }
-    return state;
+    try{ localStorage.setItem(KEY, JSON.stringify(window.state)); }catch{}
   }
 
   function resetState(){
-    state.system = SYS.INIT;
-    state.names = [];
-    state.usedName = [];
-    state.verseUsed = [];
-    state.lastWinnerName = "";
-    state.lastWinnerIndex = -1;
-    state.currentVerse = "";
-    state.round = 0;
-    state.logs = [];
-    state.locked = false;
+    window.state = defaultState();
     saveState();
   }
 
-  function usedNameSet(){ return new Set(state.usedName); }
-  function verseUsedSet(){ return new Set(state.verseUsed); }
-
-  window.SYS_STATE = SYS;
-  window.state = state;
-  window.saveState = saveState;
   window.loadState = loadState;
+  window.saveState = saveState;
   window.resetState = resetState;
-  window.usedNameSet = usedNameSet;
-  window.verseUsedSet = verseUsedSet;
 })();

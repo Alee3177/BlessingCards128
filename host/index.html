@@ -2,72 +2,66 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>BlessingCards128 Host</title>
   <style>
-    :root{--bg:#f6f0e6;--card:#fff;--line:#e7ddcf;--text:#4c3b2a;--muted:#7a6b5c;--btn:#f2c15d;--blue:#7ea7ff;--red:#d94a4a;}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+    :root{--bg:#f6f0e4;--card:#fff;--muted:#666;--pri:#3b82f6;--danger:#ef4444;}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,Arial;}
+    body{margin:0;background:var(--bg);color:#111;}
     .wrap{max-width:1100px;margin:0 auto;padding:12px;}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.06);}
-    .topbar{display:flex;gap:12px;align-items:center;padding:12px 14px;}
-    .topbar img{width:44px;height:44px;border-radius:10px;object-fit:cover;border:1px solid var(--line)}
-    .big{font-weight:800;font-size:18px;line-height:1.2}
-    .muted{color:var(--muted);font-size:13px}
-    .grid{display:grid;grid-template-columns:1.3fr .7fr;gap:12px;align-items:start}
-    @media (max-width:880px){.grid{grid-template-columns:1fr;}}
-    h1{margin:0 0 8px 0;font-size:16px}
-    .section{padding:12px 14px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px}
-    textarea{width:100%;min-height:90px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:10px;font-size:14px;outline:none}
+    .card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px;}
+    .topbar{display:flex;gap:12px;align-items:center}
+    .topbar img{width:52px;height:52px;border-radius:10px;object-fit:cover}
+    .big{font-weight:700;font-size:18px}
+    .muted{color:var(--muted);font-size:12px}
+    .grid{display:grid;grid-template-columns:1.6fr .9fr;gap:12px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    textarea{width:100%;min-height:72px;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:14px;background:#fff}
     button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
     button:disabled{opacity:.45;cursor:not-allowed}
-    .btn{background:var(--btn)}
-    .secondary{background:#f3efe8}
-    .blue{background:var(--blue);color:#102a5b}
-    .danger{background:var(--red);color:#fff}
-    .status{font-size:14px;font-weight:700}
-    .box{border:1px dashed var(--line);border-radius:12px;padding:10px;background:#fff}
-    .logs{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5}
+    .secondary{background:#e5e7eb}
+    .blue{background:var(--pri);color:#fff}
+    .danger{background:var(--danger);color:#fff}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
+    .status{margin-top:10px;font-weight:700}
     .blink{animation:blink 1s infinite}
-    @keyframes blink{0%,49%{filter:brightness(1)}50%,100%{filter:brightness(1.2)}}
-    .wheelWrap{display:flex;justify-content:center;align-items:center;padding:10px 0}
-    canvas{max-width:min(520px,92vw);width:520px;height:520px;border-radius:999px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 28px rgba(0,0,0,.08)}
-    .qr img{width:220px;height:220px;border-radius:10px;border:1px solid var(--line);background:#fff}
-    .small{font-size:12px;color:var(--muted)}
-    .mobileSticky{display:none}
-    @media (max-width:880px){
-      .qr img{width:180px;height:180px}
-    }
+    @keyframes blink{0%,50%{filter:brightness(1)} 60%,100%{filter:brightness(1.35)}}
+    .wheelCard{margin-top:12px}
+    canvas{width:100%;max-width:520px;aspect-ratio:1/1;display:block;margin:0 auto;border-radius:16px;background:#fff}
+    .log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;min-height:70px}
+    .qrBox{display:flex;flex-direction:column;gap:8px;align-items:center}
+    .qrBox img{width:220px;height:220px;border-radius:10px;border:1px solid #eee;background:#fff}
+    .smallInput{width:100%;border:1px solid #ddd;border-radius:10px;padding:8px;font-size:12px}
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <div class="topbar">
-      <img src="../logo3524.png" alt="logo" onerror="this.style.display='none'">
-      <div>
-        <div class="big">祝福經句紅包（主持機）</div>
-        <div id="masterHint" class="muted">主持鎖檢查中…</div>
+  <div class="wrap">
+    <div class="card">
+      <div class="topbar">
+        <img src="../logo3524.png" alt="logo" onerror="this.style.display='none'">
+        <div>
+          <div class="big">祝福經句紅包（主持機）</div>
+          <div id="masterHint" class="muted">主持鎖檢查中…</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="grid" style="margin-top:12px">
-    <div class="card">
-      <div class="section">
-        <h1>操作</h1>
-        <div class="row" style="margin-bottom:10px">
+    <div class="grid" style="margin-top:12px">
+      <div class="card">
+        <div class="row">
           <span class="pill" id="sysPill">狀態：INIT</span>
           <span class="pill">本輪：<span id="idxPill">0/0</span></span>
           <span class="pill">目前：<span id="curPill">-</span></span>
         </div>
 
-        <label class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</label>
-        <textarea id="nameInput" placeholder="例如：小明 小華 小美"></textarea>
+        <div style="margin-top:10px">
+          <div class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</div>
+          <textarea id="nameInput" placeholder="例如：小明 小華 小美"></textarea>
+        </div>
 
         <div class="row" style="margin-top:10px">
-          <button id="btnLock" class="btn">鎖定名單</button>
+          <button id="btnLock">鎖定名單</button>
           <button id="btnRound1" class="secondary">開始抽姓名（第一輪）</button>
           <button id="btnRound2" class="secondary">抽紅包（第二輪）</button>
           <button id="btnView" class="blue">看紅包（開 Viewer）</button>
@@ -79,53 +73,39 @@
           <button id="btnReset" class="danger">全部歸零</button>
         </div>
 
-        <div style="margin-top:12px">
-          <div class="status" id="statusLine">系統初始化中…</div>
-          <div class="muted" id="centerLine" style="margin-top:6px"></div>
+        <div class="status" id="statusLine">系統初始化中…</div>
+        <div class="muted" id="centerLine"></div>
+
+        <div class="wheelCard">
+          <canvas id="wheelCanvas" width="800" height="800"></canvas>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="muted">抽籤紀錄</div>
+          <div id="logBox" class="log">（尚無）</div>
         </div>
       </div>
 
-      <div class="wheelWrap">
-        <canvas id="wheelCanvas" width="520" height="520"></canvas>
-      </div>
-
-      <div class="section" style="padding-top:0">
-        <h1>抽籤紀錄</h1>
-        <div class="box logs" id="logBox">(尚無)</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="section qr">
-        <h1>QR（參與者只讀 Viewer）</h1>
-        <div class="row" style="gap:12px">
-          <img id="qrImg" alt="QR">
-          <div style="flex:1;min-width:220px">
-            <div class="muted">掃描或複製連結：</div>
-            <input id="viewerLink" style="width:100%;margin-top:6px;border:1px solid var(--line);border-radius:10px;padding:10px" readonly>
-            <div class="row" style="margin-top:8px">
-              <button id="btnCopy" class="secondary">複製</button>
-              <button id="btnUnlock" class="secondary">強制解除主持鎖</button>
-            </div>
-            <div class="small" style="margin-top:8px">Viewer 會顯示「最新抽到的紅包」，並可下載圖片。</div>
+      <div class="card">
+        <div class="muted" style="font-weight:700">QR（參與者只讀 Viewer）</div>
+        <div class="qrBox" style="margin-top:8px">
+          <img id="qrImg" alt="qr" />
+          <input id="qrUrl" class="smallInput" readonly />
+          <div class="row">
+            <button id="btnCopy" class="secondary">複製</button>
+            <button id="btnUnlock" class="danger">強制解除主持鎖</button>
           </div>
+          <div class="muted">Viewer 會顯示「最新抽到的紅包」，並可下載圖片。</div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- verseRefMap：固定從 repo 根目錄載入 -->
-<script src="../verseRefMap.js"></script>
-
-<!-- jsPDF (PDF 產生用) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- host scripts -->
-<script src="./js/state.js"></script>
-<script src="./js/wheel.js"></script>
-<script src="./js/ui.js"></script>
-<script src="./js/main.js"></script>
-<script src="./js/boot.js"></script>
+  <script src="../verseRefMap.js"></script>
+  <script src="js/boot.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/wheel.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
