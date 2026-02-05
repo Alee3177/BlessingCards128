@@ -42,9 +42,11 @@
     return !!(cur && cur.tabId === TAB_ID && !isExpired(cur));
   }
 
-  function forceUnlock(){
-    try{ localStorage.removeItem(MASTER_KEY); }catch{}
-  }
+function forceUnlock(){
+  try {
+    localStorage.removeItem(MASTER_KEY);
+  } catch (e) {}
+}
 
   window.__BC_MASTER__ = { TAB_ID, canAct, forceUnlock };
 
@@ -53,11 +55,20 @@
   heartbeat();
 
   // Keep alive (even when throttled, TTL is long)
-  setInterval(() => {
-    // If expired or empty, try reacquire; if already owner, refresh.
-    if (tryAcquire()) heartbeat();
-    else heartbeat();
-  }, HEARTBEAT_MS);
+setInterval(() => {
+
+  const cur = readLock();
+
+  if (!cur || isExpired(cur)) {
+    writeLock();
+    return;
+  }
+
+  if (cur.tabId === TAB_ID) {
+    writeLock();
+  }
+
+}, HEARTBEAT_MS);
 
   // Also refresh when returning from background (mobile)
 window.addEventListener("focus", () => {
