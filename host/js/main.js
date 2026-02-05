@@ -213,18 +213,27 @@
       };
     }
 
-    if (btnView){
-      btnView.onclick = () => {
-        if (!window.__BC_MASTER__?.canAct?.()) return;
-        if (window.state.system !== SYS.VIEWER || !window.state.currentVerse) return;
+if (btnView){
+  btnView.onclick = () => {
 
-        unlockAudio();
-        const code = window.state.currentVerse.code;
-        const name = window.state.names[window.state.lastWinnerIndex] || "";
-        const url = `viewer.html?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`;
-        window.open(url, "_blank");
-      };
-    }
+    if (!window.__BC_MASTER__?.canAct?.()) return;
+    if (window.state.system !== SYS.VIEWER || !window.state.currentVerse) return;
+
+    unlockAudio();
+
+    const code = window.state.currentVerse.code;
+    const name = window.state.names[window.state.lastWinnerIndex] || "";
+
+    // ⭐ 記錄主持機已開 Viewer（回來判斷用）
+    sessionStorage.setItem("BC_VIEWER_OPEN","1");
+    sessionStorage.setItem("BC_VIEWER_OPEN_AT", String(Date.now()));
+
+    const url =
+      `viewer.html?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`;
+
+    window.open(url, "_blank");
+  };
+}
 
     if (btnNext){
       btnNext.onclick = () => {
@@ -254,27 +263,35 @@
     }
   }
 
-/* ---- Focus return from Viewer ---- */
-let viewerReturned = false;
+function handleViewerReturn(){
 
-window.addEventListener("focus", () => {
-
-  if (viewerReturned) return;
   if (!window.__BC_MASTER__?.canAct?.()) return;
   if (!window.state) return;
   if (window.state.system !== SYS.VIEWER) return;
 
-  viewerReturned = true;
+  // ⭐ 是否真的開過 Viewer
+  const flag = sessionStorage.getItem("BC_VIEWER_OPEN");
+  if (flag !== "1") return;
 
-  console.log("👁 Viewer closed → resume ROUND1");
+  const t0 = Number(sessionStorage.getItem("BC_VIEWER_OPEN_AT") || "0");
 
-  // ⭐ 必須同時清兩個
+  // ⭐ 防止剛開 viewer 就觸發
+  if (Date.now() - t0 < 400) return;
+
+  console.log("👁 Viewer returned → resume ROUND1");
+
+  // ⭐ 清旗標
+  sessionStorage.removeItem("BC_VIEWER_OPEN");
+  sessionStorage.removeItem("BC_VIEWER_OPEN_AT");
+
+  // ⭐ 清本輪 verse
   window.state.currentVerse = null;
-  window.state.lastWinnerIndex = -1;
+
+  // ❌ 不要清 lastWinnerIndex（非常重要）
 
   const usedCount = new Set(window.state.usedName || []).size;
 
-  if (usedCount >= window.state.names.length) {
+  if (usedCount >= window.state.names.length){
 
     window.state.system = SYS.FINISHED;
 
@@ -282,16 +299,20 @@ window.addEventListener("focus", () => {
 
     window.state.system = SYS.ROUND1;
 
-    window.initWheel(remainingNames());
+    if (typeof remainingNames === "function"){
+      window.initWheel(remainingNames());
+    }
   }
 
   window.saveState();
   window.applyUIState();
 
+  // ⭐ 第一輪閃爍提示
   setTimeout(() => {
-    viewerReturned = false;
-  }, 300);
-});
+    const btn = document.getElementById("btnRound1");
+    if (btn) btn.classList.add("blink-btn");
+  }, 120);
+}
 
   // ---- Simple PDF (text-only, avoids garbling by using built-in fonts; Chinese may still fail on some env) ----
   // Keep button disabled until FINISHED in UI.js. User can extend later.
