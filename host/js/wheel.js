@@ -81,45 +81,78 @@
 
   // Easing
   function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+  
+function normalizeAngle(a){
+  return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+}  
 
   // Spin and return selected value
-  function spinWheel(direction, onDone){
-    if (!canvas || !ctx) bindCanvas();
-    const N = segments.length;
-    if (N <= 0) return;
+function spinWheel(direction, onDone){
 
-    // choose target index randomly (selection independent of pointer)
-    const targetIndex = Math.floor(Math.random()*N);
+  if (!canvas || !ctx) bindCanvas();
 
-    // land so that target label is near top (12 o'clock). We define top angle = -PI/2 in wheel coords
-    const step = (Math.PI*2)/N;
-    const targetAngle = (targetIndex*step + step/2); // center angle of segment
-    const desired = -Math.PI/2 - targetAngle; // rotation so that segment center goes to top
+  const N = segments.length;
+  if (N <= 0) return;
 
-    const spins = 6 + Math.floor(Math.random()*3); // 6-8 turns
-    const start = rotation;
-    const end = desired + direction*(Math.PI*2)*spins;
+  // ===== 隨機選目標 =====
+  const targetIndex = Math.floor(Math.random()*N);
 
-    const dur = 1600;
-    const t0 = performance.now();
+  const step = (Math.PI*2)/N;
 
-    function frame(now){
-      const t = Math.min(1, (now - t0)/dur);
-      const k = easeOutCubic(t);
-      rotation = start + (end-start)*k;
+  // segment 中心角
+  const targetAngle = targetIndex * step + step/2;
+
+  // 指針固定在 12點方向
+  const pointerAngle = -Math.PI/2;
+
+  // 最終落點 rotation
+  const finalRotation = pointerAngle - targetAngle;
+
+  // ===== 旋轉圈數 =====
+  const spins = 6 + Math.floor(Math.random()*3);
+
+  const startRotation = rotation;
+
+  // ⭐ 方向控制
+  const delta = direction * spins * Math.PI * 2;
+
+// ⭐ 補正 landing
+const landingAdjust =
+  normalizeAngle(finalRotation) -
+  normalizeAngle(startRotation);
+
+const endRotation =
+  startRotation + delta + landingAdjust;
+
+const duration = 1800;
+const startTime = performance.now();
+
+  function frame(now){
+
+    const t = Math.min(1, (now - startTime)/duration);
+
+    const eased = easeOutCubic(t);
+
+    rotation =
+      startRotation + (endRotation - startRotation) * eased;
+
+    drawWheel();
+
+    if (t < 1){
+      requestAnimationFrame(frame);
+    } else {
+
+      rotation = normalizeAngle(finalRotation);
+
       drawWheel();
-      if (t < 1){
-        requestAnimationFrame(frame);
-      } else {
-        // normalize
-        rotation = ((rotation % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-        drawWheel();
-        const val = segments[targetIndex];
-        if (onDone) onDone(val);
-      }
+
+      const val = segments[targetIndex];
+      if (onDone) onDone(val);
     }
-    requestAnimationFrame(frame);
   }
+
+  requestAnimationFrame(frame);
+}
 
   window.initWheel = initWheel;
   window.drawWheel = drawWheel;

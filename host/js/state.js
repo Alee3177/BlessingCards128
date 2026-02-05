@@ -26,27 +26,51 @@
 
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
-  function loadState(){
-    try{
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      const d = defaultState();
-      for (const k of Object.keys(d)){
-        if (!(k in s)) s[k] = d[k];
-      }
-      // sanitize
-      if (!Array.isArray(s.names)) s.names = [];
-      if (!Array.isArray(s.usedName)) s.usedName = [];
-      if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
-      if (!Array.isArray(s.logs)) s.logs = [];
-      if (!Object.values(SYS).includes(s.system)) s.system = s.locked ? SYS.ROUND1 : SYS.INIT;
+function loadState(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
 
-      window.state = s;
-    }catch(e){
-      console.warn("loadState failed", e);
+    const s = JSON.parse(raw);
+    const d = defaultState();
+
+    // 補齊缺欄位
+    for (const k of Object.keys(d)){
+      if (!(k in s)) s[k] = d[k];
     }
+
+    // sanitize arrays
+    if (!Array.isArray(s.names)) s.names = [];
+    if (!Array.isArray(s.usedName)) s.usedName = [];
+    if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
+    if (!Array.isArray(s.logs)) s.logs = [];
+
+    // ⭐ 去重（非常重要）
+    s.usedName = [...new Set(s.usedName)];
+    s.verseUsed = [...new Set(s.verseUsed)];
+
+    // sanitize currentVerse
+    if (s.currentVerse && typeof s.currentVerse !== "object") {
+      s.currentVerse = null;
+    }
+
+    // sanitize system
+    if (!s.system || !Object.values(SYS).includes(s.system)) {
+      s.system = s.locked ? SYS.ROUND1 : SYS.INIT;
+    }
+
+    // ⭐ locked 與 names 同步校驗
+    if (s.locked && (!Array.isArray(s.names) || s.names.length === 0)) {
+      s.locked = false;
+      s.system = SYS.INIT;
+    }
+
+    window.state = s;
+
+  }catch(e){
+    console.warn("loadState failed", e);
   }
+}
 
   function saveState(){
     try{ localStorage.setItem(KEY, JSON.stringify(window.state)); }catch{}

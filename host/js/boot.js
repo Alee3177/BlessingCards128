@@ -1,7 +1,7 @@
 // host/js/boot.js
 (() => {
   const MASTER_KEY = "BC_MASTER_LOCK_V2";
-  const TTL = 15000;
+  const TTL = 999999999;
   const HEARTBEAT_MS = 5000;
 
   const TAB_ID = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random();

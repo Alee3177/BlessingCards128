@@ -254,25 +254,44 @@
     }
   }
 
-  // ---- Focus return from Viewer ----
-  window.addEventListener("focus", () => {
-    if (!window.__BC_MASTER__?.canAct?.()) return;
-    if (window.state.system !== SYS.VIEWER) return;
+/* ---- Focus return from Viewer ---- */
+let viewerReturned = false;
 
-    // Close viewer => proceed to next player ROUND1 or FINISHED
-    window.state.currentVerse = null;
+window.addEventListener("focus", () => {
 
-    const usedCount = new Set(window.state.usedName||[]).size;
-    if (usedCount >= window.state.names.length){
-      window.state.system = SYS.FINISHED;
-    } else {
-      window.state.system = SYS.ROUND1;
-      // refresh wheel segments for next
-      window.initWheel(remainingNames());
-    }
-    window.saveState();
-    window.applyUIState();
-  });
+  if (viewerReturned) return;
+  if (!window.__BC_MASTER__?.canAct?.()) return;
+  if (!window.state) return;
+  if (window.state.system !== SYS.VIEWER) return;
+
+  viewerReturned = true;
+
+  console.log("👁 Viewer closed → resume ROUND1");
+
+  // ⭐ 必須同時清兩個
+  window.state.currentVerse = null;
+  window.state.lastWinnerIndex = -1;
+
+  const usedCount = new Set(window.state.usedName || []).size;
+
+  if (usedCount >= window.state.names.length) {
+
+    window.state.system = SYS.FINISHED;
+
+  } else {
+
+    window.state.system = SYS.ROUND1;
+
+    window.initWheel(remainingNames());
+  }
+
+  window.saveState();
+  window.applyUIState();
+
+  setTimeout(() => {
+    viewerReturned = false;
+  }, 300);
+});
 
   // ---- Simple PDF (text-only, avoids garbling by using built-in fonts; Chinese may still fail on some env) ----
   // Keep button disabled until FINISHED in UI.js. User can extend later.
