@@ -2,97 +2,49 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  function setBlink(el, on){
-    if (!el) return;
-    if (on) el.classList.add("blink");
-    else el.classList.remove("blink");
+  function setText(id, text){
+    const el = $(id);
+    if (el) el.textContent = text;
   }
 
-  function renderLog(){
-    const box = $("logBox");
-    if (!box) return;
-    const logs = (window.state && Array.isArray(window.state.logs)) ? window.state.logs : [];
-    if (!logs.length){ box.textContent = "（尚無）"; return; }
-    box.textContent = logs.map(x => `[${x.t}] ${x.name} -> ${x.code}` + (x.ref?` | ${x.ref}`:"")).join("\n");
+  function setDisabled(id, disabled){
+    const b = $(id);
+    if (b) b.disabled = !!disabled;
   }
 
   function applyUIState(){
     const s = window.state;
-    const SYS = window.SYS;
-    const canAct = window.__BC_MASTER__?.canAct?.() ?? true;
+    const master = window.__BC_MASTER__?.canAct?.() === true;
 
-    const btnLock = $("btnLock");
-    const btnR1 = $("btnRound1");
-    const btnR2 = $("btnRound2");
-    const btnView = $("btnView");
-    const btnNext = $("btnNext");
-    const btnPdf = $("btnPdf");
-    const btnReset = $("btnReset");
-
-    const sysPill = $("sysPill");
-    const idxPill = $("idxPill");
-    const curPill = $("curPill");
-    const statusLine = $("statusLine");
-    const centerLine = $("centerLine");
-
-    if (sysPill) sysPill.textContent = "狀態：" + (s.system || SYS.INIT);
-
-    const total = s.names.length;
-    const used = new Set(s.usedName || []);
-    if (idxPill) idxPill.textContent = `${used.size}/${total}`;
-    if (curPill){
-      curPill.textContent = (s.lastWinnerIndex >= 0 && s.names[s.lastWinnerIndex]) ? s.names[s.lastWinnerIndex] : "-";
+    // master hint
+    const hint = $("masterHint");
+    if (hint){
+      hint.textContent = master ? "主持機權限：✅ 已取得" : "目前不是主持機（只讀）";
+      hint.className = master ? "muted okhint" : "muted warnhint";
     }
 
-    // lock input in non-master
-    if (!canAct){
-      [btnLock, btnR1, btnR2, btnView, btnNext, btnPdf, btnReset].forEach(b => { if (b) b.disabled = true; });
-      if (statusLine) statusLine.textContent = "目前不是主持機（只讀）。";
-      renderLog();
-      return;
-    }
+    // pills
+    setText("sysPill", `狀態：${s.system}`);
+    setText("idxPill", `${new Set(s.usedName||[]).size}/${(s.names||[]).length}`);
+    const cur = (s.lastWinnerIndex>=0 && s.names && s.names[s.lastWinnerIndex]) ? s.names[s.lastWinnerIndex] : "-";
+    setText("curPill", cur);
 
-    // clear all blinks
-    [btnLock, btnR1, btnR2, btnView, btnNext, btnPdf, btnReset].forEach(b => setBlink(b,false));
+    // buttons enable rules
+    setDisabled("btnLock", !master);
+    setDisabled("btnReset", !master);
 
-    // default disable all, then enable by state
-    [btnR1, btnR2, btnView, btnNext, btnPdf].forEach(b => { if (b) b.disabled = true; });
+    setDisabled("btnRound1", !master || !s.locked || s.system !== SYS.ROUND1);
+    setDisabled("btnRound2", !master || s.system !== SYS.ROUND2);
+    setDisabled("btnView", !master || s.system !== SYS.VIEWER || !s.currentVerse);
+    setDisabled("btnNext", !master || !s.locked || (s.system !== SYS.VIEWER && s.system !== SYS.ROUND1 && s.system !== SYS.FINISHED));
+    setDisabled("btnPdf", !master || (s.logs||[]).length === 0);
 
-    if (btnLock) btnLock.disabled = false;
-    if (btnReset) btnReset.disabled = false;
+    // textarea: allow edit only before locked
+    const ni = $("nameInput");
+    if (ni) ni.disabled = !!s.locked;
 
-    if (!s.locked || s.system === SYS.INIT){
-      if (statusLine) statusLine.textContent = "請輸入姓名並鎖定名單";
-      if (centerLine) centerLine.textContent = "";
-      if (btnR1) btnR1.disabled = true;
-      if (btnR2) btnR2.disabled = true;
-      if (btnView) btnView.disabled = true;
-      if (btnNext) btnNext.disabled = true;
-      if (btnPdf) btnPdf.disabled = true;
-      setBlink(btnLock, true);
-    } else if (s.system === SYS.ROUND1){
-      if (statusLine) statusLine.textContent = "請開始抽姓名（第一輪）";
-      if (centerLine) centerLine.textContent = "";
-      if (btnR1){ btnR1.disabled = false; setBlink(btnR1,true); }
-      if (btnNext){ btnNext.disabled = false; }
-    } else if (s.system === SYS.ROUND2){
-      if (statusLine) statusLine.textContent = "請抽紅包（第二輪）";
-      if (centerLine) centerLine.textContent = "";
-      if (btnR2){ btnR2.disabled = false; setBlink(btnR2,true); }
-    } else if (s.system === SYS.VIEWER){
-      if (statusLine) statusLine.textContent = "已抽出紅包，可開啟 Viewer";
-      if (centerLine) centerLine.textContent = s.currentVerse ? `抽中經句：${s.currentVerse.code} ${s.currentVerse.ref||""}` : "";
-      if (btnView){ btnView.disabled = false; setBlink(btnView,true); }
-    } else if (s.system === SYS.FINISHED){
-      if (statusLine) statusLine.textContent = "本輪已完成，可下載 PDF 或歸零";
-      if (centerLine) centerLine.textContent = "";
-      if (btnPdf){ btnPdf.disabled = false; setBlink(btnPdf,true); }
-      if (btnReset){ setBlink(btnReset,true); }
-    }
-
-    renderLog();
+    // status lines (leave to main.js if present)
   }
 
   window.applyUIState = applyUIState;
-  window.__uiRenderLog = renderLog;
 })();

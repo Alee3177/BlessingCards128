@@ -15,6 +15,11 @@
     segments = (Array.isArray(list) && list.length) ? list.slice() : ["1","2"];
   }
 
+  function normalizeAngle(a){
+    const TAU = Math.PI * 2;
+    return ((a % TAU) + TAU) % TAU;
+  }
+
   function drawWheel(){
     if (!canvas || !ctx) return;
     const W = canvas.width, H = canvas.height;
@@ -23,7 +28,6 @@
 
     ctx.clearRect(0,0,W,H);
 
-    // outer ring
     ctx.save();
     ctx.translate(cx,cy);
     ctx.rotate(rotation);
@@ -79,80 +83,56 @@
     drawWheel();
   }
 
-  // Easing
   function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
-  
-function normalizeAngle(a){
-  return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-}  
 
   // Spin and return selected value
-function spinWheel(direction, onDone){
+  // direction: +1 clockwise, -1 counterclockwise
+  function spinWheel(direction, onDone){
+    if (!canvas || !ctx) bindCanvas();
 
-  if (!canvas || !ctx) bindCanvas();
+    const N = segments.length;
+    if (N <= 0) return;
 
-  const N = segments.length;
-  if (N <= 0) return;
+    // pick target
+    const targetIndex = Math.floor(Math.random()*N);
 
-  // ===== 隨機選目標 =====
-  const targetIndex = Math.floor(Math.random()*N);
+    const step = (Math.PI*2)/N;
+    const targetAngle = (targetIndex*step + step/2);
 
-  const step = (Math.PI*2)/N;
+    // land so that target center points to top (12 o'clock)
+    const finalRotation = normalizeAngle(-Math.PI/2 - targetAngle);
 
-  // segment 中心角
-  const targetAngle = targetIndex * step + step/2;
+    // spins
+    const spins = 6 + Math.floor(Math.random()*3); // 6-8
+    const delta = direction * spins * Math.PI * 2;
 
-  // 指針固定在 12點方向
-  const pointerAngle = -Math.PI/2;
+    const startRotation = rotation;
 
-  // 最終落點 rotation
-  const finalRotation = pointerAngle - targetAngle;
+    // landing adjust: keep continuity in angular space
+    const landingAdjust = normalizeAngle(finalRotation) - normalizeAngle(startRotation);
 
-  // ===== 旋轉圈數 =====
-  const spins = 6 + Math.floor(Math.random()*3);
+    const endRotation = startRotation + delta + landingAdjust;
 
-  const startRotation = rotation;
+    const duration = 1800;
+    const startTime = performance.now();
 
-  // ⭐ 方向控制
-  const delta = direction * spins * Math.PI * 2;
-
-// ⭐ 補正 landing
-const landingAdjust =
-  normalizeAngle(finalRotation) -
-  normalizeAngle(startRotation);
-
-const endRotation =
-  startRotation + delta + landingAdjust;
-
-const duration = 1800;
-const startTime = performance.now();
-
-  function frame(now){
-
-    const t = Math.min(1, (now - startTime)/duration);
-
-    const eased = easeOutCubic(t);
-
-    rotation =
-      startRotation + (endRotation - startRotation) * eased;
-
-    drawWheel();
-
-    if (t < 1){
-      requestAnimationFrame(frame);
-    } else {
-
-      rotation = normalizeAngle(finalRotation);
-
+    function frame(now){
+      const t = Math.min(1, (now - startTime)/duration);
+      const k = easeOutCubic(t);
+      rotation = startRotation + (endRotation - startRotation) * k;
       drawWheel();
 
-      const val = segments[targetIndex];
-      if (onDone) onDone(val);
+      if (t < 1){
+        requestAnimationFrame(frame);
+      } else {
+        rotation = finalRotation;
+        drawWheel();
+        const val = segments[targetIndex];
+        if (onDone) onDone(val);
+      }
     }
+    requestAnimationFrame(frame);
   }
-
-  requestAnimationFrame(frame);
-}
 
   window.initWheel = initWheel;
   window.drawWheel = drawWheel;

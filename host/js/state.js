@@ -1,14 +1,15 @@
 // host/js/state.js
 (() => {
-  const KEY = "BC_STATE_V2";
+  const KEY = "BC_STATE_V1";
 
-  const SYS = {
+  // System states (single source of truth)
+  const SYS = Object.freeze({
     INIT: "INIT",
     ROUND1: "ROUND1",
     ROUND2: "ROUND2",
     VIEWER: "VIEWER",
-    FINISHED: "FINISHED"
-  };
+    FINISHED: "FINISHED",
+  });
   window.SYS = SYS;
 
   const defaultState = () => ({
@@ -22,66 +23,53 @@
     logs: [] // {t,name,code,ref}
   });
 
-  window.state = defaultState();
+  function clone(x){ return JSON.parse(JSON.stringify(x)); }
 
-  const clone = (x) => JSON.parse(JSON.stringify(x));
-
-function loadState(){
-  try{
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return;
-
-    const s = JSON.parse(raw);
+  function sanitize(s){
     const d = defaultState();
-
-    // 補齊缺欄位
+    if (!s || typeof s !== "object") s = {};
     for (const k of Object.keys(d)){
-      if (!(k in s)) s[k] = d[k];
+      if (!(k in s)) s[k] = clone(d[k]);
     }
-
-    // sanitize arrays
     if (!Array.isArray(s.names)) s.names = [];
     if (!Array.isArray(s.usedName)) s.usedName = [];
     if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
     if (!Array.isArray(s.logs)) s.logs = [];
-
-    // ⭐ 去重（非常重要）
-    s.usedName = [...new Set(s.usedName)];
-    s.verseUsed = [...new Set(s.verseUsed)];
-
-    // sanitize currentVerse
-    if (s.currentVerse && typeof s.currentVerse !== "object") {
-      s.currentVerse = null;
-    }
-
-    // sanitize system
-    if (!s.system || !Object.values(SYS).includes(s.system)) {
+    if (!Object.values(SYS).includes(s.system)){
       s.system = s.locked ? SYS.ROUND1 : SYS.INIT;
     }
+    if (typeof s.locked !== "boolean") s.locked = false;
+    if (typeof s.lastWinnerIndex !== "number") s.lastWinnerIndex = -1;
+    if (s.currentVerse && typeof s.currentVerse !== "object") s.currentVerse = null;
+    return s;
+  }
 
-    // ⭐ locked 與 names 同步校驗
-    if (s.locked && (!Array.isArray(s.names) || s.names.length === 0)) {
-      s.locked = false;
-      s.system = SYS.INIT;
+  // Public state
+  window.state = defaultState();
+
+  window.loadState = function loadState(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      const s = sanitize(JSON.parse(raw));
+      window.state = s;
+    }catch(e){
+      console.warn("loadState failed", e);
     }
+  };
 
-    window.state = s;
+  window.saveState = function saveState(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify(window.state));
+    }catch(e){
+      console.warn("saveState failed", e);
+    }
+  };
 
-  }catch(e){
-    console.warn("loadState failed", e);
-  }
-}
-
-  function saveState(){
-    try{ localStorage.setItem(KEY, JSON.stringify(window.state)); }catch{}
-  }
-
-  function resetState(){
+  window.resetState = function resetState(){
     window.state = defaultState();
-    saveState();
-  }
-
-  window.loadState = loadState;
-  window.saveState = saveState;
-  window.resetState = resetState;
+    try{ localStorage.removeItem(KEY); }catch{}
+    try{ localStorage.removeItem("LAST_VERSE"); }catch{}
+    try{ localStorage.removeItem("drawLogs"); }catch{}
+  };
 })();

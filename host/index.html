@@ -5,34 +5,35 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>BlessingCards128 Host</title>
   <style>
-    :root{--bg:#f6f0e4;--card:#fff;--muted:#666;--pri:#3b82f6;--danger:#ef4444;}
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,Arial;}
-    body{margin:0;background:var(--bg);color:#111;}
-    .wrap{max-width:1100px;margin:0 auto;padding:12px;}
-    .card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px;}
+    :root{ --bg:#f6f0e6; --card:#fff; --muted:#6b7280; --shadow: 0 6px 24px rgba(0,0,0,.08); --r:16px; }
+    html,body{margin:0;padding:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif;color:#111827}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
     .topbar{display:flex;gap:12px;align-items:center}
-    .topbar img{width:52px;height:52px;border-radius:10px;object-fit:cover}
-    .big{font-weight:700;font-size:18px}
-    .muted{color:var(--muted);font-size:12px}
-    .grid{display:grid;grid-template-columns:1.6fr .9fr;gap:12px}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
-    textarea{width:100%;min-height:72px;border:1px solid #ddd;border-radius:10px;padding:10px;font-size:14px;background:#fff}
-    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
-    button:disabled{opacity:.45;cursor:not-allowed}
-    .secondary{background:#e5e7eb}
-    .blue{background:var(--pri);color:#fff}
-    .danger{background:var(--danger);color:#fff}
+    .topbar img{width:44px;height:44px;border-radius:10px;object-fit:cover}
+    .big{font-size:18px;font-weight:700}
+    .muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns: 1.2fr .8fr; gap:14px}
+    @media (max-width: 860px){ .grid{grid-template-columns:1fr} }
+    h1{font-size:16px;margin:0 0 10px}
+    textarea{width:100%;min-height:84px;resize:vertical;border:1px solid #e5e7eb;border-radius:12px;padding:10px;font-size:14px}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#f3f4f6;font-size:12px}
-    .status{margin-top:10px;font-weight:700}
-    .blink{animation:blink 1s infinite}
-    @keyframes blink{0%,50%{filter:brightness(1)} 60%,100%{filter:brightness(1.35)}}
-    .wheelCard{margin-top:12px}
-    canvas{width:100%;max-width:520px;aspect-ratio:1/1;display:block;margin:0 auto;border-radius:16px;background:#fff}
-    .log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:10px;min-height:70px}
-    .qrBox{display:flex;flex-direction:column;gap:8px;align-items:center}
-    .qrBox img{width:220px;height:220px;border-radius:10px;border:1px solid #eee;background:#fff}
-    .smallInput{width:100%;border:1px solid #ddd;border-radius:10px;padding:8px;font-size:12px}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+    .secondary{background:#f3f4f6}
+    .blue{background:#93c5fd}
+    .danger{background:#fca5a5}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;font-size:12px;background:#fff}
+    .status{font-size:14px;font-weight:700}
+    .canvasWrap{margin-top:12px;background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:12px}
+    canvas{display:block;width:100%;max-width:520px;height:auto;margin:0 auto}
+    .qrBox img{width:220px;height:220px;display:block;margin:0 auto;border-radius:12px;background:#fff}
+    .blink-btn{animation: blink 1s infinite}
+    @keyframes blink{0%{filter:brightness(1)}50%{filter:brightness(1.25)}100%{filter:brightness(1)}}
+    .okhint{color:#059669}
+    .warnhint{color:#b45309}
+    .logBox{margin-top:12px}
+    .logBox pre{margin:0;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
   </style>
 </head>
 <body>
@@ -47,18 +48,18 @@
       </div>
     </div>
 
-    <div class="grid" style="margin-top:12px">
+    <div class="grid" style="margin-top:14px">
       <div class="card">
-        <div class="row">
+        <h1>操作</h1>
+
+        <div class="row" style="margin-bottom:10px">
           <span class="pill" id="sysPill">狀態：INIT</span>
           <span class="pill">本輪：<span id="idxPill">0/0</span></span>
           <span class="pill">目前：<span id="curPill">-</span></span>
         </div>
 
-        <div style="margin-top:10px">
-          <div class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</div>
-          <textarea id="nameInput" placeholder="例如：小明 小華 小美"></textarea>
-        </div>
+        <label class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</label>
+        <textarea id="nameInput" placeholder="例如：小明 小華 小美"></textarea>
 
         <div class="row" style="margin-top:10px">
           <button id="btnLock">鎖定名單</button>
@@ -73,39 +74,68 @@
           <button id="btnReset" class="danger">全部歸零</button>
         </div>
 
-        <div class="status" id="statusLine">系統初始化中…</div>
-        <div class="muted" id="centerLine"></div>
-
-        <div class="wheelCard">
-          <canvas id="wheelCanvas" width="800" height="800"></canvas>
+        <div style="margin-top:12px">
+          <div class="status" id="statusLine">系統初始化中…</div>
+          <div class="muted" id="centerLine" style="margin-top:6px"></div>
         </div>
 
-        <div style="margin-top:10px">
-          <div class="muted">抽籤紀錄</div>
-          <div id="logBox" class="log">（尚無）</div>
+        <div class="canvasWrap">
+          <canvas id="wheelCanvas" width="900" height="900"></canvas>
+        </div>
+
+        <div class="logBox">
+          <div class="muted" style="margin:8px 0 6px">抽籤紀錄（最新在下）</div>
+          <pre id="logPre">(尚無)</pre>
         </div>
       </div>
 
       <div class="card">
-        <div class="muted" style="font-weight:700">QR（參與者只讀 Viewer）</div>
-        <div class="qrBox" style="margin-top:8px">
-          <img id="qrImg" alt="qr" />
-          <input id="qrUrl" class="smallInput" readonly />
-          <div class="row">
-            <button id="btnCopy" class="secondary">複製</button>
-            <button id="btnUnlock" class="danger">強制解除主持鎖</button>
-          </div>
-          <div class="muted">Viewer 會顯示「最新抽到的紅包」，並可下載圖片。</div>
+        <h1>QR（參與者只讀 Viewer）</h1>
+        <div class="qrBox">
+          <img id="qrImg" alt="QR" />
         </div>
+        <div class="muted" style="margin-top:10px">
+          Viewer 會顯示「最新抽到的紅包」，並可下載圖片。
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="btnCopy" class="secondary">複製</button>
+          <button id="btnUnlock" class="danger">強制解除主持鎖</button>
+        </div>
+        <input id="qrUrl" style="width:100%;margin-top:10px;border:1px solid #e5e7eb;border-radius:12px;padding:10px" readonly />
       </div>
     </div>
   </div>
+
+  <audio id="drum" src="../audio/drum.mp3" preload="auto"></audio>
+  <audio id="winSound" src="../audio/win.mp3" preload="auto"></audio>
 
   <script src="../verseRefMap.js"></script>
   <script src="js/boot.js"></script>
   <script src="js/state.js"></script>
   <script src="js/wheel.js"></script>
   <script src="js/ui.js"></script>
+  <script>
+    // QR helper + log render (kept tiny here)
+    (function(){
+      function updateQR(){
+        const url = location.origin + location.pathname.replace(/\/index\.html$/,"/viewer.html");
+        const img = document.getElementById("qrImg");
+        const inp = document.getElementById("qrUrl");
+        if (inp) inp.value = url;
+        if (img) img.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(url);
+      }
+      function renderLogs(){
+        const pre = document.getElementById("logPre");
+        if (!pre || !window.state) return;
+        const logs = window.state.logs || [];
+        if (!logs.length){ pre.textContent = "(尚無)"; return; }
+        pre.textContent = logs.map(r => `[${r.t}] ${r.name} -> ${r.code} | ${r.ref}`).join("\n");
+      }
+      window.updateQR = updateQR;
+      window.renderLogs = renderLogs;
+      window.addEventListener("load", () => { updateQR(); setInterval(renderLogs, 500); });
+    })();
+  </script>
   <script src="js/main.js"></script>
 </body>
 </html>

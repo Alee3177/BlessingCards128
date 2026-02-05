@@ -5,82 +5,65 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>BlessingCards128 Viewer</title>
   <style>
-    :root{--bg:#f6f0e4;--card:#fff;--muted:#666;--pri:#3b82f6;}
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans TC,Arial;}
-    body{margin:0;background:var(--bg);color:#111;}
-    .wrap{max-width:700px;margin:0 auto;padding:12px}
-    .card{background:var(--card);border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px}
-    .big{font-weight:800;font-size:18px}
-    .muted{color:var(--muted);font-size:12px}
-    .imgBox{margin-top:10px;background:#fff;border-radius:14px;border:1px solid #eee;padding:10px}
-    img#cardImg{width:100%;height:auto;border-radius:12px;display:block}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-    button,a.btn{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-    .blue{background:var(--pri);color:#fff}
-    .secondary{background:#e5e7eb;color:#111}
+    body{margin:0;padding:18px;background:#0b1220;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif}
+    .card{max-width:520px;margin:0 auto;background:rgba(255,255,255,.08);border-radius:18px;padding:14px}
+    h1{font-size:16px;margin:0 0 8px}
+    .muted{opacity:.85;font-size:13px}
+    img{width:100%;border-radius:16px;display:block;background:#111827}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button,a{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-decoration:none;color:#111827;background:#93c5fd}
+    .secondary{background:#e5e7eb}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="big">祝福經句紅包（Viewer｜只讀）</div>
-      <div id="meta" class="muted" style="margin-top:4px">載入中…</div>
-
-      <div class="imgBox">
-        <img id="cardImg" alt="card" />
-      </div>
-
-      <div class="row">
-        <button id="btnDownload" class="blue">下載經句圖片</button>
-        <a class="btn secondary" id="btnBack" href="index.html">回主持機</a>
-      </div>
-
-      <div class="muted" style="margin-top:6px">若未自動更新，請重新整理此頁。</div>
+  <div class="card">
+    <h1>紅包 Viewer（只讀）</h1>
+    <div class="muted" id="meta">載入中…</div>
+    <div style="margin-top:10px">
+      <img id="img" alt="card" />
     </div>
+    <div class="row">
+      <a id="dl" class="secondary" download>下載圖片</a>
+      <button id="closeBtn" class="secondary">返回主持機</button>
+    </div>
+    <div class="muted" style="margin-top:10px">提示：若「返回主持機」無法關閉分頁，請直接關閉此分頁即可。</div>
   </div>
 
   <script src="../verseRefMap.js"></script>
   <script>
-    const BASE = "..";
-    const qs = new URL(location.href).searchParams;
-    const qcode = (qs.get("code")||qs.get("no")||"").trim();
-    const qname = (qs.get("name")||"").trim();
-    const img = document.getElementById("cardImg");
+    const params = new URLSearchParams(location.search);
+    let code = params.get("code");
+    let name = params.get("name") || "";
+
+    // If opened without params, use LAST_VERSE broadcast
+    try{
+      if (!code){
+        const raw = localStorage.getItem("LAST_VERSE");
+        if (raw){
+          const obj = JSON.parse(raw);
+          code = obj.verse;
+          if (!name) name = obj.name || "";
+        }
+      }
+    }catch{}
+
+    code = (code||"").padStart(3,"0");
+
+    const ref = (window.verseRefMap && window.verseRefMap[code]) ? window.verseRefMap[code] : "";
     const meta = document.getElementById("meta");
+    meta.textContent = (name ? `姓名：${name} / ` : "") + `編號：${code}` + (ref ? ` / ${ref}` : "");
 
-    function pad3(x){ return String(x||"").padStart(3,"0"); }
-    function getRef(code){
-      try{ return (window.VERSE_REF_MAP && window.VERSE_REF_MAP[code]) ? window.VERSE_REF_MAP[code] : ""; }
-      catch{ return ""; }
-    }
+    const img = document.getElementById("img");
+    const src = `../cards/${code}.png`;
+    img.src = src;
 
-    function loadFromLast(){
-      try{
-        const last = JSON.parse(localStorage.getItem("LAST_VERSE")||"null");
-        if (last && last.verse) return { code: pad3(last.verse), name:"" };
-      }catch{}
-      return null;
-    }
+    const dl = document.getElementById("dl");
+    dl.href = src;
+    dl.download = `${code}.png`;
 
-    const payload = qcode ? { code: pad3(qcode), name: qname } : (loadFromLast() || { code:"", name:"" });
-
-    if (!payload.code){
-      meta.textContent = "尚未有最新紅包。請等待主持機抽出後再重新整理。";
-    } else {
-      const ref = getRef(payload.code);
-      meta.textContent = `經句編號：${payload.code}` + (ref?`｜${ref}`:"") + (payload.name?`｜抽中：${payload.name}`:"");
-      const src = `${BASE}/cards/${payload.code}.png`;
-      img.src = src;
-      img.onerror = () => { meta.textContent = "⚠ 找不到圖片：" + src; };
-      document.getElementById("btnDownload").onclick = () => {
-        const a = document.createElement("a");
-        a.href = src;
-        a.download = `Blessing_${payload.code}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      };
-    }
+    document.getElementById("closeBtn").onclick = () => {
+      window.close();
+    };
   </script>
 </body>
 </html>
