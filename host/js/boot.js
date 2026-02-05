@@ -81,3 +81,4 @@ document.addEventListener("visibilitychange", () => {
   }
 
 });
+})();
