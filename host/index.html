@@ -59,7 +59,12 @@
         </div>
 
         <label class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</label>
-        <textarea id="nameInput" placeholder="例如：小明 小華 小美"></textarea>
+        <textarea id="nameInput"
+          placeholder="例如：小明 John 田中さん"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"></textarea>
 
         <div class="row" style="margin-top:10px">
           <button id="btnLock">鎖定名單</button>

@@ -430,14 +430,16 @@ if (typeof launchConfetti === "function") {
     if (typeof window.loadState === "function") window.loadState();
 
     // Init wheel based on state
-    if (!window.state.locked){
-      window.initWheel(["1","2"]);
-      const ni = $("nameInput"); if (ni) ni.value = "";
-      window.state.system = SYS.INIT;
-      window.saveState();
-      setStatus("請輸入姓名並鎖定名單");
-      clearBlink();
-    } else {
+if (!window.state.locked){
+  window.initWheel([]);
+  const ni = $("nameInput"); 
+  if (ni) ni.value = "";
+  window.state.system = SYS.INIT;
+  window.saveState();
+  setStatus("請輸入姓名並鎖定名單");
+  clearBlink();
+}
+	else {
       const ni = $("nameInput"); if (ni) ni.value = window.state.names.join("\n");
       if (window.state.system === SYS.ROUND1){
         window.initWheel(remainingNames());
