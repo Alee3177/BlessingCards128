@@ -2,12 +2,8 @@
 (() => {
 
 let canvas, ctx;
-let segments = ["1","2"];
+let segments = [];   // 🔥 不再預設 ["1","2"]
 let rotation = 0;
-
-function normalizeAngle(a){
-    return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-  }
 
 // ⭐ 轉盤動畫長度 = drum.mp3 秒數
 const SPIN_DURATION = 10000;
@@ -30,8 +26,7 @@ function bindCanvas(){
 function setSegments(list){
   segments = (Array.isArray(list) && list.length)
     ? list.slice()
-    : ["1","2"];
-
+    : [];
   drawWheel();
 }
 
@@ -44,11 +39,15 @@ function drawWheel(){
 
   const W = canvas.width;
   const H = canvas.height;
+
+  ctx.clearRect(0,0,W,H);
+
+  // 🔥 若沒有資料，直接清空
+  if (!segments.length) return;
+
   const cx = W/2;
   const cy = H/2;
   const R = Math.min(W,H) * 0.46;
-
-  ctx.clearRect(0,0,W,H);
 
   ctx.save();
   ctx.translate(cx,cy);
@@ -99,9 +98,7 @@ function drawWheel(){
 // 初始化
 // =================
 function initWheel(list){
-
   if (!bindCanvas()) return;
-
   setSegments(list);
   rotation = 0;
   drawWheel();
@@ -115,11 +112,10 @@ function easeOutCubic(t){
 }
 
 // =================
-// 角度正規化
+// 轉動
 // =================
 function spinWheel(direction, options = {}, onDone){
 
-  // 向後相容
   if (typeof options === "function"){
     onDone = options;
     options = {};
@@ -154,7 +150,7 @@ function spinWheel(direction, options = {}, onDone){
   const delta = direction * spins * Math.PI*2;
 
   const landingAdjust =
-    normalizeAngle(finalRotation - startRotation);
+    ((finalRotation - startRotation) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
 
   const endRotation =
     startRotation + delta + landingAdjust;
@@ -173,16 +169,67 @@ function spinWheel(direction, options = {}, onDone){
 
     if (t < 1){
       requestAnimationFrame(frame);
+    } else {
+      if (onDone) onDone(selectedValue);
     }
-else{
-  // 不再強制重設 rotation
-  // 讓最後一幀自然停住
-
-  if (onDone) onDone(selectedValue);
-}
   }
 
   requestAnimationFrame(frame);
+}
+
+// =================
+// 爆點版 Confetti
+// =================
+function launchConfetti(duration = 3000){
+
+  const canvas = document.getElementById("confettiCanvas");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const particles = [];
+  const colors = ["#f4b63a","#ffd86b","#ffb347","#fff3b0","#ffffff"];
+
+  const end = Date.now() + duration;
+
+  for (let i=0;i<140;i++){
+    const angle = Math.random()*Math.PI*2;
+    const speed = 4 + Math.random()*6;
+
+    particles.push({
+      x: W/2,
+      y: H/2,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      size: 6 + Math.random()*6,
+      gravity: 0.15 + Math.random()*0.2,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+
+  function frame(){
+
+    ctx.clearRect(0,0,W,H);
+
+    particles.forEach(p=>{
+      p.vy += p.gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x,p.y,p.size,p.size);
+    });
+
+    if (Date.now() < end){
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0,0,W,H);
+    }
+  }
+
+  frame();
 }
 
 // =================
@@ -192,59 +239,6 @@ window.initWheel = initWheel;
 window.drawWheel = drawWheel;
 window.spinWheel = spinWheel;
 window.__wheelSetSegments = setSegments;
-
-
-// =================
-// Confetti
-// =================
-function launchConfetti(){
-
-  const canvas = document.getElementById("confettiCanvas");
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  const W = canvas.width;
-  const H = canvas.height;
-
-  const pieces = [];
-
-  for (let i=0;i<80;i++){
-    pieces.push({
-      x: Math.random()*W,
-      y: -20,
-      size: 6 + Math.random()*6,
-      speed: 2 + Math.random()*3,
-      angle: Math.random()*Math.PI*2,
-      color: ["#f4b63a","#ffd86b","#ff7f50","#5ad1ff"][Math.floor(Math.random()*4)]
-    });
-  }
-
-  let frame = 0;
-
-  function draw(){
-
-    ctx.clearRect(0,0,W,H);
-
-    pieces.forEach(p=>{
-      p.y += p.speed;
-      p.x += Math.sin(p.angle)*1.5;
-
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x,p.y,p.size,p.size);
-    });
-
-    frame++;
-
-    if (frame < 180){
-      requestAnimationFrame(draw);
-    }else{
-      ctx.clearRect(0,0,W,H);
-    }
-  }
-
-  draw();
-}
-
 window.launchConfetti = launchConfetti;
 
 })();
