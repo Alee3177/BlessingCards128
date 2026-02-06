@@ -193,4 +193,58 @@ window.drawWheel = drawWheel;
 window.spinWheel = spinWheel;
 window.__wheelSetSegments = setSegments;
 
+
+// =================
+// Confetti
+// =================
+function launchConfetti(){
+
+  const canvas = document.getElementById("confettiCanvas");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+
+  const pieces = [];
+
+  for (let i=0;i<80;i++){
+    pieces.push({
+      x: Math.random()*W,
+      y: -20,
+      size: 6 + Math.random()*6,
+      speed: 2 + Math.random()*3,
+      angle: Math.random()*Math.PI*2,
+      color: ["#f4b63a","#ffd86b","#ff7f50","#5ad1ff"][Math.floor(Math.random()*4)]
+    });
+  }
+
+  let frame = 0;
+
+  function draw(){
+
+    ctx.clearRect(0,0,W,H);
+
+    pieces.forEach(p=>{
+      p.y += p.speed;
+      p.x += Math.sin(p.angle)*1.5;
+
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x,p.y,p.size,p.size);
+    });
+
+    frame++;
+
+    if (frame < 180){
+      requestAnimationFrame(draw);
+    }else{
+      ctx.clearRect(0,0,W,H);
+    }
+  }
+
+  draw();
+}
+
+window.launchConfetti = launchConfetti;
+
 })();
