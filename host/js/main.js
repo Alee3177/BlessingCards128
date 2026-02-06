@@ -200,98 +200,132 @@
       };
     }
 
-    if (btnR1){
-      btnR1.onclick = () => {
-        if (!window.__BC_MASTER__?.canAct?.()) return;
-        if (!window.state.locked) return;
+if (btnR1){
+  btnR1.onclick = () => {
 
-        unlockAudio();
+    if (!window.__BC_MASTER__?.canAct?.()) return;
+    if (!window.state.locked) return;
 
-        const remain = remainingNames();
-        if (!remain.length){
-          window.state.system = SYS.FINISHED;
-          window.saveState();
-          window.applyUIState?.();
-          setStatus("本輪已完成");
-          clearBlink();
-          return;
-        }
+    unlockAudio();
 
-        clearBlink();
-        window.__wheelSetSegments(remain);
-        playDrum();
+    const remain = remainingNames();
 
-        // ROUND1 clockwise
-        window.spinWheel(+1, (winnerName) => {
-          const idx = window.state.names.indexOf(winnerName);
-          window.state.lastWinnerIndex = idx;
-
-          const used = new Set(window.state.usedName||[]);
-          used.add(winnerName);
-          window.state.usedName = Array.from(used);
-
-          window.state.system = SYS.ROUND2;
-          window.saveState();
-          window.applyUIState?.();
-
-          setStatus(`第一輪完成：抽中「${winnerName}」，請抽紅包（第二輪）`);
-          const b = $("btnRound2"); if (b) b.classList.add("blink-btn");
-        });
-      };
+    // ⭐ 全部抽完
+    if (!remain.length){
+      window.state.system = SYS.FINISHED;
+      window.saveState();
+      window.applyUIState?.();
+      setStatus("本輪已完成");
+      clearBlink();
+      return;
     }
 
-    if (btnR2){
-      btnR2.onclick = () => {
-        if (!window.__BC_MASTER__?.canAct?.()) return;
-        if (window.state.system !== SYS.ROUND2) return;
+    clearBlink();
 
-        unlockAudio();
+    // ⭐ 輪盤固定顯示全部姓名（重點）
+    const allSlots = window.state.names.slice();
+    window.__wheelSetSegments(allSlots);
 
-        const remain = remainingVerses();
-        if (!remain.length){
-          window.state.system = SYS.FINISHED;
-          window.saveState();
-          window.applyUIState?.();
-          setStatus("本輪已完成");
-          clearBlink();
-          return;
-        }
+    playDrum();
 
-        clearBlink();
-        window.__wheelSetSegments(remain);
-        playDrum();
+    // ⭐ 只允許從剩餘名單抽
+    window.spinWheel(+1, { pickFrom: remain }, (winnerName) => {
 
-        // ROUND2 counterclockwise
-        window.spinWheel(-1, (code) => {
-          const c = pad3(code);
-          const ref = getRef(c);
+      const idx = window.state.names.indexOf(winnerName);
+      window.state.lastWinnerIndex = idx;
 
-          const used = new Set(window.state.verseUsed||[]);
-          used.add(c);
-          window.state.verseUsed = Array.from(used);
+      const used = new Set(window.state.usedName || []);
+      used.add(winnerName);
+      window.state.usedName = Array.from(used);
 
-          window.state.currentVerse = { code: c, ref };
+      window.state.system = SYS.ROUND2;
+      window.saveState();
+      window.applyUIState?.();
 
-          const name = window.state.names[window.state.lastWinnerIndex] || "";
-          const t = new Date();
-          const hh = String(t.getHours()).padStart(2,"0");
-          const mm = String(t.getMinutes()).padStart(2,"0");
-          const ss = String(t.getSeconds()).padStart(2,"0");
-          window.state.logs.push({ t:`${hh}:${mm}:${ss}`, name, code:c, ref });
+      setStatus(`第一輪完成：抽中「${winnerName}」，請抽紅包（第二輪）`);
 
-          // broadcast to viewer (Mode A)
-          localStorage.setItem("LAST_VERSE", JSON.stringify({ verse:c, ref, time: Date.now(), name }));
+      const b = $("btnRound2");
+      if (b) b.classList.add("blink-btn");
 
-          window.state.system = SYS.VIEWER;
-          window.saveState();
-          playWin();
-          window.applyUIState?.();
+    });
+  };
+}
 
-          setStatus(`第二輪完成：抽中經句「${c}」`);
-          const b = $("btnView"); if (b) b.classList.add("blink-btn");
-        });
-      };
+if (btnR2){
+  btnR2.onclick = () => {
+
+    if (!window.__BC_MASTER__?.canAct?.()) return;
+    if (window.state.system !== SYS.ROUND2) return;
+
+    unlockAudio();
+
+    const remain = remainingVerses();
+
+    // ⭐ 若全部抽完
+    if (!remain.length){
+      window.state.system = SYS.FINISHED;
+      window.saveState();
+      window.applyUIState?.();
+      setStatus("本輪已完成");
+      clearBlink();
+      return;
     }
+
+    clearBlink();
+
+    // ⭐ 第二輪輪盤格數 = 姓名數量（UI固定）
+    const slots = window.state.names.map((_,i)=> String(i+1));
+    window.__wheelSetSegments(slots);
+
+    playDrum();
+
+window.spinWheel(-1, {}, (slotIndex) => {
+
+  const remain = remainingVerses();
+
+  // ⭐ 用 slot index 對應 verse
+  const c = pad3(remain[slotIndex % remain.length]);
+  const ref = getRef(c);
+
+      const used = new Set(window.state.verseUsed || []);
+      used.add(c);
+      window.state.verseUsed = Array.from(used);
+
+      window.state.currentVerse = { code:c, ref };
+
+      const name = window.state.names[window.state.lastWinnerIndex] || "";
+
+      const t = new Date();
+      const hh = String(t.getHours()).padStart(2,"0");
+      const mm = String(t.getMinutes()).padStart(2,"0");
+      const ss = String(t.getSeconds()).padStart(2,"0");
+
+      window.state.logs.push({ t:`${hh}:${mm}:${ss}`, name, code:c, ref });
+
+      // ⭐ 廣播給 viewer
+      localStorage.setItem("LAST_VERSE", JSON.stringify({
+        verse:c,
+        ref,
+        time:Date.now(),
+        name
+      }));
+
+      window.state.system = SYS.VIEWER;
+      window.saveState();
+
+      playWin();
+      launchConfetti?.();
+
+      window.applyUIState?.();
+
+      setStatus(`第二輪完成：抽中經句「${c}」`);
+
+      const b = $("btnView");
+      if (b) b.classList.add("blink-btn");
+
+    });
+  };
+}
 
     if (btnView){
       btnView.onclick = () => {

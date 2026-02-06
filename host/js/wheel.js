@@ -1,141 +1,204 @@
 // host/js/wheel.js
 (() => {
-  let canvas, ctx;
-  let segments = ["1","2"];
-  let rotation = 0; // radians
 
-  function bindCanvas(){
-    canvas = document.getElementById("wheelCanvas");
-    if (!canvas) return false;
-    ctx = canvas.getContext("2d");
-    return true;
-  }
+let canvas, ctx;
+let segments = ["1","2"];
+let rotation = 0;
 
-  function setSegments(list){
-    segments = (Array.isArray(list) && list.length) ? list.slice() : ["1","2"];
-  }
+// ⭐ 轉盤動畫長度 = drum.mp3 秒數
+const SPIN_DURATION = 10000;
 
-  function normalizeAngle(a){
-    const TAU = Math.PI * 2;
-    return ((a % TAU) + TAU) % TAU;
-  }
+// =================
+// Canvas 綁定
+// =================
+function bindCanvas(){
+  canvas = document.getElementById("wheelCanvas") ||
+           document.getElementById("wheel");
+  if (!canvas) return false;
 
-  function drawWheel(){
-    if (!canvas || !ctx) return;
-    const W = canvas.width, H = canvas.height;
-    const cx = W/2, cy = H/2;
-    const R = Math.min(W,H)*0.46;
+  ctx = canvas.getContext("2d");
+  return true;
+}
 
-    ctx.clearRect(0,0,W,H);
+// =================
+// 設定 UI 格數
+// =================
+function setSegments(list){
+  segments = (Array.isArray(list) && list.length)
+    ? list.slice()
+    : ["1","2"];
 
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(rotation);
+  drawWheel();
+}
 
-    const N = segments.length;
-    const step = (Math.PI*2)/N;
+// =================
+// 畫輪盤
+// =================
+function drawWheel(){
 
-    for (let i=0;i<N;i++){
-      const a0 = i*step;
-      const a1 = a0 + step;
+  if (!canvas || !ctx) return;
 
-      ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.arc(0,0,R,a0,a1);
-      ctx.closePath();
-      ctx.fillStyle = (i%2===0) ? "#f5c64d" : "#f7dea2";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,.18)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+  const W = canvas.width;
+  const H = canvas.height;
+  const cx = W/2;
+  const cy = H/2;
+  const R = Math.min(W,H) * 0.46;
 
-      // label
-      ctx.save();
-      ctx.rotate(a0 + step/2);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#1f2937";
-      ctx.font = "26px system-ui, -apple-system, Segoe UI, Roboto, Noto Sans TC";
-      const label = String(segments[i]);
-      ctx.fillText(label, R-16, 10);
-      ctx.restore();
-    }
+  ctx.clearRect(0,0,W,H);
 
-    // center disc
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(rotation);
+
+  const N = segments.length;
+  const step = (Math.PI*2)/N;
+
+  for (let i=0;i<N;i++){
+
+    const a0 = i*step;
+    const a1 = a0 + step;
+
     ctx.beginPath();
-    ctx.arc(0,0,R*0.22,0,Math.PI*2);
-    ctx.fillStyle = "#fff";
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,R,a0,a1);
+    ctx.closePath();
+
+    ctx.fillStyle = i%2 ? "#f7dea2" : "#f5c64d";
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,.1)";
+
+    ctx.strokeStyle = "rgba(0,0,0,.2)";
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.fillStyle = "rgba(0,0,0,.55)";
-    ctx.font = "20px system-ui, -apple-system, Segoe UI, Roboto, Noto Sans TC";
-    ctx.textAlign = "center";
-    ctx.fillText("BlessingCards128", 0, 8);
+
+    // label
+    ctx.save();
+    ctx.rotate(a0 + step/2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#222";
+    ctx.font = "26px Noto Sans TC, system-ui";
+
+    ctx.fillText(String(segments[i]), R-14, 8);
 
     ctx.restore();
   }
 
-  function initWheel(list){
-    if (!bindCanvas()) return;
-    setSegments(list);
-    rotation = 0;
-    drawWheel();
+  // 中央圓
+  ctx.beginPath();
+  ctx.arc(0,0,R*0.2,0,Math.PI*2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// =================
+// 初始化
+// =================
+function initWheel(list){
+
+  if (!bindCanvas()) return;
+
+  setSegments(list);
+  rotation = 0;
+  drawWheel();
+}
+
+// =================
+// easing
+// =================
+function easeOutCubic(t){
+  return 1 - Math.pow(1-t,3);
+}
+
+// =================
+// 角度正規化
+// =================
+function normalizeAngle(a){
+  return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+}
+
+// =================
+// 核心 Spin
+// =================
+function spinWheel(direction, options, onDone){
+
+  // ⭐ 向後相容
+  if (typeof options === "function"){
+    onDone = options;
+    options = {};
   }
 
-  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+  options = options || {};
 
-  // Spin and return selected value
-  // direction: +1 clockwise, -1 counterclockwise
-  function spinWheel(direction, onDone){
-    if (!canvas || !ctx) bindCanvas();
+  if (!canvas || !ctx) bindCanvas();
 
-    const N = segments.length;
-    if (N <= 0) return;
+  // ⭐ 抽籤來源
+  const pickList = options.pickFrom || segments;
+  const N = pickList.length;
+  if (!N) return;
 
-    // pick target
-    const targetIndex = Math.floor(Math.random()*N);
+  // ⭐ UI 格數固定
+  const uiSlots = segments.slice();
+  const slotCount = uiSlots.length;
 
-    const step = (Math.PI*2)/N;
-    const targetAngle = (targetIndex*step + step/2);
+  // ⭐ 隨機目標
+  const targetIndex = Math.floor(Math.random()*N);
+  const selectedValue = pickList[targetIndex];
 
-    // land so that target center points to top (12 o'clock)
-    const finalRotation = normalizeAngle(-Math.PI/2 - targetAngle);
+  // ⭐ 找對應 UI 格位置
+  const slotIndex = uiSlots.indexOf(selectedValue);
+  const visualIndex = slotIndex >= 0 ? slotIndex : targetIndex % slotCount;
 
-    // spins
-    const spins = 6 + Math.floor(Math.random()*3); // 6-8
-    const delta = direction * spins * Math.PI * 2;
+  const step = (Math.PI*2)/slotCount;
+  const targetAngle = visualIndex*step + step/2;
 
-    const startRotation = rotation;
+  const finalRotation = -Math.PI/2 - targetAngle;
 
-    // landing adjust: keep continuity in angular space
-    const landingAdjust = normalizeAngle(finalRotation) - normalizeAngle(startRotation);
+  const startRotation = rotation;
 
-    const endRotation = startRotation + delta + landingAdjust;
+  // ⭐ 轉動圈數
+  const spins = 6 + Math.random()*2;
+  const delta = direction * spins * Math.PI*2;
 
-    const duration = 1800;
-    const startTime = performance.now();
+  const landingAdjust =
+    normalizeAngle(finalRotation) -
+    normalizeAngle(startRotation);
 
-    function frame(now){
-      const t = Math.min(1, (now - startTime)/duration);
-      const k = easeOutCubic(t);
-      rotation = startRotation + (endRotation - startRotation) * k;
+  const endRotation =
+    startRotation + delta + landingAdjust;
+
+  const startTime = performance.now();
+
+  function frame(now){
+
+    const t = Math.min(1,(now-startTime)/SPIN_DURATION);
+    const k = easeOutCubic(t);
+
+    rotation =
+      startRotation + (endRotation-startRotation)*k;
+
+    drawWheel();
+
+    if (t < 1){
+      requestAnimationFrame(frame);
+    }
+    else{
+      rotation = finalRotation;
       drawWheel();
 
-      if (t < 1){
-        requestAnimationFrame(frame);
-      } else {
-        rotation = finalRotation;
-        drawWheel();
-        const val = segments[targetIndex];
-        if (onDone) onDone(val);
-      }
+      if (onDone) onDone(selectedValue);
     }
-    requestAnimationFrame(frame);
   }
 
-  window.initWheel = initWheel;
-  window.drawWheel = drawWheel;
-  window.spinWheel = spinWheel;
-  window.__wheelSetSegments = setSegments;
+  requestAnimationFrame(frame);
+}
+
+// =================
+// 對外掛載
+// =================
+window.initWheel = initWheel;
+window.drawWheel = drawWheel;
+window.spinWheel = spinWheel;
+window.__wheelSetSegments = setSegments;
+
 })();
