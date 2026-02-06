@@ -174,12 +174,12 @@ function spinWheel(direction, options = {}, onDone){
     if (t < 1){
       requestAnimationFrame(frame);
     }
-    else{
-      rotation = finalRotation;
-      drawWheel();
+else{
+  // 不再強制重設 rotation
+  // 讓最後一幀自然停住
 
-      if (onDone) onDone(selectedValue);
-    }
+  if (onDone) onDone(selectedValue);
+}
   }
 
   requestAnimationFrame(frame);

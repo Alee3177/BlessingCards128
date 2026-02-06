@@ -311,7 +311,10 @@ if (btnR2){
       window.saveState();
 
       playWin();
-      launchConfetti?.();
+
+if (typeof launchConfetti === "function") {
+  launchConfetti();
+}
 
       window.applyUIState?.();
 
