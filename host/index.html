@@ -79,9 +79,27 @@
           <div class="muted" id="centerLine" style="margin-top:6px"></div>
         </div>
 
-        <div class="canvasWrap">
-          <canvas id="wheelCanvas" width="900" height="900"></canvas>
-        </div>
+<div class="canvasWrap" style="position:relative;">
+  <canvas id="wheelCanvas" width="900" height="900"></canvas>
+
+  <!-- Confetti overlay -->
+  <canvas id="confettiCanvas"
+          width="900" height="900"
+          style="position:absolute;left:0;top:0;width:100%;height:auto;pointer-events:none;"></canvas>
+
+  <!-- win.mp4 overlay -->
+  <video id="winVideo"
+         muted playsinline preload="auto"
+         style="position:absolute;left:0;top:0;width:100%;height:auto;display:none;pointer-events:none;">
+    <source src="../win.mp4" type="video/mp4">
+  </video>
+
+  <!-- Center text overlay (optional) -->
+  <div id="centerText"
+       style="position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+              pointer-events:none;font-weight:800;font-size:20px;white-space:pre-line;">
+  </div>
+</div>
 
         <div class="logBox">
           <div class="muted" style="margin:8px 0 6px">抽籤紀錄（最新在下）</div>
