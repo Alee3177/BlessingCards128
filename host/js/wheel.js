@@ -5,6 +5,10 @@ let canvas, ctx;
 let segments = ["1","2"];
 let rotation = 0;
 
+function normalizeAngle(a){
+    return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  }
+
 // ⭐ 轉盤動畫長度 = drum.mp3 秒數
 const SPIN_DURATION = 10000;
 
@@ -113,41 +117,31 @@ function easeOutCubic(t){
 // =================
 // 角度正規化
 // =================
-function normalizeAngle(a){
-  return ((a % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-}
+function spinWheel(direction, options = {}, onDone){
 
-// =================
-// 核心 Spin
-// =================
-function spinWheel(direction, options, onDone){
-
-  // ⭐ 向後相容
+  // 向後相容
   if (typeof options === "function"){
     onDone = options;
     options = {};
   }
 
-  options = options || {};
-
   if (!canvas || !ctx) bindCanvas();
 
-  // ⭐ 抽籤來源
   const pickList = options.pickFrom || segments;
   const N = pickList.length;
   if (!N) return;
 
-  // ⭐ UI 格數固定
   const uiSlots = segments.slice();
   const slotCount = uiSlots.length;
 
-  // ⭐ 隨機目標
   const targetIndex = Math.floor(Math.random()*N);
   const selectedValue = pickList[targetIndex];
 
-  // ⭐ 找對應 UI 格位置
   const slotIndex = uiSlots.indexOf(selectedValue);
-  const visualIndex = slotIndex >= 0 ? slotIndex : targetIndex % slotCount;
+  const visualIndex =
+    slotIndex >= 0
+      ? slotIndex
+      : targetIndex % slotCount;
 
   const step = (Math.PI*2)/slotCount;
   const targetAngle = visualIndex*step + step/2;
@@ -156,13 +150,11 @@ function spinWheel(direction, options, onDone){
 
   const startRotation = rotation;
 
-  // ⭐ 轉動圈數
   const spins = 6 + Math.random()*2;
   const delta = direction * spins * Math.PI*2;
 
   const landingAdjust =
-    normalizeAngle(finalRotation) -
-    normalizeAngle(startRotation);
+    normalizeAngle(finalRotation - startRotation);
 
   const endRotation =
     startRotation + delta + landingAdjust;

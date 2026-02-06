@@ -279,13 +279,11 @@ if (btnR2){
 
     playDrum();
 
-window.spinWheel(-1, {}, (slotIndex) => {
+    // ⭐ 抽籤只從剩餘經句
+    window.spinWheel(-1, { pickFrom: remain }, (code) => {
 
-  const remain = remainingVerses();
-
-  // ⭐ 用 slot index 對應 verse
-  const c = pad3(remain[slotIndex % remain.length]);
-  const ref = getRef(c);
+      const c = pad3(code);
+      const ref = getRef(c);
 
       const used = new Set(window.state.verseUsed || []);
       used.add(c);
@@ -302,7 +300,6 @@ window.spinWheel(-1, {}, (slotIndex) => {
 
       window.state.logs.push({ t:`${hh}:${mm}:${ss}`, name, code:c, ref });
 
-      // ⭐ 廣播給 viewer
       localStorage.setItem("LAST_VERSE", JSON.stringify({
         verse:c,
         ref,
@@ -322,7 +319,6 @@ window.spinWheel(-1, {}, (slotIndex) => {
 
       const b = $("btnView");
       if (b) b.classList.add("blink-btn");
-
     });
   };
 }
