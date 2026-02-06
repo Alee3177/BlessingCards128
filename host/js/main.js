@@ -33,10 +33,11 @@
     }
   }
 
-  function remainingNames(){
-    const used = new Set(window.state.usedName||[]);
-    return (window.state.names||[]).filter(n => !used.has(n));
-  }
+function remainingNames(){
+  const used = new Set(window.state.usedName || []);
+  return (window.state.names || [])
+    .filter((_, i) => !used.has(i));
+}
 
   function remainingVerses(){
     const used = new Set(window.state.verseUsed||[]);
