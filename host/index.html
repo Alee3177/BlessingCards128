@@ -177,11 +177,11 @@
       return {
         system: SYS.INIT,
         names: [],
-        usedIdx: [],          // indices of names already done (after ROUND1)
-        verseUsed: [],        // codes "001".."128"
-        curIdx: -1,           // current winner index (after ROUND1)
-        curVerse: null,       // {code, ref}
-        logs: []              // {t,name,code,ref}
+        usedIdx: [],
+        verseUsed: [],
+        curIdx: -1,
+        curVerse: null,
+        logs: []
       };
     }
 
@@ -226,154 +226,96 @@
     const canvas = $("wheelCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Visual spec
-    const LINE_W = 3;                // outer + segment line width = 3px
-    const RAY_W  = 3;                // inner-cut line width = 3px
-    const RAY_COLOR = "#ffffff";     // inner-cut line is white
+    const LINE_W = 3;
     const POINTER_ANGLE = -Math.PI/2; // 12 o'clock
 
     let rotation = 0;
     let spinning = false;
-    let highlightIdx = null; // index in names to highlight (贴齐扇形), null means none
+    let highlightIdx = null;
 
-    function clear(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-    }
+    function drawWheel(){
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const r = Math.min(w, h) / 2 - 6;
 
-    function drawBaseCircle(cx, cy, R){
-      // single circle + inner cut line
-      ctx.save();
-      ctx.translate(cx,cy);
+      ctx.clearRect(0, 0, w, h);
 
-      // circle
+      // slotCount：INIT 只畫一圈 + 一條白線；其他依人數切分
+      let slotCount = 1;
+      if (state.system !== SYS.INIT && state.names && state.names.length){
+        slotCount = state.names.length;
+      }
+
+      const anglePer = (Math.PI * 2) / slotCount;
+
+      // segments
+      for (let i = 0; i < slotCount; i++){
+        const start = rotation + i * anglePer;
+        const end = start + anglePer;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, end);
+        ctx.closePath();
+
+        // highlight：僅在非 INIT、且非 ROUND2_SPIN 顯示
+        if (i === highlightIdx && state.system !== SYS.INIT && state.system !== SYS.ROUND2_SPIN){
+          ctx.fillStyle = "#f4c542";
+        } else {
+          ctx.fillStyle = (i % 2 === 0) ? "#e8c97a" : "#e2c37a";
+        }
+        ctx.fill();
+
+        ctx.lineWidth = LINE_W;
+        ctx.strokeStyle = "#000";
+        ctx.stroke();
+      }
+
+      // inner circle
       ctx.beginPath();
-      ctx.arc(0,0,R,0,Math.PI*2);
+      ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
       ctx.lineWidth = LINE_W;
-      ctx.strokeStyle = "#111827";
+      ctx.strokeStyle = "#000";
       ctx.stroke();
 
-      // inner ray line (3px white)
-      ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.lineTo(Math.cos(POINTER_ANGLE)*R, Math.sin(POINTER_ANGLE)*R);
-      ctx.lineWidth = RAY_W;
-      ctx.strokeStyle = RAY_COLOR;
-      ctx.stroke();
+      // INIT：只畫單一白色切線（3px）
+      if (state.system === SYS.INIT){
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx, cy - r);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        return;
+      }
 
-      ctx.restore();
+      // text
+      ctx.fillStyle = "#000";
+      ctx.font = '16px system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      for (let i = 0; i < slotCount; i++){
+        const mid = rotation + i * anglePer + anglePer / 2;
+        const tx = cx + Math.cos(mid) * (r * 0.75);
+        const ty = cy + Math.sin(mid) * (r * 0.75);
+        const label = state.names[i] || "";
+
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(mid);
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      }
     }
-
-function drawWheel(){
-
-  const canvas = $("wheel");
-  const ctx = canvas.getContext("2d");
-
-  const w = canvas.width;
-  const h = canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const r = Math.min(w, h) / 2 - 6;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // --------------------------
-  // Determine slot count
-  // --------------------------
-  let slotCount = 1;
-
-  if (state.system !== SYS.INIT &&
-      state.names &&
-      state.names.length){
-    slotCount = state.names.length;
-  }
-
-  const anglePer = (Math.PI * 2) / slotCount;
-
-  // --------------------------
-  // Draw segments
-  // --------------------------
-  for (let i = 0; i < slotCount; i++){
-
-    const start = rotation + i * anglePer;
-    const end = start + anglePer;
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, start, end);
-    ctx.closePath();
-
-    // Highlight
-    if (i === highlightIdx &&
-        state.system !== SYS.INIT &&
-        state.system !== SYS.ROUND2_SPIN){
-      ctx.fillStyle = "#f4c542";
-    } else {
-      ctx.fillStyle = (i % 2 === 0) ? "#e8c97a" : "#e2c37a";
-    }
-
-    ctx.fill();
-
-    // 3px border
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#000";
-    ctx.stroke();
-  }
-
-  // --------------------------
-  // Draw white inner circle
-  // --------------------------
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
-  ctx.fillStyle = "#fff";
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#000";
-  ctx.stroke();
-
-  // --------------------------
-  // INIT mode: draw single radius line
-  // --------------------------
-  if (state.system === SYS.INIT){
-
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx, cy - r);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#fff";
-    ctx.stroke();
-
-    return;
-  }
-
-  // --------------------------
-  // Draw text
-  // --------------------------
-  ctx.fillStyle = "#000";
-  ctx.font = "16px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  for (let i = 0; i < slotCount; i++){
-
-    const mid = rotation + i * anglePer + anglePer / 2;
-    const tx = cx + Math.cos(mid) * (r * 0.75);
-    const ty = cy + Math.sin(mid) * (r * 0.75);
-
-    const label = state.names[i] || "";
-
-    ctx.save();
-    ctx.translate(tx, ty);
-    ctx.rotate(mid);
-    ctx.fillText(label, 0, 0);
-    ctx.restore();
-  }
-}
 
     function angleForIndexAtPointer(idx, N){
-      // We want the center of idx slice to align with pointer at 12 o'clock.
       const step = (Math.PI*2)/N;
       const mid = idx*step + step/2;
-      // wheel rotation to bring 'mid' to POINTER_ANGLE
       return POINTER_ANGLE - mid;
     }
 
@@ -386,7 +328,7 @@ function drawWheel(){
 
         const startRot = rotation;
         const baseDelta = (direction >= 0 ? 1 : -1) * (Math.PI*2) * (6 + Math.random()*2); // 6~8圈
-        // add the exact landing adjustment
+
         const landingDelta = ((targetRot - startRot) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
         const endRot = startRot + baseDelta + (direction >= 0 ? landingDelta : -landingDelta);
 
@@ -402,8 +344,7 @@ function drawWheel(){
             requestAnimationFrame(frame);
           } else {
             spinning = false;
-            // snap to exact target for perfect alignment (no偏差)
-            rotation = targetRot;
+            rotation = targetRot; // snap
             drawWheel();
             resolve();
           }
@@ -437,8 +378,8 @@ function drawWheel(){
     }
 
     function setSys(s){ state.system = s; saveState(); }
+
     function setStatusOnlySpin(isSpin){
-      // 旋轉時唯一顯示「旋轉中……」
       if (isSpin){
         $("statusLine").textContent = "旋轉中……";
         $("centerLine").textContent = "";
@@ -463,47 +404,32 @@ function drawWheel(){
       const done = new Set(state.usedIdx||[]).size;
       $("idxPill").textContent = `${done}/${total}`;
       let curName = "-";
-if (
-  state.curIdx >= 0 &&
-  state.names &&
-  state.names[state.curIdx]
-){
-  curName = state.names[state.curIdx];
-}
+      if (state.curIdx >= 0 && state.names && state.names[state.curIdx]){
+        curName = state.names[state.curIdx];
+      }
       $("curPill").textContent = curName;
     }
 
     function updateButtons(){
       const hasNames = (state.names||[]).length > 0;
 
-      // input enable rules:
-      // - INIT: editable
-      // - FINISHED: editable (for next round)
-      // - else: locked (to prevent accidental change mid-round)
       const inputEditable = (state.system === SYS.INIT || state.system === SYS.FINISHED);
       $("nameInput").disabled = !inputEditable;
 
-      // Lock button enabled in INIT and FINISHED (new round)
       $("btnLock").disabled = !(state.system === SYS.INIT || state.system === SYS.FINISHED);
 
-      // Round1 enabled only when ready and there are remaining
       const r1Ready = (state.system === SYS.ROUND1_READY);
       $("btnRound1").disabled = !(r1Ready && hasNames && remainingIndices().length>0 && !spinning);
 
-      // Round2 enabled only when ready
       const r2Ready = (state.system === SYS.ROUND2_READY);
       $("btnRound2").disabled = !(r2Ready && hasNames && state.curIdx>=0 && !spinning);
 
-      // View enabled only after round2 done for current person
       $("btnView").disabled = !(state.system === SYS.VIEWER_READY && state.curVerse);
 
-      // Next enabled after round2 done, and if not finished
       $("btnNext").disabled = !(state.system === SYS.VIEWER_READY && !spinning);
 
-      // PDF enabled when there is at least 1 log
       $("btnPdf").disabled = !((state.logs||[]).length>0);
 
-      // Reset always enabled
       $("btnReset").disabled = false;
     }
 
@@ -514,10 +440,9 @@ if (
     }
 
     // --------------------------
-    // QR (fixed) + copy
+    // QR + copy
     // --------------------------
     function viewerUrl(){
-      // host/index.html -> host/viewer.html
       return location.origin + location.pathname.replace(/\/index\.html$/,"/viewer.html");
     }
     function updateQR(){
@@ -533,7 +458,6 @@ if (
         $("btnCopy").textContent = "已複製";
         setTimeout(()=> $("btnCopy").textContent = "複製", 900);
       }catch{
-        // fallback
         $("qrUrl").select();
         document.execCommand("copy");
         $("btnCopy").textContent = "已複製";
@@ -577,8 +501,17 @@ if (
     }
 
     // --------------------------
-    // PDF (whole logs) via print
+    // PDF via print
     // --------------------------
+    function escapeHtml(s){
+      return String(s||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
     function openPdfPrint(){
       const logs = state.logs || [];
       if (!logs.length) return;
@@ -621,19 +554,9 @@ if (
       w.document.close();
     }
 
-    function escapeHtml(s){
-      return String(s||"")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#39;");
-    }
-
     // --------------------------
-    // Core flows (match your guarantees)
+    // Core flows
     // --------------------------
-
     function showFinishedHint(){
       const total = (state.names||[]).length;
       const lines =
@@ -644,8 +567,6 @@ if (
     }
 
     function shouldForceNewRoundOnLock(){
-      // 防呆：當全部抽完後，使用者直接改名單按鎖定，必須回到原始狀態（新局）
-      // 另外：若殘留 usedIdx / verseUsed / logs / curVerse 都視為舊局污染 -> 新局
       if (state.system === SYS.FINISHED) return true;
       if ((state.usedIdx||[]).length > 0) return true;
       if ((state.verseUsed||[]).length > 0) return true;
@@ -671,7 +592,6 @@ if (
     async function onLock(){
       if (spinning) return;
 
-      // 防回填：未鎖定時保持清空（避免 1 2 3）
       const ni = $("nameInput");
       ni.setAttribute("autocomplete","off");
 
@@ -687,13 +607,11 @@ if (
         return;
       }
 
-      // 強制新局（符合你的防呆規格）
       if (shouldForceNewRoundOnLock()){
         state = defaultState();
         rotation = 0;
         highlightIdx = null;
         spinning = false;
-        // 清掉舊 viewer 與更新戳
         try{ localStorage.removeItem(LAST_VERSE_KEY); }catch{}
         try{ localStorage.removeItem(LAST_UPDATE_KEY); }catch{}
       }
@@ -708,7 +626,6 @@ if (
       setSys(SYS.ROUND1_READY);
       saveState();
 
-      // 初始高亮無
       highlightIdx = null;
       rotation = 0;
 
@@ -721,7 +638,6 @@ if (
       if (spinning) return;
       const remain = remainingIndices();
       if (!remain.length){
-        // Should be finished already, but safe:
         setSys(SYS.FINISHED);
         saveState();
         highlightIdx = null;
@@ -736,29 +652,20 @@ if (
       setStatusOnlySpin(true);
       refreshUI();
 
-      // pick winner index from remaining
       const targetIdx = remain[Math.floor(Math.random()*remain.length)];
 
-      // During spin, no need to hide highlight if none; but keep as-is per spec.
-      // We'll keep highlight off during spin to prevent "殘影" perception.
-      const prevHighlight = highlightIdx;
       highlightIdx = null;
       drawWheel();
 
-      // audio for round1 (drum)
       stopAudio();
       playDrum();
 
-      // spin forward to target
       await spinToIndex(targetIdx, +1, 10000);
 
-      // highlight贴齐扇形
       highlightIdx = targetIdx;
 
-      // set current winner
       state.curIdx = targetIdx;
-      if (!Array.isArray(state.usedIdx)) state.usedIdx = [];
-      const used = new Set(state.usedIdx);
+      const used = new Set(state.usedIdx || []);
       used.add(targetIdx);
       state.usedIdx = Array.from(used);
 
@@ -772,17 +679,14 @@ if (
 
     async function onRound2(){
       if (spinning) return;
-      if (
-  state.curIdx < 0 ||
-  !state.names ||
-  !state.names[state.curIdx]
-) return;
+      if (state.curIdx < 0 || !state.names || !state.names[state.curIdx]) return;
 
       setSys(SYS.ROUND2_SPIN);
       saveState();
 
-      // spec: 第二輪動畫時暫時取消高亮，結束後回復
       const restoreIdx = state.curIdx;
+
+      // 第二輪：動畫期間取消高亮
       highlightIdx = null;
       drawWheel();
 
@@ -793,10 +697,8 @@ if (
       playDrum();
       playWinAt7s();
 
-      // pick verse from remaining (抽取池獨立，不影響 UI 格數)
       const verses = remainingVerses();
       if (!verses.length){
-        // no verses left, treat as finished
         highlightIdx = restoreIdx;
         setSys(SYS.VIEWER_READY);
         saveState();
@@ -805,38 +707,29 @@ if (
         refreshUI();
         return;
       }
+
       const code = verses[Math.floor(Math.random()*verses.length)];
       const ref  = getRef(code);
 
-      // spin reverse BUT land on the SAME person slice (names displayed)
+      // 第二輪：反轉，但仍落在同一個「人」的扇形（不切 128）
       await spinToIndex(restoreIdx, -1, 10000);
 
-      // restore highlight
       highlightIdx = restoreIdx;
 
-      // commit verse
       const usedV = new Set(state.verseUsed || []);
       usedV.add(code);
       state.verseUsed = Array.from(usedV);
 
       state.curVerse = { code, ref };
 
-      // write for viewer (auto-update)
       try{
         localStorage.setItem(LAST_VERSE_KEY, code);
         localStorage.setItem(LAST_UPDATE_KEY, String(Date.now()));
       }catch{}
 
-      // log
       state.logs = state.logs || [];
-      state.logs.push({
-        t: nowHHMMSS(),
-        name: state.names[restoreIdx],
-        code,
-        ref
-      });
+      state.logs.push({ t: nowHHMMSS(), name: state.names[restoreIdx], code, ref });
 
-      // After round2 complete: VIEWER_READY
       setSys(SYS.VIEWER_READY);
       saveState();
 
@@ -844,29 +737,24 @@ if (
       setStatusNormal(`第二輪完成：抽中經句「${code}」`, ref ? `章節：${ref}` : "");
       refreshUI();
 
-      // If this was the LAST person: immediate enable PDF + Lock (new round)
       const done = new Set(state.usedIdx || []).size;
       const total = (state.names||[]).length;
       if (total > 0 && done >= total){
         setSys(SYS.FINISHED);
         saveState();
         showFinishedHint();
-        // In FINISHED: enable Lock + name input (no reset required)
         refreshUI();
       }
     }
 
     function onView(){
       if (!state.curVerse) return;
-      // MUST NOT auto jump viewer; only open on button.
-      const url = viewerUrl();
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(viewerUrl(), "_blank", "noopener,noreferrer");
     }
 
     function onNext(){
       if (spinning) return;
 
-      // After viewing, proceed to next person if any remain
       const remain = remainingIndices();
       if (!remain.length){
         setSys(SYS.FINISHED);
@@ -876,7 +764,6 @@ if (
         return;
       }
 
-      // clear current verse, keep wheel as names, keep highlight cleared until next round1 result
       state.curVerse = null;
       state.curIdx = -1;
       saveState();
@@ -893,14 +780,10 @@ if (
 
     function onReset(){
       hardResetToInit();
-      // Clear input box explicitly
       const ni = $("nameInput");
       if (ni) ni.value = "";
     }
 
-    // --------------------------
-    // Wire events
-    // --------------------------
     function wire(){
       $("btnLock").onclick = onLock;
       $("btnRound1").onclick = onRound1;
@@ -912,23 +795,16 @@ if (
       $("btnCopy").onclick = copyQRUrl;
     }
 
-    // --------------------------
-    // Boot
-    // --------------------------
     function boot(){
       updateQR();
       wire();
 
-      // If INIT, enforce empty input to avoid browser auto-fill (1 2 3)
       if (state.system === SYS.INIT){
         $("nameInput").value = "";
       }
 
-      // Restore highlight on reload:
-      // - If ROUND2_READY / VIEWER_READY: highlight current person
       if (state.names && state.names.length){
         if (state.curIdx >= 0 && state.curIdx < state.names.length){
-          // highlight only when not spinning, and not in INIT
           highlightIdx = (state.system === SYS.ROUND2_READY || state.system === SYS.VIEWER_READY || state.system === SYS.ROUND2_SPIN || state.system === SYS.FINISHED)
             ? state.curIdx
             : null;
@@ -939,53 +815,38 @@ if (
         highlightIdx = null;
       }
 
-      // Render based on state
       rotation = rotation || 0;
       drawWheel();
 
-// Show appropriate status
-if (state.system === SYS.INIT){
-  setStatusNormal("請輸入姓名並鎖定名單", "");
-
-} else if (state.system === SYS.ROUND1_READY){
-  setStatusNormal("準備抽姓名（第一輪）", "");
-
-} else if (state.system === SYS.ROUND2_READY){
-  setStatusNormal("請抽紅包（第二輪）", "");
-
-} else if (state.system === SYS.VIEWER_READY){
-
-  let t = "第二輪完成";
-  let c = "";
-
-  if (state.curVerse){
-    t = "第二輪完成：抽中經句「" + state.curVerse.code + "」";
-    if (state.curVerse.ref){
-      c = "章節：" + state.curVerse.ref;
-    }
-  }
-
-  setStatusNormal(t, c);
-
-} else if (state.system === SYS.FINISHED){
-  showFinishedHint();
-
-} else {
-
-  // If in SPIN state due to reload, normalize to safe ready state
-  if ((state.usedIdx||[]).length > 0 && state.curIdx >= 0){
-    setSys(SYS.ROUND2_READY);
-    setStatusNormal("請抽紅包（第二輪）", "");
-
-  } else if (state.names && state.names.length){
-    setSys(SYS.ROUND1_READY);
-    setStatusNormal("準備抽姓名（第一輪）", "");
-
-  } else {
-    setSys(SYS.INIT);
-    setStatusNormal("請輸入姓名並鎖定名單", "");
-  }
-}
+      if (state.system === SYS.INIT){
+        setStatusNormal("請輸入姓名並鎖定名單", "");
+      } else if (state.system === SYS.ROUND1_READY){
+        setStatusNormal("準備抽姓名（第一輪）", "");
+      } else if (state.system === SYS.ROUND2_READY){
+        setStatusNormal("請抽紅包（第二輪）", "");
+      } else if (state.system === SYS.VIEWER_READY){
+        let t = "第二輪完成";
+        let c = "";
+        if (state.curVerse){
+          t = "第二輪完成：抽中經句「" + state.curVerse.code + "」";
+          if (state.curVerse.ref) c = "章節：" + state.curVerse.ref;
+        }
+        setStatusNormal(t, c);
+      } else if (state.system === SYS.FINISHED){
+        showFinishedHint();
+      } else {
+        // 若 reload 時卡在 SPIN：回到安全狀態
+        if ((state.usedIdx||[]).length > 0 && state.curIdx >= 0){
+          setSys(SYS.ROUND2_READY);
+          setStatusNormal("請抽紅包（第二輪）", "");
+        } else if (state.names && state.names.length){
+          setSys(SYS.ROUND1_READY);
+          setStatusNormal("準備抽姓名（第一輪）", "");
+        } else {
+          setSys(SYS.INIT);
+          setStatusNormal("請輸入姓名並鎖定名單", "");
+        }
+      }
 
       refreshUI();
       renderLogs();
