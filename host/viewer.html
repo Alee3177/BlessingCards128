@@ -3,67 +3,138 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>BlessingCards128 Viewer</title>
+  <title>BlessingCards128 Viewer (Stable)</title>
   <style>
-    body{margin:0;padding:18px;background:#0b1220;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif}
-    .card{max-width:520px;margin:0 auto;background:rgba(255,255,255,.08);border-radius:18px;padding:14px}
-    h1{font-size:16px;margin:0 0 8px}
-    .muted{opacity:.85;font-size:13px}
-    img{width:100%;border-radius:16px;display:block;background:#111827}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    button,a{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-decoration:none;color:#111827;background:#93c5fd}
-    .secondary{background:#e5e7eb}
+    :root{ --bg:#0b1220; --card:rgba(255,255,255,.08); --txt:#e5e7eb; --muted:rgba(229,231,235,.75); --r:18px; }
+    html,body{margin:0;padding:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif;color:var(--txt)}
+    .wrap{max-width:900px;margin:0 auto;padding:18px}
+    .card{background:var(--card);border-radius:var(--r);padding:14px;backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,.12)}
+    .title{font-size:18px;font-weight:900;margin:0 0 8px}
+    .muted{color:var(--muted);font-size:13px}
+    .imgbox{margin-top:12px;display:flex;justify-content:center}
+    img{max-width:100%;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:900;cursor:pointer;background:#93c5fd;color:#111827}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;background:rgba(255,255,255,.06)}
+    .code{font-weight:900}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>紅包 Viewer（只讀）</h1>
-    <div class="muted" id="meta">載入中…</div>
-    <div style="margin-top:10px">
-      <img id="img" alt="card" />
+  <div class="wrap">
+    <div class="card">
+      <div class="title">🎁 最新抽到的紅包</div>
+      <div class="muted">此頁會自動更新，不影響主持機操作。</div>
+
+      <div class="row" style="margin-top:10px">
+        <span class="pill">代號：<span class="code" id="codePill">---</span></span>
+        <span class="pill">章節：<span id="refPill">---</span></span>
+        <span class="pill">更新：<span id="timePill">---</span></span>
+      </div>
+
+      <div class="imgbox">
+        <img id="cardImg" alt="card" />
+      </div>
+
+      <div class="row">
+        <button id="btnDownload" disabled>下載圖片</button>
+      </div>
+
+      <div class="muted" id="hint" style="margin-top:10px"></div>
     </div>
-    <div class="row">
-      <a id="dl" class="secondary" download>下載圖片</a>
-      <button id="closeBtn" class="secondary">返回主持機</button>
-    </div>
-    <div class="muted" style="margin-top:10px">提示：若「返回主持機」無法關閉分頁，請直接關閉此分頁即可。</div>
   </div>
 
   <script src="../verseRefMap.js"></script>
   <script>
-    const params = new URLSearchParams(location.search);
-    let code = params.get("code");
-    let name = params.get("name") || "";
+    const LAST_VERSE_KEY = "LAST_VERSE";
+    const LAST_UPDATE_KEY = "LAST_UPDATE";
 
-    // If opened without params, use LAST_VERSE broadcast
-    try{
+    const $ = (id) => document.getElementById(id);
+
+    function nowHHMMSS(){
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      const ss = String(d.getSeconds()).padStart(2,"0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function getRef(code3){
+      const m = window.verseRefMap || {};
+      return m[code3] || "";
+    }
+
+    function cardUrl(code3){
+      // viewer.html is under /host/, cards under /cards/
+      return "../cards/" + code3 + ".png";
+    }
+
+    function setHint(text){
+      $("hint").textContent = text || "";
+    }
+
+    function updateView(){
+      const code = localStorage.getItem(LAST_VERSE_KEY);
       if (!code){
-        const raw = localStorage.getItem("LAST_VERSE");
-        if (raw){
-          const obj = JSON.parse(raw);
-          code = obj.verse;
-          if (!name) name = obj.name || "";
-        }
+        $("codePill").textContent = "---";
+        $("refPill").textContent = "---";
+        $("timePill").textContent = nowHHMMSS();
+        $("cardImg").removeAttribute("src");
+        $("btnDownload").disabled = true;
+        setHint("尚未抽出經句，請等待主持機抽出後自動更新。");
+        return;
       }
-    }catch{}
 
-    code = (code||"").padStart(3,"0");
+      const ref = getRef(code);
+      $("codePill").textContent = code;
+      $("refPill").textContent = ref || "(無)";
+      $("timePill").textContent = nowHHMMSS();
 
-    const ref = (window.verseRefMap && window.verseRefMap[code]) ? window.verseRefMap[code] : "";
-    const meta = document.getElementById("meta");
-    meta.textContent = (name ? `姓名：${name} / ` : "") + `編號：${code}` + (ref ? ` / ${ref}` : "");
+      const img = $("cardImg");
+      const src = cardUrl(code) + "?v=" + (localStorage.getItem(LAST_UPDATE_KEY) || Date.now());
+      img.src = src;
 
-    const img = document.getElementById("img");
-    const src = `../cards/${code}.png`;
-    img.src = src;
+      img.onload = () => {
+        $("btnDownload").disabled = false;
+        setHint("");
+      };
+      img.onerror = () => {
+        $("btnDownload").disabled = true;
+        setHint("找不到圖片資源，請確認 cards 資料夾與檔名是否正確。");
+      };
 
-    const dl = document.getElementById("dl");
-    dl.href = src;
-    dl.download = `${code}.png`;
+      $("btnDownload").onclick = async () => {
+        try{
+          const res = await fetch(cardUrl(code));
+          const blob = await res.blob();
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = code + ".png";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(()=> URL.revokeObjectURL(a.href), 500);
+        }catch{
+          // fallback: open image
+          window.open(cardUrl(code), "_blank", "noopener,noreferrer");
+        }
+      };
+    }
 
-    document.getElementById("closeBtn").onclick = () => {
-      window.close();
-    };
+    // Auto-update: poll LAST_UPDATE every 500ms
+    let lastU = localStorage.getItem(LAST_UPDATE_KEY) || "";
+    function tick(){
+      const cur = localStorage.getItem(LAST_UPDATE_KEY) || "";
+      if (cur !== lastU){
+        lastU = cur;
+        updateView();
+      }
+    }
+
+    window.addEventListener("load", () => {
+      updateView();
+      setInterval(tick, 500);
+    });
   </script>
 </body>
 </html>

@@ -3,37 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>BlessingCards128 Host</title>
+  <title>BlessingCards128 Host (Stable Single-File)</title>
   <style>
-    :root{ --bg:#f6f0e6; --card:#fff; --muted:#6b7280; --shadow: 0 6px 24px rgba(0,0,0,.08); --r:16px; }
+    :root{
+      --bg:#f6f0e6; --card:#fff; --muted:#6b7280;
+      --shadow: 0 6px 24px rgba(0,0,0,.08); --r:16px;
+      --line:3px;
+    }
     html,body{margin:0;padding:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif;color:#111827}
     .wrap{max-width:1100px;margin:0 auto;padding:16px}
     .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:14px}
     .topbar{display:flex;gap:12px;align-items:center}
     .topbar img{width:44px;height:44px;border-radius:10px;object-fit:cover}
-    .big{font-size:18px;font-weight:700}
+    .big{font-size:18px;font-weight:800}
     .muted{color:var(--muted);font-size:13px}
     .grid{display:grid;grid-template-columns: 1.2fr .8fr; gap:14px}
     @media (max-width: 860px){ .grid{grid-template-columns:1fr} }
     h1{font-size:16px;margin:0 0 10px}
+
     textarea{width:100%;min-height:84px;resize:vertical;border:1px solid #e5e7eb;border-radius:12px;padding:10px;font-size:14px}
+    textarea:disabled{background:#f9fafb;color:#6b7280}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06)}
     button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
     .secondary{background:#f3f4f6}
     .blue{background:#93c5fd}
     .danger{background:#fca5a5}
     .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;border-radius:999px;padding:6px 10px;font-size:12px;background:#fff}
-    .status{font-size:14px;font-weight:700}
+    .status{font-size:14px;font-weight:900}
     .canvasWrap{margin-top:12px;background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:12px}
     canvas{display:block;width:100%;max-width:520px;height:auto;margin:0 auto}
     .qrBox img{width:220px;height:220px;display:block;margin:0 auto;border-radius:12px;background:#fff}
-    .blink-btn{animation: blink 1s infinite}
-    @keyframes blink{0%{filter:brightness(1)}50%{filter:brightness(1.25)}100%{filter:brightness(1)}}
-    .okhint{color:#059669}
-    .warnhint{color:#b45309}
     .logBox{margin-top:12px}
     .logBox pre{margin:0;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:10px;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    .ok{color:#059669}
+    .warn{color:#b45309}
+    .hint3{white-space:pre-line}
   </style>
 </head>
 <body>
@@ -42,8 +47,8 @@
       <div class="topbar">
         <img src="../logo3524.png" alt="logo" onerror="this.style.display='none'">
         <div>
-          <div class="big">祝福經句紅包（主持機）</div>
-          <div id="masterHint" class="muted">主持鎖檢查中…</div>
+          <div class="big">祝福經句紅包（主持機｜Stable 單檔）</div>
+          <div class="muted">QR 固定入口｜Viewer 自動更新｜不拆模組</div>
         </div>
       </div>
     </div>
@@ -53,18 +58,15 @@
         <h1>操作</h1>
 
         <div class="row" style="margin-bottom:10px">
-          <span class="pill" id="sysPill">狀態：INIT</span>
+          <span class="pill">狀態：<span id="sysPill">INIT</span></span>
           <span class="pill">本輪：<span id="idxPill">0/0</span></span>
           <span class="pill">目前：<span id="curPill">-</span></span>
         </div>
 
         <label class="muted">輸入姓名（可用空白 / 逗號 / 換行分隔）</label>
         <textarea id="nameInput"
-          placeholder="例如：小明 John 田中さん"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"></textarea>
+          placeholder="例如：小明 小華 小美"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
         <div class="row" style="margin-top:10px">
           <button id="btnLock">鎖定名單</button>
@@ -74,30 +76,19 @@
         </div>
 
         <div class="row" style="margin-top:10px">
-          <button id="btnNext" class="secondary">下一位（回第一輪）</button>
+          <button id="btnNext" class="secondary">下一位</button>
           <button id="btnPdf" class="blue">抽籤紀錄 PDF</button>
           <button id="btnReset" class="danger">全部歸零</button>
         </div>
 
         <div style="margin-top:12px">
           <div class="status" id="statusLine">系統初始化中…</div>
-          <div class="muted" id="centerLine" style="margin-top:6px"></div>
+          <div class="muted hint3" id="centerLine" style="margin-top:6px"></div>
         </div>
 
-<div class="canvasWrap" style="position:relative;">
-  <canvas id="wheelCanvas" width="900" height="900"></canvas>
-
-  <!-- Confetti overlay -->
-  <canvas id="confettiCanvas"
-          width="900" height="900"
-          style="position:absolute;left:0;top:0;width:100%;height:auto;pointer-events:none;"></canvas>
-
-  <!-- Center text overlay (optional) -->
-  <div id="centerText"
-       style="position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-              pointer-events:none;font-weight:800;font-size:20px;white-space:pre-line;">
-  </div>
-</div>
+        <div class="canvasWrap">
+          <canvas id="wheelCanvas" width="900" height="900"></canvas>
+        </div>
 
         <div class="logBox">
           <div class="muted" style="margin:8px 0 6px">抽籤紀錄（最新在下）</div>
@@ -111,11 +102,10 @@
           <img id="qrImg" alt="QR" />
         </div>
         <div class="muted" style="margin-top:10px">
-          Viewer 會顯示「最新抽到的紅包」，並可下載圖片。
+          參與者掃描後會自動更新顯示「最新抽到的紅包」。
         </div>
         <div class="row" style="margin-top:10px">
           <button id="btnCopy" class="secondary">複製</button>
-          <button id="btnUnlock" class="danger">強制解除主持鎖</button>
         </div>
         <input id="qrUrl" style="width:100%;margin-top:10px;border:1px solid #e5e7eb;border-radius:12px;padding:10px" readonly />
       </div>
@@ -126,32 +116,833 @@
   <audio id="winSound" src="../audio/win.mp3" preload="auto"></audio>
 
   <script src="../verseRefMap.js"></script>
-  <script src="js/boot.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/wheel.js"></script>
-  <script src="js/ui.js"></script>
   <script>
-    // QR helper + log render (kept tiny here)
-    (function(){
-      function updateQR(){
-        const url = location.origin + location.pathname.replace(/\/index\.html$/,"/viewer.html");
-        const img = document.getElementById("qrImg");
-        const inp = document.getElementById("qrUrl");
-        if (inp) inp.value = url;
-        if (img) img.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(url);
+    // ==========================
+    // Stable Single-File Host
+    // ==========================
+
+    const KEY = "BC_STABLE_V1";
+    const LAST_VERSE_KEY = "LAST_VERSE";
+    const LAST_UPDATE_KEY = "LAST_UPDATE";
+
+    const SYS = Object.freeze({
+      INIT: "INIT",
+      ROUND1_READY: "ROUND1_READY",
+      ROUND1_SPIN: "ROUND1_SPIN",
+      ROUND2_READY: "ROUND2_READY",
+      ROUND2_SPIN: "ROUND2_SPIN",
+      VIEWER_READY: "VIEWER_READY",
+      FINISHED: "FINISHED",
+    });
+
+    const $ = (id) => document.getElementById(id);
+
+    function nowHHMMSS(){
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      const ss = String(d.getSeconds()).padStart(2,"0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function pad3(n){
+      const s = String(n);
+      return s.length >= 3 ? s : ("000"+s).slice(-3);
+    }
+
+    function getRef(code3){
+      const m = window.verseRefMap || {};
+      return m[code3] || "";
+    }
+
+    function parseNames(raw){
+      const tokens = String(raw||"")
+        .split(/[\n,，\s]+/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const seen = new Set();
+      const out = [];
+      let hasDup = false;
+
+      for (const t of tokens){
+        if (seen.has(t)) { hasDup = true; continue; }
+        seen.add(t);
+        out.push(t);
       }
-      function renderLogs(){
-        const pre = document.getElementById("logPre");
-        if (!pre || !window.state) return;
-        const logs = window.state.logs || [];
-        if (!logs.length){ pre.textContent = "(尚無)"; return; }
-        pre.textContent = logs.map(r => `[${r.t}] ${r.name} -> ${r.code} | ${r.ref}`).join("\n");
+      return { list: out, hasDup };
+    }
+
+    function defaultState(){
+      return {
+        system: SYS.INIT,
+        names: [],
+        usedIdx: [],          // indices of names already done (after ROUND1)
+        verseUsed: [],        // codes "001".."128"
+        curIdx: -1,           // current winner index (after ROUND1)
+        curVerse: null,       // {code, ref}
+        logs: []              // {t,name,code,ref}
+      };
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return defaultState();
+        const s = JSON.parse(raw);
+        const d = defaultState();
+        for (const k of Object.keys(d)){
+          if (!(k in s)) s[k] = d[k];
+        }
+        if (!Array.isArray(s.names)) s.names = [];
+        if (!Array.isArray(s.usedIdx)) s.usedIdx = [];
+        if (!Array.isArray(s.verseUsed)) s.verseUsed = [];
+        if (!Array.isArray(s.logs)) s.logs = [];
+        if (typeof s.curIdx !== "number") s.curIdx = -1;
+        if (s.curVerse && typeof s.curVerse !== "object") s.curVerse = null;
+        if (!Object.values(SYS).includes(s.system)) s.system = SYS.INIT;
+        return s;
+      }catch{
+        return defaultState();
       }
-      window.updateQR = updateQR;
-      window.renderLogs = renderLogs;
-      window.addEventListener("load", () => { updateQR(); setInterval(renderLogs, 500); });
-    })();
+    }
+
+    function saveState(){
+      try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch{}
+    }
+
+    function clearAllStorage(){
+      try{ localStorage.removeItem(KEY); }catch{}
+      try{ localStorage.removeItem(LAST_VERSE_KEY); }catch{}
+      try{ localStorage.removeItem(LAST_UPDATE_KEY); }catch{}
+    }
+
+    // Global
+    let state = loadState();
+
+    // --------------------------
+    // Canvas / Wheel
+    // --------------------------
+    const canvas = $("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Visual spec
+    const LINE_W = 3;                // outer + segment line width = 3px
+    const RAY_W  = 3;                // inner-cut line width = 3px
+    const RAY_COLOR = "#ffffff";     // inner-cut line is white
+    const POINTER_ANGLE = -Math.PI/2; // 12 o'clock
+
+    let rotation = 0;
+    let spinning = false;
+    let highlightIdx = null; // index in names to highlight (贴齐扇形), null means none
+
+    function clear(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }
+
+    function drawBaseCircle(cx, cy, R){
+      // single circle + inner cut line
+      ctx.save();
+      ctx.translate(cx,cy);
+
+      // circle
+      ctx.beginPath();
+      ctx.arc(0,0,R,0,Math.PI*2);
+      ctx.lineWidth = LINE_W;
+      ctx.strokeStyle = "#111827";
+      ctx.stroke();
+
+      // inner ray line (3px white)
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(POINTER_ANGLE)*R, Math.sin(POINTER_ANGLE)*R);
+      ctx.lineWidth = RAY_W;
+      ctx.strokeStyle = RAY_COLOR;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawWheel(){
+      clear();
+
+      const W = canvas.width, H = canvas.height;
+      const cx = W/2, cy = H/2;
+      const R  = Math.min(W,H) * 0.46;
+
+      // INIT: single circle
+      if (!state.names || state.names.length === 0){
+        drawBaseCircle(cx,cy,R);
+        return;
+      }
+
+      const N = state.names.length;
+      const step = (Math.PI*2)/N;
+
+      ctx.save();
+      ctx.translate(cx,cy);
+
+      // rotate wheel only (pointer/ray stays fixed later)
+      ctx.rotate(rotation);
+
+      // slices
+      for (let i=0;i<N;i++){
+        const a0 = i*step;
+        const a1 = a0 + step;
+
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,R,a0,a1);
+        ctx.closePath();
+
+        // fill
+        ctx.fillStyle = (i%2===0) ? "#f5c64d" : "#f7dea2";
+        ctx.fill();
+
+        // segment border (3px)
+        ctx.lineWidth = LINE_W;
+        ctx.strokeStyle = "#111827";
+        ctx.stroke();
+
+        // label (name)
+        const mid = a0 + step/2;
+        ctx.save();
+        ctx.rotate(mid);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#111827";
+        ctx.font = "26px Noto Sans TC, system-ui";
+        ctx.fillText(String(state.names[i]), R-14, 10);
+        ctx.restore();
+      }
+
+      // highlight sector (NO stroke,贴齐扇形，无外框)
+      if (highlightIdx !== null && highlightIdx >= 0 && highlightIdx < N){
+        const a0 = highlightIdx*step;
+        const a1 = a0 + step;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,R,a0,a1);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(255,255,255,0.32)";
+        ctx.fill();
+      }
+
+      // outer border (3px) - draw once more to keep crisp
+      ctx.beginPath();
+      ctx.arc(0,0,R,0,Math.PI*2);
+      ctx.lineWidth = LINE_W;
+      ctx.strokeStyle = "#111827";
+      ctx.stroke();
+
+      ctx.restore();
+
+      // fixed inner ray (3px white) as pointer/cut line
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(POINTER_ANGLE)*R, Math.sin(POINTER_ANGLE)*R);
+      ctx.lineWidth = RAY_W;
+      ctx.strokeStyle = RAY_COLOR;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function angleForIndexAtPointer(idx, N){
+      // We want the center of idx slice to align with pointer at 12 o'clock.
+      const step = (Math.PI*2)/N;
+      const mid = idx*step + step/2;
+      // wheel rotation to bring 'mid' to POINTER_ANGLE
+      return POINTER_ANGLE - mid;
+    }
+
+    function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+    function spinToIndex(targetIdx, direction, durationMs){
+      return new Promise((resolve) => {
+        const N = state.names.length;
+        const targetRot = angleForIndexAtPointer(targetIdx, N);
+
+        const startRot = rotation;
+        const baseDelta = (direction >= 0 ? 1 : -1) * (Math.PI*2) * (6 + Math.random()*2); // 6~8圈
+        // add the exact landing adjustment
+        const landingDelta = ((targetRot - startRot) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+        const endRot = startRot + baseDelta + (direction >= 0 ? landingDelta : -landingDelta);
+
+        const t0 = performance.now();
+        spinning = true;
+
+        function frame(now){
+          const t = Math.min(1, (now - t0) / durationMs);
+          const k = easeOutCubic(t);
+          rotation = startRot + (endRot - startRot) * k;
+          drawWheel();
+          if (t < 1){
+            requestAnimationFrame(frame);
+          } else {
+            spinning = false;
+            // snap to exact target for perfect alignment (no偏差)
+            rotation = targetRot;
+            drawWheel();
+            resolve();
+          }
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    // --------------------------
+    // Logic helpers
+    // --------------------------
+    function usedSet(){
+      return new Set(state.usedIdx || []);
+    }
+    function remainingIndices(){
+      const used = usedSet();
+      const out = [];
+      for (let i=0;i<(state.names||[]).length;i++){
+        if (!used.has(i)) out.push(i);
+      }
+      return out;
+    }
+    function remainingVerses(){
+      const used = new Set(state.verseUsed || []);
+      const out = [];
+      for (let i=1;i<=128;i++){
+        const c = pad3(i);
+        if (!used.has(c)) out.push(c);
+      }
+      return out;
+    }
+
+    function setSys(s){ state.system = s; saveState(); }
+    function setStatusOnlySpin(isSpin){
+      // 旋轉時唯一顯示「旋轉中……」
+      if (isSpin){
+        $("statusLine").textContent = "旋轉中……";
+        $("centerLine").textContent = "";
+      }
+    }
+
+    function setStatusNormal(text, centerText=""){
+      $("statusLine").textContent = text;
+      $("centerLine").textContent = centerText;
+    }
+
+    function renderLogs(){
+      const pre = $("logPre");
+      const logs = state.logs || [];
+      if (!logs.length){ pre.textContent = "(尚無)"; return; }
+      pre.textContent = logs.map(r => `[${r.t}] ${r.name} -> ${r.code} | ${r.ref}`).join("\n");
+    }
+
+    function updateTopPills(){
+      $("sysPill").textContent = state.system;
+      const total = (state.names||[]).length;
+      const done = new Set(state.usedIdx||[]).size;
+      $("idxPill").textContent = `${done}/${total}`;
+      const curName = (state.curIdx>=0 && state.names?.[state.curIdx]) ? state.names[state.curIdx] : "-";
+      $("curPill").textContent = curName;
+    }
+
+    function updateButtons(){
+      const hasNames = (state.names||[]).length > 0;
+
+      // input enable rules:
+      // - INIT: editable
+      // - FINISHED: editable (for next round)
+      // - else: locked (to prevent accidental change mid-round)
+      const inputEditable = (state.system === SYS.INIT || state.system === SYS.FINISHED);
+      $("nameInput").disabled = !inputEditable;
+
+      // Lock button enabled in INIT and FINISHED (new round)
+      $("btnLock").disabled = !(state.system === SYS.INIT || state.system === SYS.FINISHED);
+
+      // Round1 enabled only when ready and there are remaining
+      const r1Ready = (state.system === SYS.ROUND1_READY);
+      $("btnRound1").disabled = !(r1Ready && hasNames && remainingIndices().length>0 && !spinning);
+
+      // Round2 enabled only when ready
+      const r2Ready = (state.system === SYS.ROUND2_READY);
+      $("btnRound2").disabled = !(r2Ready && hasNames && state.curIdx>=0 && !spinning);
+
+      // View enabled only after round2 done for current person
+      $("btnView").disabled = !(state.system === SYS.VIEWER_READY && state.curVerse);
+
+      // Next enabled after round2 done, and if not finished
+      $("btnNext").disabled = !(state.system === SYS.VIEWER_READY && !spinning);
+
+      // PDF enabled when there is at least 1 log
+      $("btnPdf").disabled = !((state.logs||[]).length>0);
+
+      // Reset always enabled
+      $("btnReset").disabled = false;
+    }
+
+    function refreshUI(){
+      updateTopPills();
+      renderLogs();
+      updateButtons();
+    }
+
+    // --------------------------
+    // QR (fixed) + copy
+    // --------------------------
+    function viewerUrl(){
+      // host/index.html -> host/viewer.html
+      return location.origin + location.pathname.replace(/\/index\.html$/,"/viewer.html");
+    }
+    function updateQR(){
+      const url = viewerUrl();
+      $("qrUrl").value = url;
+      $("qrImg").src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(url);
+    }
+
+    async function copyQRUrl(){
+      const url = $("qrUrl").value || viewerUrl();
+      try{
+        await navigator.clipboard.writeText(url);
+        $("btnCopy").textContent = "已複製";
+        setTimeout(()=> $("btnCopy").textContent = "複製", 900);
+      }catch{
+        // fallback
+        $("qrUrl").select();
+        document.execCommand("copy");
+        $("btnCopy").textContent = "已複製";
+        setTimeout(()=> $("btnCopy").textContent = "複製", 900);
+      }
+    }
+
+    // --------------------------
+    // Audio
+    // --------------------------
+    function stopAudio(){
+      const drum = $("drum");
+      const win  = $("winSound");
+      try{ drum.pause(); drum.currentTime=0; }catch{}
+      try{ win.pause();  win.currentTime=0; }catch{}
+    }
+
+    function playDrum(){
+      const drum = $("drum");
+      try{ drum.pause(); drum.currentTime=0; }catch{}
+      drum.play().catch(()=>{});
+    }
+
+    function playWinAt7s(){
+      const drum = $("drum");
+      const win  = $("winSound");
+      let fired = false;
+
+      function loop(){
+        if (!fired && drum.currentTime >= 7){
+          fired = true;
+          win.currentTime = 0;
+          win.volume = 1;
+          win.play().catch(()=>{});
+        }
+        if (drum.currentTime < 11){
+          requestAnimationFrame(loop);
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // --------------------------
+    // PDF (whole logs) via print
+    // --------------------------
+    function openPdfPrint(){
+      const logs = state.logs || [];
+      if (!logs.length) return;
+
+      const title = "BlessingCards128 抽籤紀錄";
+      const rows = logs.map(r => `
+        <tr>
+          <td>${escapeHtml(r.t)}</td>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.code)}</td>
+          <td>${escapeHtml(r.ref)}</td>
+        </tr>
+      `).join("");
+
+      const html = `<!doctype html><html><head>
+        <meta charset="utf-8"/>
+        <title>${title}</title>
+        <style>
+          body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif;padding:24px;}
+          h1{font-size:20px;margin:0 0 12px;}
+          table{border-collapse:collapse;width:100%;}
+          th,td{border:1px solid #ccc;padding:8px;font-size:14px;text-align:left;}
+          th{background:#f3f4f6;}
+        </style>
+      </head><body>
+        <h1>${title}</h1>
+        <table>
+          <thead>
+            <tr><th>時間</th><th>姓名</th><th>經句代號</th><th>章節</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <script>window.onload=()=>{window.print();}</script>
+      </body></html>`;
+
+      const w = window.open("", "_blank", "noopener,noreferrer");
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+
+    function escapeHtml(s){
+      return String(s||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+
+    // --------------------------
+    // Core flows (match your guarantees)
+    // --------------------------
+
+    function showFinishedHint(){
+      const total = (state.names||[]).length;
+      const lines =
+`🎉 此輪轉盤已完成 ${total} 位的紅包抽籤
+📄 請按「抽籤紀錄 PDF」下載紀錄，或
+🔁 輸入新姓名 → 按「鎖定名單」開始下一輪；也可按「全部歸零」`;
+      setStatusNormal("本輪已完成", lines);
+    }
+
+    function shouldForceNewRoundOnLock(){
+      // 防呆：當全部抽完後，使用者直接改名單按鎖定，必須回到原始狀態（新局）
+      // 另外：若殘留 usedIdx / verseUsed / logs / curVerse 都視為舊局污染 -> 新局
+      if (state.system === SYS.FINISHED) return true;
+      if ((state.usedIdx||[]).length > 0) return true;
+      if ((state.verseUsed||[]).length > 0) return true;
+      if ((state.logs||[]).length > 0) return true;
+      if (state.curVerse) return true;
+      if (state.curIdx >= 0) return true;
+      return false;
+    }
+
+    function hardResetToInit(){
+      stopAudio();
+      state = defaultState();
+      rotation = 0;
+      highlightIdx = null;
+      spinning = false;
+      clearAllStorage();
+      saveState();
+      drawWheel();
+      setStatusNormal("請輸入姓名並鎖定名單", "");
+      refreshUI();
+    }
+
+    async function onLock(){
+      if (spinning) return;
+
+      // 防回填：未鎖定時保持清空（避免 1 2 3）
+      const ni = $("nameInput");
+      ni.setAttribute("autocomplete","off");
+
+      const raw = ni.value || "";
+      const { list, hasDup } = parseNames(raw);
+
+      if (hasDup){
+        alert("Oops, 有姓名重複輸入了唷!");
+        return;
+      }
+      if (!list.length){
+        alert("請先輸入至少 1 個姓名");
+        return;
+      }
+
+      // 強制新局（符合你的防呆規格）
+      if (shouldForceNewRoundOnLock()){
+        state = defaultState();
+        rotation = 0;
+        highlightIdx = null;
+        spinning = false;
+        // 清掉舊 viewer 與更新戳
+        try{ localStorage.removeItem(LAST_VERSE_KEY); }catch{}
+        try{ localStorage.removeItem(LAST_UPDATE_KEY); }catch{}
+      }
+
+      state.names = list;
+      state.usedIdx = [];
+      state.verseUsed = [];
+      state.curIdx = -1;
+      state.curVerse = null;
+      state.logs = [];
+
+      setSys(SYS.ROUND1_READY);
+      saveState();
+
+      // 初始高亮無
+      highlightIdx = null;
+      rotation = 0;
+
+      drawWheel();
+      setStatusNormal("準備抽姓名（第一輪）", "");
+      refreshUI();
+    }
+
+    async function onRound1(){
+      if (spinning) return;
+      const remain = remainingIndices();
+      if (!remain.length){
+        // Should be finished already, but safe:
+        setSys(SYS.FINISHED);
+        saveState();
+        highlightIdx = null;
+        drawWheel();
+        showFinishedHint();
+        refreshUI();
+        return;
+      }
+
+      setSys(SYS.ROUND1_SPIN);
+      saveState();
+      setStatusOnlySpin(true);
+      refreshUI();
+
+      // pick winner index from remaining
+      const targetIdx = remain[Math.floor(Math.random()*remain.length)];
+
+      // During spin, no need to hide highlight if none; but keep as-is per spec.
+      // We'll keep highlight off during spin to prevent "殘影" perception.
+      const prevHighlight = highlightIdx;
+      highlightIdx = null;
+      drawWheel();
+
+      // audio for round1 (drum)
+      stopAudio();
+      playDrum();
+
+      // spin forward to target
+      await spinToIndex(targetIdx, +1, 10000);
+
+      // highlight贴齐扇形
+      highlightIdx = targetIdx;
+
+      // set current winner
+      state.curIdx = targetIdx;
+      if (!Array.isArray(state.usedIdx)) state.usedIdx = [];
+      const used = new Set(state.usedIdx);
+      used.add(targetIdx);
+      state.usedIdx = Array.from(used);
+
+      setSys(SYS.ROUND2_READY);
+      saveState();
+
+      drawWheel();
+      setStatusNormal(`第一輪完成：抽中「${state.names[targetIdx]}」`, "");
+      refreshUI();
+    }
+
+    async function onRound2(){
+      if (spinning) return;
+      if (state.curIdx < 0 || !state.names?.[state.curIdx]) return;
+
+      setSys(SYS.ROUND2_SPIN);
+      saveState();
+
+      // spec: 第二輪動畫時暫時取消高亮，結束後回復
+      const restoreIdx = state.curIdx;
+      highlightIdx = null;
+      drawWheel();
+
+      setStatusOnlySpin(true);
+      refreshUI();
+
+      stopAudio();
+      playDrum();
+      playWinAt7s();
+
+      // pick verse from remaining (抽取池獨立，不影響 UI 格數)
+      const verses = remainingVerses();
+      if (!verses.length){
+        // no verses left, treat as finished
+        highlightIdx = restoreIdx;
+        setSys(SYS.VIEWER_READY);
+        saveState();
+        drawWheel();
+        setStatusNormal("第二輪完成：經句已用盡", "");
+        refreshUI();
+        return;
+      }
+      const code = verses[Math.floor(Math.random()*verses.length)];
+      const ref  = getRef(code);
+
+      // spin reverse BUT land on the SAME person slice (names displayed)
+      await spinToIndex(restoreIdx, -1, 10000);
+
+      // restore highlight
+      highlightIdx = restoreIdx;
+
+      // commit verse
+      const usedV = new Set(state.verseUsed || []);
+      usedV.add(code);
+      state.verseUsed = Array.from(usedV);
+
+      state.curVerse = { code, ref };
+
+      // write for viewer (auto-update)
+      try{
+        localStorage.setItem(LAST_VERSE_KEY, code);
+        localStorage.setItem(LAST_UPDATE_KEY, String(Date.now()));
+      }catch{}
+
+      // log
+      state.logs = state.logs || [];
+      state.logs.push({
+        t: nowHHMMSS(),
+        name: state.names[restoreIdx],
+        code,
+        ref
+      });
+
+      // After round2 complete: VIEWER_READY
+      setSys(SYS.VIEWER_READY);
+      saveState();
+
+      drawWheel();
+      setStatusNormal(`第二輪完成：抽中經句「${code}」`, ref ? `章節：${ref}` : "");
+      refreshUI();
+
+      // If this was the LAST person: immediate enable PDF + Lock (new round)
+      const done = new Set(state.usedIdx || []).size;
+      const total = (state.names||[]).length;
+      if (total > 0 && done >= total){
+        setSys(SYS.FINISHED);
+        saveState();
+        showFinishedHint();
+        // In FINISHED: enable Lock + name input (no reset required)
+        refreshUI();
+      }
+    }
+
+    function onView(){
+      if (!state.curVerse) return;
+      // MUST NOT auto jump viewer; only open on button.
+      const url = viewerUrl();
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    function onNext(){
+      if (spinning) return;
+
+      // After viewing, proceed to next person if any remain
+      const remain = remainingIndices();
+      if (!remain.length){
+        setSys(SYS.FINISHED);
+        saveState();
+        showFinishedHint();
+        refreshUI();
+        return;
+      }
+
+      // clear current verse, keep wheel as names, keep highlight cleared until next round1 result
+      state.curVerse = null;
+      state.curIdx = -1;
+      saveState();
+
+      highlightIdx = null;
+      drawWheel();
+
+      setSys(SYS.ROUND1_READY);
+      saveState();
+
+      setStatusNormal("準備抽姓名（第一輪）", "");
+      refreshUI();
+    }
+
+    function onReset(){
+      hardResetToInit();
+      // Clear input box explicitly
+      const ni = $("nameInput");
+      if (ni) ni.value = "";
+    }
+
+    // --------------------------
+    // Wire events
+    // --------------------------
+    function wire(){
+      $("btnLock").onclick = onLock;
+      $("btnRound1").onclick = onRound1;
+      $("btnRound2").onclick = onRound2;
+      $("btnView").onclick = onView;
+      $("btnNext").onclick = onNext;
+      $("btnPdf").onclick = openPdfPrint;
+      $("btnReset").onclick = onReset;
+      $("btnCopy").onclick = copyQRUrl;
+    }
+
+    // --------------------------
+    // Boot
+    // --------------------------
+    function boot(){
+      updateQR();
+      wire();
+
+      // If INIT, enforce empty input to avoid browser auto-fill (1 2 3)
+      if (state.system === SYS.INIT){
+        $("nameInput").value = "";
+      }
+
+      // Restore highlight on reload:
+      // - If ROUND2_READY / VIEWER_READY: highlight current person
+      if (state.names?.length){
+        if (state.curIdx >= 0 && state.curIdx < state.names.length){
+          // highlight only when not spinning, and not in INIT
+          highlightIdx = (state.system === SYS.ROUND2_READY || state.system === SYS.VIEWER_READY || state.system === SYS.ROUND2_SPIN || state.system === SYS.FINISHED)
+            ? state.curIdx
+            : null;
+        } else {
+          highlightIdx = null;
+        }
+      } else {
+        highlightIdx = null;
+      }
+
+      // Render based on state
+      rotation = rotation || 0;
+      drawWheel();
+
+      // Show appropriate status
+      if (state.system === SYS.INIT){
+        setStatusNormal("請輸入姓名並鎖定名單", "");
+      } else if (state.system === SYS.ROUND1_READY){
+        setStatusNormal("準備抽姓名（第一輪）", "");
+      } else if (state.system === SYS.ROUND2_READY){
+        setStatusNormal("請抽紅包（第二輪）", "");
+      } else if (state.system === SYS.VIEWER_READY){
+        const t = state.curVerse ? `第二輪完成：抽中經句「${state.curVerse.code}」` : "第二輪完成";
+        const c = state.curVerse?.ref ? `章節：${state.curVerse.ref}` : "";
+        setStatusNormal(t, c);
+      } else if (state.system === SYS.FINISHED){
+        showFinishedHint();
+      } else {
+        // If in SPIN state due to reload, normalize to safe ready state
+        if ((state.usedIdx||[]).length > 0 && state.curIdx >= 0){
+          setSys(SYS.ROUND2_READY);
+          setStatusNormal("請抽紅包（第二輪）", "");
+        } else if (state.names?.length){
+          setSys(SYS.ROUND1_READY);
+          setStatusNormal("準備抽姓名（第一輪）", "");
+        } else {
+          setSys(SYS.INIT);
+          setStatusNormal("請輸入姓名並鎖定名單", "");
+        }
+      }
+
+      refreshUI();
+      renderLogs();
+    }
+
+    window.addEventListener("load", boot);
   </script>
-  <script src="js/main.js"></script>
 </body>
 </html>
