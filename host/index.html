@@ -263,90 +263,111 @@
       ctx.restore();
     }
 
-    function drawWheel(){
-      clear();
+function drawWheel(){
 
-      const W = canvas.width, H = canvas.height;
-      const cx = W/2, cy = H/2;
-      const R  = Math.min(W,H) * 0.46;
+  const canvas = $("wheel");
+  const ctx = canvas.getContext("2d");
 
-      // INIT: single circle
-      if (!state.names || state.names.length === 0){
-        drawBaseCircle(cx,cy,R);
-        return;
-      }
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = Math.min(w, h) / 2 - 6;
 
-      const N = state.names.length;
-      const step = (Math.PI*2)/N;
+  ctx.clearRect(0, 0, w, h);
 
-      ctx.save();
-      ctx.translate(cx,cy);
+  // --------------------------
+  // Determine slot count
+  // --------------------------
+  let slotCount = 1;
 
-      // rotate wheel only (pointer/ray stays fixed later)
-      ctx.rotate(rotation);
+  if (state.system !== SYS.INIT &&
+      state.names &&
+      state.names.length){
+    slotCount = state.names.length;
+  }
 
-      // slices
-      for (let i=0;i<N;i++){
-        const a0 = i*step;
-        const a1 = a0 + step;
+  const anglePer = (Math.PI * 2) / slotCount;
 
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        ctx.arc(0,0,R,a0,a1);
-        ctx.closePath();
+  // --------------------------
+  // Draw segments
+  // --------------------------
+  for (let i = 0; i < slotCount; i++){
 
-        // fill
-        ctx.fillStyle = (i%2===0) ? "#f5c64d" : "#f7dea2";
-        ctx.fill();
+    const start = rotation + i * anglePer;
+    const end = start + anglePer;
 
-        // segment border (3px)
-        ctx.lineWidth = LINE_W;
-        ctx.strokeStyle = "#111827";
-        ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
 
-        // label (name)
-        const mid = a0 + step/2;
-        ctx.save();
-        ctx.rotate(mid);
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#111827";
-        ctx.font = "26px Noto Sans TC, system-ui";
-        ctx.fillText(String(state.names[i]), R-14, 10);
-        ctx.restore();
-      }
-
-      // highlight sector (NO stroke,贴齐扇形，无外框)
-      if (highlightIdx !== null && highlightIdx >= 0 && highlightIdx < N){
-        const a0 = highlightIdx*step;
-        const a1 = a0 + step;
-        ctx.beginPath();
-        ctx.moveTo(0,0);
-        ctx.arc(0,0,R,a0,a1);
-        ctx.closePath();
-        ctx.fillStyle = "rgba(255,255,255,0.32)";
-        ctx.fill();
-      }
-
-      // outer border (3px) - draw once more to keep crisp
-      ctx.beginPath();
-      ctx.arc(0,0,R,0,Math.PI*2);
-      ctx.lineWidth = LINE_W;
-      ctx.strokeStyle = "#111827";
-      ctx.stroke();
-
-      ctx.restore();
-
-      // fixed inner ray (3px white) as pointer/cut line
-      ctx.save();
-      ctx.translate(cx,cy);
-      ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.lineTo(Math.cos(POINTER_ANGLE)*R, Math.sin(POINTER_ANGLE)*R);
-      ctx.lineWidth = RAY_W;
-      ctx.strokeStyle = RAY_COLOR;
-      ctx.stroke();
-      ctx.restore();
+    // Highlight
+    if (i === highlightIdx &&
+        state.system !== SYS.INIT &&
+        state.system !== SYS.ROUND2_SPIN){
+      ctx.fillStyle = "#f4c542";
+    } else {
+      ctx.fillStyle = (i % 2 === 0) ? "#e8c97a" : "#e2c37a";
     }
+
+    ctx.fill();
+
+    // 3px border
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+
+  // --------------------------
+  // Draw white inner circle
+  // --------------------------
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.25, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#000";
+  ctx.stroke();
+
+  // --------------------------
+  // INIT mode: draw single radius line
+  // --------------------------
+  if (state.system === SYS.INIT){
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, cy - r);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+
+    return;
+  }
+
+  // --------------------------
+  // Draw text
+  // --------------------------
+  ctx.fillStyle = "#000";
+  ctx.font = "16px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (let i = 0; i < slotCount; i++){
+
+    const mid = rotation + i * anglePer + anglePer / 2;
+    const tx = cx + Math.cos(mid) * (r * 0.75);
+    const ty = cy + Math.sin(mid) * (r * 0.75);
+
+    const label = state.names[i] || "";
+
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(mid);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+}
 
     function angleForIndexAtPointer(idx, N){
       // We want the center of idx slice to align with pointer at 12 o'clock.
