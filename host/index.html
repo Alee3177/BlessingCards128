@@ -441,7 +441,14 @@
       const total = (state.names||[]).length;
       const done = new Set(state.usedIdx||[]).size;
       $("idxPill").textContent = `${done}/${total}`;
-      const curName = (state.curIdx>=0 && state.names?.[state.curIdx]) ? state.names[state.curIdx] : "-";
+      let curName = "-";
+if (
+  state.curIdx >= 0 &&
+  state.names &&
+  state.names[state.curIdx]
+){
+  curName = state.names[state.curIdx];
+}
       $("curPill").textContent = curName;
     }
 
@@ -744,7 +751,11 @@
 
     async function onRound2(){
       if (spinning) return;
-      if (state.curIdx < 0 || !state.names?.[state.curIdx]) return;
+      if (
+  state.curIdx < 0 ||
+  !state.names ||
+  !state.names[state.curIdx]
+) return;
 
       setSys(SYS.ROUND2_SPIN);
       saveState();
@@ -894,7 +905,7 @@
 
       // Restore highlight on reload:
       // - If ROUND2_READY / VIEWER_READY: highlight current person
-      if (state.names?.length){
+      if (state.names && state.names.length){
         if (state.curIdx >= 0 && state.curIdx < state.names.length){
           // highlight only when not spinning, and not in INIT
           highlightIdx = (state.system === SYS.ROUND2_READY || state.system === SYS.VIEWER_READY || state.system === SYS.ROUND2_SPIN || state.system === SYS.FINISHED)
@@ -911,32 +922,49 @@
       rotation = rotation || 0;
       drawWheel();
 
-      // Show appropriate status
-      if (state.system === SYS.INIT){
-        setStatusNormal("請輸入姓名並鎖定名單", "");
-      } else if (state.system === SYS.ROUND1_READY){
-        setStatusNormal("準備抽姓名（第一輪）", "");
-      } else if (state.system === SYS.ROUND2_READY){
-        setStatusNormal("請抽紅包（第二輪）", "");
-      } else if (state.system === SYS.VIEWER_READY){
-        const t = state.curVerse ? `第二輪完成：抽中經句「${state.curVerse.code}」` : "第二輪完成";
-        const c = state.curVerse?.ref ? `章節：${state.curVerse.ref}` : "";
-        setStatusNormal(t, c);
-      } else if (state.system === SYS.FINISHED){
-        showFinishedHint();
-      } else {
-        // If in SPIN state due to reload, normalize to safe ready state
-        if ((state.usedIdx||[]).length > 0 && state.curIdx >= 0){
-          setSys(SYS.ROUND2_READY);
-          setStatusNormal("請抽紅包（第二輪）", "");
-        } else if (state.names?.length){
-          setSys(SYS.ROUND1_READY);
-          setStatusNormal("準備抽姓名（第一輪）", "");
-        } else {
-          setSys(SYS.INIT);
-          setStatusNormal("請輸入姓名並鎖定名單", "");
-        }
-      }
+// Show appropriate status
+if (state.system === SYS.INIT){
+  setStatusNormal("請輸入姓名並鎖定名單", "");
+
+} else if (state.system === SYS.ROUND1_READY){
+  setStatusNormal("準備抽姓名（第一輪）", "");
+
+} else if (state.system === SYS.ROUND2_READY){
+  setStatusNormal("請抽紅包（第二輪）", "");
+
+} else if (state.system === SYS.VIEWER_READY){
+
+  let t = "第二輪完成";
+  let c = "";
+
+  if (state.curVerse){
+    t = "第二輪完成：抽中經句「" + state.curVerse.code + "」";
+    if (state.curVerse.ref){
+      c = "章節：" + state.curVerse.ref;
+    }
+  }
+
+  setStatusNormal(t, c);
+
+} else if (state.system === SYS.FINISHED){
+  showFinishedHint();
+
+} else {
+
+  // If in SPIN state due to reload, normalize to safe ready state
+  if ((state.usedIdx||[]).length > 0 && state.curIdx >= 0){
+    setSys(SYS.ROUND2_READY);
+    setStatusNormal("請抽紅包（第二輪）", "");
+
+  } else if (state.names && state.names.length){
+    setSys(SYS.ROUND1_READY);
+    setStatusNormal("準備抽姓名（第一輪）", "");
+
+  } else {
+    setSys(SYS.INIT);
+    setStatusNormal("請輸入姓名並鎖定名單", "");
+  }
+}
 
       refreshUI();
       renderLogs();
