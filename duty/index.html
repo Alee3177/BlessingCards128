@@ -369,7 +369,8 @@ function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
 
 function parseLines(text){
   const raw = (text||"").replace(/\r/g,"\n");
-  const parts = raw.split(/[\n,，]+/).map(s=>s.trim()).filter(Boolean);
+  // 支援：換行 / 逗號 / 中文逗號 / 空格
+  const parts = raw.split(/[\n,，\s]+/).map(s=>s.trim()).filter(Boolean);
   const seen = new Set(), out = [];
   for (const p of parts){
     if(!seen.has(p)){ seen.add(p); out.push(p); }
@@ -397,7 +398,8 @@ function escapeHtml(s){
 }
 
 function canSwitchMode(){
-  return ["READY_MEMBER","READY_DATE","FINISHED","INIT"].includes(state.system);
+  // 允許在 AUTO_RUNNING 中切換（用來中途打斷自動），但旋轉中（SPIN_*）禁止
+  return !["SPIN_MEMBER","SPIN_DATE"].includes(state.system);
 }
 function isBusy(){
   return ["SPIN_MEMBER","SPIN_DATE","AUTO_RUNNING"].includes(state.system);
@@ -479,14 +481,18 @@ const state = {
   mode: "manual",
   system: "INIT",
 
+  // 固定清單（不刪除；用 used* 來做灰化與避免重複抽取）
   members: [],
-  availableMembers: [],
   dates: [],
-  availableDates: [],
-  usedDates: new Set(),
+
+  usedMembers: new Set(),   // 本輪已抽過的值日生
+  usedDates: new Set(),     // 已分配過的日期（21 次）
 
   selectedMember: null,
   selectedDate: null,
+
+  // 自動流程中斷旗標（允許中途打斷）
+  autoAbort: false,
 
   logs: [],
 
@@ -593,11 +599,15 @@ function setLocked(v){
 }
 
 function updateCounters(){
-  el.dateLeft.textContent = String(state.availableDates.length);
-  el.memberLeft.textContent = String(state.availableMembers.length);
+  const dateLeft = Math.max(0, state.dates.length - state.usedDates.size);
+  const memberLeft = Math.max(0, state.members.length - state.usedMembers.size);
 
-  el.memberSlices.textContent = String(state.availableMembers.length);
-  el.dateSlices.textContent = String(state.availableDates.length);
+  el.dateLeft.textContent = String(dateLeft);
+  el.memberLeft.textContent = String(memberLeft);
+
+  // 切分固定顯示（不因灰化而改變）
+  el.memberSlices.textContent = String(state.members.length);
+  el.dateSlices.textContent = String(state.dates.length);
 
   el.memberPick.textContent = state.selectedMember ?? "-";
   el.datePick.textContent = state.selectedDate ?? "-";
@@ -607,7 +617,9 @@ function updateButtons(){
   const locked = state.locked;
   const busy = isBusy();
 
-  // mode radios disable while busy
+  const dateLeft = state.dates.length - state.usedDates.size;
+
+  // mode radios：旋轉中（SPIN_*）禁止；AUTO_RUNNING 可切換（用來中途打斷）
   const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
   radios.forEach(r => { r.disabled = !canSwitchMode(); });
 
@@ -615,10 +627,20 @@ function updateButtons(){
   el.btnUnlock.disabled = busy;
   el.btnReset.disabled = busy;
 
-  el.btnSpinMember.disabled = !locked || busy || state.availableMembers.length === 0 || state.availableDates.length === 0 || state.system !== "READY_MEMBER";
-  el.btnSpinDate.disabled   = !locked || busy || state.selectedMember == null || state.availableDates.length === 0 || state.system !== "READY_DATE";
+  // 完成後一律鎖住抽籤
+  const finished = (state.system === "FINISHED");
 
-  const canAutoStart = locked && !busy && state.mode === "auto" && state.availableDates.length > 0 && ["READY_MEMBER","READY_DATE"].includes(state.system);
+  el.btnSpinMember.disabled = finished || !locked || busy || dateLeft <= 0 || state.system !== "READY_MEMBER";
+  el.btnSpinDate.disabled   = finished || !locked || busy || !state.selectedMember || dateLeft <= 0 || state.system !== "READY_DATE";
+
+  const canAutoStart =
+    !finished &&
+    locked &&
+    !busy &&
+    state.mode === "auto" &&
+    dateLeft > 0 &&
+    ["READY_MEMBER","READY_DATE"].includes(state.system);
+
   el.btnAutoStart.disabled = !canAutoStart;
 
   el.btnPdf.disabled = state.logs.length === 0 || busy;
@@ -673,66 +695,92 @@ const THEME_DATE = {
 
 function drawWheel(canvas, labels, angle, theme, wheelState, nowMs){
   const ctx = canvas.getContext("2d");
-  const W = canvas.clientWidth;
-  const H = canvas.clientWidth;
-  const cx = W/2, cy = H/2;
-  const r = Math.min(W,H) * 0.48;
+  const size = canvas.clientWidth; // 已由 resizeCanvas() 強制成正方形
+  const cx = size/2, cy = size/2;
+  const r  = size * 0.46;          // 留邊距，避免看起來「不圓/被吃邊」
 
-  ctx.clearRect(0,0,W,H);
+  ctx.clearRect(0,0,size,size);
 
-  // base
-  ctx.beginPath();
-  ctx.arc(cx,cy,r+8,0,Math.PI*2);
-  ctx.fillStyle = "rgba(31,45,61,.04)";
-  ctx.fill();
-
+  // ===== 空資料：單一圓(底色#5DADE2)＋內切線（3px 白線）=====
   if(!labels || labels.length === 0){
+    // 外圈淡陰影
+    ctx.beginPath();
+    ctx.arc(cx,cy,r+10,0,Math.PI*2);
+    ctx.fillStyle = "rgba(31,45,61,.04)";
+    ctx.fill();
+
+    // 主圓
     ctx.beginPath();
     ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = "#5DADE2";
+    ctx.fill();
+
+    // 內切線（白色 3px）
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy);
+    ctx.lineTo(cx + r, cy);
+    ctx.strokeStyle = "rgba(255,255,255,1)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 中心圓
+    ctx.beginPath();
+    ctx.arc(cx,cy,r*0.14,0,Math.PI*2);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.strokeStyle = "rgba(96,112,128,.25)";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(96,112,128,.8)";
-    ctx.font = "800 16px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "rgba(31,45,61,.75)";
+    ctx.font = "900 14px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("（無資料）", cx, cy);
+    ctx.fillText(theme.center, cx, cy);
     return;
   }
 
   const n = labels.length;
   const step = Math.PI*2 / n;
 
-  // blink factor (manual only)
+  // blink factor（只影響手動：wheelState.blink=true）
   let blinkAlpha = 1;
   if(wheelState.highlight && wheelState.blink){
-    const s = Math.sin(nowMs / 120); // 閃爍速度
-    blinkAlpha = 0.55 + 0.45 * (s*0.5 + 0.5); // 0.55~1.0
+    const s = Math.sin(nowMs / 120);
+    blinkAlpha = 0.55 + 0.45 * (s*0.5 + 0.5);
   }
+
+  // 外圈淡陰影
+  ctx.beginPath();
+  ctx.arc(cx,cy,r+10,0,Math.PI*2);
+  ctx.fillStyle = "rgba(31,45,61,.04)";
+  ctx.fill();
 
   for(let i=0;i<n;i++){
     const a0 = angle + i*step;
     const a1 = a0 + step;
+
+    const label = labels[i];
+
+    const isDate = (theme === THEME_DATE);
+    const isUsed = isDate ? state.usedDates.has(label) : state.usedMembers.has(label);
 
     // slice
     ctx.beginPath();
     ctx.moveTo(cx,cy);
     ctx.arc(cx,cy,r,a0,a1,false);
     ctx.closePath();
-	
-    // ⭐ 在這裡改顏色判斷
-if(theme === THEME_DATE && state.usedDates.has(labels[i])){
-  ctx.fillStyle = "#E0E0E0";  // 已抽過 → 灰色
-}else{
-  ctx.fillStyle = (i%2===0) ? theme.c1 : theme.c2;  // 正常
-}
+
+    if(isUsed){
+      ctx.fillStyle = "#E0E0E0"; // 整格灰色
+    }else{
+      ctx.fillStyle = (i%2===0) ? theme.c1 : theme.c2;
+    }
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(255,255,255,.65)";
-    ctx.lineWidth = 1;
+    // 內切白線（3px）
+    ctx.strokeStyle = "rgba(255,255,255,.90)";
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // label
@@ -744,37 +792,33 @@ if(theme === THEME_DATE && state.usedDates.has(labels[i])){
     ctx.translate(tx,ty);
     ctx.rotate(mid + Math.PI/2);
 
-    ctx.fillStyle = theme.text;
+    ctx.fillStyle = isUsed ? "rgba(31,45,61,.35)" : theme.text; // 文字淡化
     ctx.font = "800 14px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    let t = labels[i];
+    let t = label;
     if(t.length > 10) t = t.slice(0,10) + "…";
     ctx.fillText(t, 0, 0);
 
     ctx.restore();
 
-    // highlight (B：原色保留 + 金色外框 + 微發光；手動閃爍)
+    // highlight：金色外框＋（手動）閃爍
     if(wheelState.highlight && i === wheelState.selectedIndex){
       ctx.save();
       ctx.globalAlpha = blinkAlpha;
 
-      // gold stroke with glow
       ctx.shadowColor = "rgba(255,215,0,.85)";
       ctx.shadowBlur = 18;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
 
       ctx.beginPath();
       ctx.moveTo(cx,cy);
       ctx.arc(cx,cy,r,a0,a1,false);
       ctx.closePath();
 
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 6;
       ctx.strokeStyle = "rgba(255,215,0,1)";
       ctx.stroke();
 
-      // inner thin stroke
       ctx.shadowBlur = 0;
       ctx.lineWidth = 2;
       ctx.strokeStyle = "rgba(255,235,140,1)";
@@ -804,8 +848,8 @@ function redrawAll(nowMs){
   resizeCanvas(el.memberCanvas);
   resizeCanvas(el.dateCanvas);
 
-  drawWheel(el.memberCanvas, state.availableMembers, state.memberWheel.angle, THEME_MEMBER, state.memberWheel, nowMs);
-  drawWheel(el.dateCanvas, state.availableDates, state.dateWheel.angle, THEME_DATE, state.dateWheel, nowMs);
+  drawWheel(el.memberCanvas, state.members, state.memberWheel.angle, THEME_MEMBER, state.memberWheel, nowMs);
+  drawWheel(el.dateCanvas, state.dates, state.dateWheel.angle, THEME_DATE, state.dateWheel, nowMs);
 }
 
 window.addEventListener("resize", ()=> redrawAll(performance.now()) );
@@ -827,14 +871,25 @@ function chooseRandomIndex(n){
 /** =========================
  *  絲滑停轉動畫（目標角度法）
  *  ========================= */
-function startSpinToIndex(wheel, labels, durationMs, extraTurns){
+function chooseRandomIndexFrom(indices){
+  const k = Math.floor(Math.random() * indices.length);
+  return indices[k];
+}
+
+function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices){
   const n = labels.length;
-  const idx = chooseRandomIndex(n);
+  if(n <= 0) return;
+
+  const pool = (Array.isArray(allowedIndices) && allowedIndices.length>0)
+    ? allowedIndices
+    : Array.from({length:n}, (_,i)=>i);
+
+  const idx = chooseRandomIndexFrom(pool);
 
   const baseTarget = angleForIndexAtTop(idx, n);
   const start = wheel.angle;
 
-  // 讓它順時針轉多圈：用 end = baseTarget + k*2pi，且 end > start
+  // 讓它順時針轉多圈
   const twoPi = Math.PI * 2;
   let end = baseTarget + extraTurns * twoPi;
 
@@ -909,13 +964,13 @@ function tick(nowMs){
   const mDone = updateWheelAnim(state.memberWheel, nowMs);
   const dDone = updateWheelAnim(state.dateWheel, nowMs);
 
-  // 若第一輪停下
+  // 第一輪停下（值日生）
   if(mDone && state.system === "SPIN_MEMBER"){
     const idx = state.memberWheel.selectedIndex;
-    state.selectedMember = state.availableMembers[idx] ?? null;
+    state.selectedMember = state.members[idx] ?? null;
     el.memberPick.textContent = state.selectedMember ?? "-";
 
-    // 手動：第一輪抽中要高亮閃爍
+    // 手動：第一輪抽中要高亮閃爍；自動：不閃（blink=false）
     state.memberWheel.highlight = true;
 
     setSystem("READY_DATE");
@@ -924,16 +979,14 @@ function tick(nowMs){
     updateCounters();
   }
 
-  // 若第二輪停下
+  // 第二輪停下（日期）
   if(dDone && state.system === "SPIN_DATE"){
     const idx = state.dateWheel.selectedIndex;
-    state.selectedDate = state.availableDates[idx] ?? null;
+    state.selectedDate = state.dates[idx] ?? null;
     el.datePick.textContent = state.selectedDate ?? "-";
 
-    // 手動：第二輪抽中也高亮閃爍
     state.dateWheel.highlight = true;
 
-    // 完成一次 assignment（會移除人+日期，並回到 READY_MEMBER 或 FINISHED）
     finalizeAssignment(state.selectedMember, state.selectedDate);
   }
 
@@ -947,9 +1000,33 @@ function tick(nowMs){
 async function spinMember(){
   if(!state.locked) return;
   if(state.system !== "READY_MEMBER") return;
-  if(state.availableMembers.length === 0 || state.availableDates.length === 0) return;
 
-  // 下一輪開始：清除兩輪高亮 + 停止音效（符合你「直到下一位」規則）
+  const dateLeft = state.dates.length - state.usedDates.size;
+  if(dateLeft <= 0){
+    setSystem("FINISHED");
+    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResultSub("可下載 PDF，或按重置重新開始");
+    stopAllAudio();
+    return;
+  }
+
+  // 人池用完：自動重置（只影響灰化，不影響日期）
+  if(state.members.length > 0 && state.usedMembers.size >= state.members.length){
+    state.usedMembers.clear();
+  }
+
+  // 可抽的值日生索引（排除本輪已抽過）
+  const allowed = [];
+  for(let i=0;i<state.members.length;i++){
+    if(!state.usedMembers.has(state.members[i])) allowed.push(i);
+  }
+  if(allowed.length === 0){
+    // 保護：若資料異常
+    state.usedMembers.clear();
+    for(let i=0;i<state.members.length;i++) allowed.push(i);
+  }
+
+  // 下一位開始：清除兩輪高亮 + 停止音效（符合你「直到下一位抽值日生」才清除）
   clearHighlights();
   stopAllAudio();
 
@@ -959,16 +1036,37 @@ async function spinMember(){
   }
 
   setSystem("SPIN_MEMBER");
-// 轉 8~10 圈，7 秒（與 drum 同步）
-const turns = 8 + Math.floor(Math.random()*3);
-startSpinToIndex(state.memberWheel, state.availableMembers, 7000, turns);
+  // 轉 8~10 圈，7 秒（與 drum 同步）
+  const turns = 8 + Math.floor(Math.random()*3);
+  startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
 }
 
 async function spinDate(){
   if(!state.locked) return;
   if(state.system !== "READY_DATE") return;
   if(!state.selectedMember) return;
-  if(state.availableDates.length === 0) return;
+
+  const dateLeft = state.dates.length - state.usedDates.size;
+  if(dateLeft <= 0){
+    setSystem("FINISHED");
+    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResultSub("可下載 PDF，或按重置重新開始");
+    stopAllAudio();
+    return;
+  }
+
+  // 可抽的日期索引（排除已抽過）
+  const allowed = [];
+  for(let i=0;i<state.dates.length;i++){
+    if(!state.usedDates.has(state.dates[i])) allowed.push(i);
+  }
+  if(allowed.length === 0){
+    setSystem("FINISHED");
+    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResultSub("可下載 PDF，或按重置重新開始");
+    stopAllAudio();
+    return;
+  }
 
   // 手動第二輪：dun 4 秒
   if(state.mode === "manual"){
@@ -976,9 +1074,9 @@ async function spinDate(){
   }
 
   setSystem("SPIN_DATE");
-// 轉 6~8 圈，4 秒（與 dun 同步）
-const turns = 6 + Math.floor(Math.random()*3);
-startSpinToIndex(state.dateWheel, state.availableDates, 4000, turns);
+  // 轉 6~8 圈，4 秒（與 dun 同步）
+  const turns = 6 + Math.floor(Math.random()*3);
+  startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
 }
 
 function finalizeAssignment(member, date){
@@ -989,40 +1087,46 @@ function finalizeAssignment(member, date){
     return;
   }
 
-  // 中央顯示：依你原需求「值日生「幾月幾日」」一行
+  // 防呆：日期不可重複
+  if(state.usedDates.has(date)){
+    setResult(`日期「${date}」已分配過（請再抽一次）`);
+    setResultSub("（系統保護）");
+    setSystem("READY_DATE");
+    return;
+  }
+
+  // 中央顯示：依你需求「值日生「幾月幾日」」一行
   setResult(`值日生「${date}」`);
   setResultSub(`值日生：${member}`);
 
-  // 記錄
-  const time = nowStamp();
+  // 記錄（時間後綴：單純顯示手動/自動；你選 C）
+  const time = `${nowStamp()}（${state.mode === "auto" ? "自動" : "手動"}）`;
   state.logs.push({ time, member, date });
   renderLogs();
 
-// 移除：人
-state.availableMembers = state.availableMembers.filter(n => n !== member);
+  // 標記：日期已用；值日生本輪已用（兩輪都「不刪除」，改灰化＋不可再抽）
+  state.usedDates.add(date);
+  state.usedMembers.add(member);
 
-// 日期不再刪除 → 改為標記灰色
-state.usedDates.add(date);
-
-  // 清暫存（高亮要保留，直到下一次抽值日生才清除 → 所以不清 wheel.highlight）
+  // 清暫存（高亮要保留到下一次抽值日生才清除）
   state.selectedMember = null;
   state.selectedDate = null;
 
   updateCounters();
 
-  // 完成判斷
-  if(state.usedDates.size === state.availableDates.length){
+  // ✅ 完成判斷：只有「日期 21 次全部抽完」才 FINISHED（你選 A）
+  if(state.usedDates.size >= state.dates.length){
     setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成");
+    setResult("🎉 全年度值日生分配完成（21 / 21）");
     setResultSub("可下載 PDF，或按重置重新開始");
     el.chipAuto.textContent = "完成";
     stopAllAudio();
     return;
   }
 
-  // 人池用完 → 重置
-  if(state.availableMembers.length === 0){
-    state.availableMembers = [...state.members];
+  // 人池用完 → 重置本輪
+  if(state.members.length > 0 && state.usedMembers.size >= state.members.length){
+    state.usedMembers.clear();
   }
 
   // 回到第一輪
@@ -1031,57 +1135,121 @@ state.usedDates.add(date);
   setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
 }
 
+function abortAuto(reason){
+  // 停止動畫
+  state.autoAbort = true;
+  try{
+    state.memberWheel.anim = null;
+    state.dateWheel.anim = null;
+  }catch(e){}
+  stopAllAudio();
+
+  // 自動改回可操作狀態（不清資料、不清灰化）
+  if(state.system === "FINISHED") return;
+
+  el.chipAuto.textContent = "自動已中止";
+  setResultSub(reason || "已中止自動流程");
+  setSystem(state.locked ? "READY_MEMBER" : "INIT");
+}
+
 async function runAuto(){
   if(!state.locked) return;
   if(state.mode !== "auto") return;
+
+  // 若已在自動中，按一次就中止（你要「中途打斷」）
+  if(state.system === "AUTO_RUNNING"){
+    abortAuto("已中止自動流程（手動接管）");
+    return;
+  }
+
   if(isBusy()) return;
-  if(state.availableDates.length === 0) return;
-  if(!["READY_MEMBER","READY_DATE"].includes(state.system)) return;
+
+  const dateLeft = state.dates.length - state.usedDates.size;
+  if(dateLeft <= 0){
+    setSystem("FINISHED");
+    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResultSub("可下載 PDF，或按重置重新開始");
+    return;
+  }
+
+  state.autoAbort = false;
 
   // 自動模式：立即靜音
   stopAllAudio();
   el.chipAuto.textContent = "自動執行中…";
 
-  // 自動：不閃爍（已在 setMode 做 blink=false），也不播放音效
   setSystem("AUTO_RUNNING");
 
-  // 若剛好停在 READY_DATE（已抽到值日生但沒抽日期），先補抽日期一次
-  if(state.system === "AUTO_RUNNING" && state.selectedMember){
-    // 理論上不會發生；保護
-  }
+  while(true){
+    if(state.autoAbort) break;
 
-  while(state.availableDates.length > 0){
-    if(state.availableMembers.length === 0){
-      state.availableMembers = [...state.members];
+    const left = state.dates.length - state.usedDates.size;
+    if(left <= 0) break;
+
+    // 人池用完：重置本輪
+    if(state.members.length > 0 && state.usedMembers.size >= state.members.length){
+      state.usedMembers.clear();
     }
 
-    // 自動一筆：抽值日生（快一點）
-    clearHighlights(); // 自動不需要上一筆的閃爍殘留
-    startSpinToIndex(state.memberWheel, state.availableMembers, 750, 3 + Math.floor(Math.random()*2));
-    // 等動畫結束：輪詢 anim
+    // === 抽值日生（只抽未用）===
+    const mAllowed = [];
+    for(let i=0;i<state.members.length;i++){
+      if(!state.usedMembers.has(state.members[i])) mAllowed.push(i);
+    }
+    if(mAllowed.length === 0){
+      state.usedMembers.clear();
+      for(let i=0;i<state.members.length;i++) mAllowed.push(i);
+    }
+
+    clearHighlights(); // 自動不需要上一筆閃爍殘留
+    startSpinToIndex(state.memberWheel, state.members, 750, 3 + Math.floor(Math.random()*2), mAllowed);
     await waitAnimDone(state.memberWheel);
-    state.selectedMember = state.availableMembers[state.memberWheel.selectedIndex] ?? null;
+    if(state.autoAbort) break;
+
+    state.selectedMember = state.members[state.memberWheel.selectedIndex] ?? null;
     state.memberWheel.highlight = true; // 但不閃（blink=false）
 
-    // 抽日期
-    startSpinToIndex(state.dateWheel, state.availableDates, 750, 3 + Math.floor(Math.random()*2));
-    await waitAnimDone(state.dateWheel);
-    state.selectedDate = state.availableDates[state.dateWheel.selectedIndex] ?? null;
-    state.dateWheel.highlight = true; // 但不閃
+    // === 抽日期（只抽未用）===
+    const dAllowed = [];
+    for(let i=0;i<state.dates.length;i++){
+      if(!state.usedDates.has(state.dates[i])) dAllowed.push(i);
+    }
+    if(dAllowed.length === 0) break;
 
-    // finalize
+    startSpinToIndex(state.dateWheel, state.dates, 750, 3 + Math.floor(Math.random()*2), dAllowed);
+    await waitAnimDone(state.dateWheel);
+    if(state.autoAbort) break;
+
+    state.selectedDate = state.dates[state.dateWheel.selectedIndex] ?? null;
+    state.dateWheel.highlight = true;
+
     finalizeAssignment(state.selectedMember, state.selectedDate);
 
-    if(state.availableDates.length === 0) break;
-
-    // 保持 AUTO_RUNNING 狀態直到完成
+    // finalizeAssignment 會把 system 拉回 READY_MEMBER；自動要維持 AUTO_RUNNING
+    if(state.system === "FINISHED") break;
     state.system = "AUTO_RUNNING";
     el.sysState.textContent = "AUTO_RUNNING";
-    await sleep(250);
+
+    await sleep(220);
   }
 
-  setSystem("FINISHED");
-  el.chipAuto.textContent = "完成";
+  if(state.autoAbort){
+    // 已在 abortAuto() 做 UI；這裡只保護狀態
+    state.system = state.locked ? "READY_MEMBER" : "INIT";
+    el.sysState.textContent = state.system;
+    updateButtons();
+    return;
+  }
+
+  // 正常完成
+  if(state.usedDates.size >= state.dates.length){
+    setSystem("FINISHED");
+    el.chipAuto.textContent = "完成";
+  }else{
+    // 途中自然結束（理論上不會），回到可操作
+    setSystem("READY_MEMBER");
+    el.chipAuto.textContent = "自動結束";
+  }
 }
 
 function waitAnimDone(wheel){
@@ -1103,20 +1271,20 @@ function lockLists(){
 
   if(members.length < 1){
     setResult("請先輸入值日生名單");
-    setResultSub("每行一個姓名");
+    setResultSub("可用：換行 / 逗號 / 空格 分隔");
     return;
   }
   if(dates.length < 1){
     setResult("日期清單為空");
-    setResultSub("請填入日期");
+    setResultSub("請填入日期（例：2/22 3/15 …）");
     return;
   }
 
   state.members = members;
-  state.availableMembers = [...members];
-
   state.dates = dates;
-  state.availableDates = [...dates];
+
+  state.usedMembers.clear();
+  state.usedDates.clear();
 
   state.logs = [];
   state.selectedMember = null;
@@ -1130,19 +1298,28 @@ function lockLists(){
   setResult("請抽值日生");
   setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
 
-  renderLogs();
+  el.chipAuto.textContent = "自動未執行";
+
   updateCounters();
+  renderLogs();
   redrawAll(performance.now());
+  updateButtons();
 }
 
 function unlockLists(){
   stopAllAudio();
   clearHighlights();
+
   setLocked(false);
-  state.system = "INIT";
-  el.sysState.textContent = "INIT";
+  state.usedMembers.clear();
+  state.usedDates.clear();
+  state.selectedMember = null;
+  state.selectedDate = null;
+
+  setSystem("INIT");
   setResult("尚未開始");
   setResultSub("請先鎖定名單");
+
   updateButtons();
   updateCounters();
   redrawAll(performance.now());
@@ -1150,18 +1327,20 @@ function unlockLists(){
 
 function resetAll(){
   if(isBusy()) return;
+
   stopAllAudio();
   clearHighlights();
 
   state.logs = [];
   state.selectedMember = null;
   state.selectedDate = null;
-  
-  state.usedDates = new Set();
+
+  state.usedMembers.clear();
+  state.usedDates.clear();
+
+  el.chipAuto.textContent = "自動未執行";
 
   if(state.locked){
-    state.availableMembers = [...state.members];
-    state.availableDates = [...state.dates];
     setSystem("READY_MEMBER");
     setResult("請抽值日生");
     setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
@@ -1171,11 +1350,10 @@ function resetAll(){
     setResultSub("請先鎖定名單");
   }
 
-  el.chipAuto.textContent = (state.mode === "auto") ? "自動模式已選擇" : "自動未執行";
-
   renderLogs();
   updateCounters();
   redrawAll(performance.now());
+  updateButtons();
 }
 
 function exportPdfViaPrint(){
@@ -1246,12 +1424,19 @@ el.modeToggle.addEventListener("change", (e)=>{
     return;
   }
 
-  setMode(t.value);
+  // ✅ 允許中途打斷自動：只要 AUTO_RUNNING 且切到手動，就立刻中止
+  const nextMode = t.value;
+  if(state.system === "AUTO_RUNNING" && nextMode === "manual"){
+    abortAuto("已切換手動模式（中止自動）");
+  }
 
+  setMode(nextMode);
+
+  // 切換模式後不自動開始（你選 B）
   if(state.mode === "auto"){
-    setResultSub("已切換自動模式：請按「自動開始」才會執行（已靜音）");
+    setResultSub("已切換自動模式：請按「自動開始」才會執行（自動靜音）");
   }else{
-    setResultSub("已切換手動模式：抽值日生 → 抽日期（含音效與閃爍）");
+    setResultSub("已切換手動模式：請按「抽值日生」→「抽日期」");
   }
   updateButtons();
 });
