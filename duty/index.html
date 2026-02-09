@@ -255,19 +255,18 @@
 
       <div style="margin-top:10px;">
         <label>⭐ 值日生名單（每行一個 / 逗號分隔皆可）</label>
-        <textarea id="inputMembers" placeholder="例：
-小明 John 鈴木さん"></textarea>
+        <textarea id="inputMembers" placeholder="例：小明 John 鈴木さん"></textarea>
         <div class="hint">人數少於日期時，抽完一輪會自動重置值日生池（日期不重置）。</div>
       </div>
 
       <div style="margin-top:10px;">
-        <label>📅 值日生日期（固定 21 次；一般不用改）</label>
+        <label>📅 值日生日期 </label>
         <textarea id="inputDates"></textarea>
       </div>
 
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnLock">鎖定名單</button>
-        <button class="btn secondary" id="btnUnlock">解除鎖定</button>
+        <button class="btn danger" id="btnUnlock">解除鎖定</button>
         <span class="pill">狀態：<strong id="sysState">INIT</strong></span>
         <span class="pill">模式：<strong id="modeState">manual</strong></span>
       </div>
@@ -484,6 +483,7 @@ const state = {
   availableMembers: [],
   dates: [],
   availableDates: [],
+  usedDates: new Set(),
 
   selectedMember: null,
   selectedDate: null,
@@ -676,7 +676,7 @@ function drawWheel(canvas, labels, angle, theme, wheelState, nowMs){
   const W = canvas.clientWidth;
   const H = canvas.clientWidth;
   const cx = W/2, cy = H/2;
-  const r = Math.min(W,H) * 0.46;
+  const r = Math.min(W,H) * 0.48;
 
   ctx.clearRect(0,0,W,H);
 
@@ -722,7 +722,13 @@ function drawWheel(canvas, labels, angle, theme, wheelState, nowMs){
     ctx.moveTo(cx,cy);
     ctx.arc(cx,cy,r,a0,a1,false);
     ctx.closePath();
-    ctx.fillStyle = (i%2===0) ? theme.c1 : theme.c2;
+	
+    // ⭐ 在這裡改顏色判斷
+if(theme === THEME_DATE && state.usedDates.has(labels[i])){
+  ctx.fillStyle = "#E0E0E0";  // 已抽過 → 灰色
+}else{
+  ctx.fillStyle = (i%2===0) ? theme.c1 : theme.c2;  // 正常
+}
     ctx.fill();
 
     ctx.strokeStyle = "rgba(255,255,255,.65)";
@@ -780,7 +786,7 @@ function drawWheel(canvas, labels, angle, theme, wheelState, nowMs){
 
   // center
   ctx.beginPath();
-  ctx.arc(cx,cy,r*0.18,0,Math.PI*2);
+  ctx.arc(cx,cy,r*0.14,0,Math.PI*2);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.strokeStyle = "rgba(96,112,128,.25)";
@@ -848,17 +854,37 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns){
 
 function updateWheelAnim(wheel, nowMs){
   if(!wheel.anim) return false;
+
   const a = wheel.anim;
-  const t = Math.min(1, (nowMs - a.startTime) / a.duration);
-  const k = easeOutCubic(t);
+  let t = Math.min(1, (nowMs - a.startTime) / a.duration);
+
+  let k;
+
+  // ⭐ 三段式自然慣性
+  if(t < 0.8){
+    // 前 80%：高速穩定旋轉
+    k = t / 0.8 * 0.8;
+  }
+  else if(t < 0.93){
+    // 中段：平滑減速
+    const tt = (t - 0.8) / 0.13;
+    k = 0.8 + easeOutCubic(tt) * 0.15;
+  }
+  else{
+    // 最後 7%：微慢速絲滑貼合
+    const tt = (t - 0.93) / 0.07;
+    k = 0.95 + easeOutCubic(tt) * 0.05;
+  }
+
   wheel.angle = a.startAngle + (a.endAngle - a.startAngle) * k;
 
   if(t >= 1){
     wheel.angle = a.endAngle;
     wheel.selectedIndex = a.idx;
     wheel.anim = null;
-    return true; // finished
+    return true;
   }
+
   return false;
 }
 
@@ -933,9 +959,9 @@ async function spinMember(){
   }
 
   setSystem("SPIN_MEMBER");
-  // 轉 5~7 圈，1.8s
-  const turns = 5 + Math.floor(Math.random()*3);
-  startSpinToIndex(state.memberWheel, state.availableMembers, 1800, turns);
+// 轉 8~10 圈，7 秒（與 drum 同步）
+const turns = 8 + Math.floor(Math.random()*3);
+startSpinToIndex(state.memberWheel, state.availableMembers, 7000, turns);
 }
 
 async function spinDate(){
@@ -950,9 +976,9 @@ async function spinDate(){
   }
 
   setSystem("SPIN_DATE");
-  // 轉 4~6 圈，1.5s
-  const turns = 4 + Math.floor(Math.random()*3);
-  startSpinToIndex(state.dateWheel, state.availableDates, 1500, turns);
+// 轉 6~8 圈，4 秒（與 dun 同步）
+const turns = 6 + Math.floor(Math.random()*3);
+startSpinToIndex(state.dateWheel, state.availableDates, 4000, turns);
 }
 
 function finalizeAssignment(member, date){
@@ -972,9 +998,11 @@ function finalizeAssignment(member, date){
   state.logs.push({ time, member, date });
   renderLogs();
 
-  // 移除：人 + 日期
-  state.availableMembers = state.availableMembers.filter(n => n !== member);
-  state.availableDates = state.availableDates.filter(d => d !== date);
+// 移除：人
+state.availableMembers = state.availableMembers.filter(n => n !== member);
+
+// 日期不再刪除 → 改為標記灰色
+state.usedDates.add(date);
 
   // 清暫存（高亮要保留，直到下一次抽值日生才清除 → 所以不清 wheel.highlight）
   state.selectedMember = null;
@@ -983,7 +1011,7 @@ function finalizeAssignment(member, date){
   updateCounters();
 
   // 完成判斷
-  if(state.availableDates.length === 0){
+  if(state.usedDates.size === state.availableDates.length){
     setSystem("FINISHED");
     setResult("🎉 全年度值日生分配完成");
     setResultSub("可下載 PDF，或按重置重新開始");
@@ -1128,6 +1156,8 @@ function resetAll(){
   state.logs = [];
   state.selectedMember = null;
   state.selectedDate = null;
+  
+  state.usedDates = new Set();
 
   if(state.locked){
     state.availableMembers = [...state.members];
