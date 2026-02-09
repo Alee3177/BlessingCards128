@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>抽值日生輪盤 v2</title>
+  <title>抽值日生輪盤</title>
   <style>
     :root{
       --bg:#F4F6F7;
@@ -218,14 +218,16 @@
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
     .empty{padding: 10px 0; color: var(--muted); font-size: 13px;}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 </head>
 
 <body>
 <div class="wrap">
   <div class="header">
     <div class="title">
-      <h1>抽值日生輪盤 v2</h1>
-      <div class="sub">無指針｜絲滑停轉｜金色高亮閃爍（手動）｜自動模式靜音＋不閃爍</div>
+      <h1>抽值日生輪盤</h1>
+      <div class="sub"></div>
     </div>
     <div class="row">
       <span class="pill">日期總數：<strong id="dateTotal">21</strong></span>
@@ -281,7 +283,7 @@
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
-        <button class="btn" id="btnAutoStart">自動開始</button>
+        <button class="btn" id="btnAutoStart">自動開始或中斷</button>
         <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
       </div>
 
@@ -908,38 +910,20 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices)
 }
 
 function updateWheelAnim(wheel, nowMs){
-  if(!wheel.anim) return false;
+  const s = wheel.spin;
+  if(!s) return false;
 
-  const a = wheel.anim;
-  let t = Math.min(1, (nowMs - a.startTime) / a.duration);
-
-  let k;
-
-  // ⭐ 三段式自然慣性
-  if(t < 0.8){
-    // 前 80%：高速穩定旋轉
-    k = t / 0.8 * 0.8;
-  }
-  else if(t < 0.93){
-    // 中段：平滑減速
-    const tt = (t - 0.8) / 0.13;
-    k = 0.8 + easeOutCubic(tt) * 0.15;
-  }
-  else{
-    // 最後 7%：微慢速絲滑貼合
-    const tt = (t - 0.93) / 0.07;
-    k = 0.95 + easeOutCubic(tt) * 0.05;
-  }
-
-  wheel.angle = a.startAngle + (a.endAngle - a.startAngle) * k;
-
+  const t = (nowMs - s.startMs) / s.durMs;
   if(t >= 1){
-    wheel.angle = a.endAngle;
-    wheel.selectedIndex = a.idx;
-    wheel.anim = null;
+    wheel.angle = s.targetAngle;
+    wheel.selectedIndex = s.idx;
+    wheel.spin = null;
     return true;
   }
 
+  // easeOutCubic：自然、順滑、一路同一條曲線減速（不做二段補正）
+  const tt = 1 - Math.pow(1 - t, 3);
+  wheel.angle = s.startAngle + (s.targetAngle - s.startAngle) * tt;
   return false;
 }
 
@@ -972,7 +956,7 @@ function tick(nowMs){
 
     // 手動：第一輪抽中要高亮閃爍；自動：不閃（blink=false）
     state.memberWheel.highlight = true;
-
+    state.memberWheel.blink = (state.mode === "manual");
     setSystem("READY_DATE");
     setResult(`抽中值日生「${state.selectedMember}」`);
     setResultSub("請抽日期");
@@ -986,7 +970,7 @@ function tick(nowMs){
     el.datePick.textContent = state.selectedDate ?? "-";
 
     state.dateWheel.highlight = true;
-
+    state.dateWheel.blink = (state.mode === "manual");
     finalizeAssignment(state.selectedMember, state.selectedDate);
   }
 
@@ -1132,7 +1116,7 @@ function finalizeAssignment(member, date){
   // 回到第一輪
   setSystem("READY_MEMBER");
   setResult("請抽值日生");
-  setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
+  setResultSub(state.mode === "auto" ? "自動：按自動開始或中斷" : "手動：按抽值日生");
 }
 
 function abortAuto(reason){
@@ -1222,7 +1206,7 @@ async function runAuto(){
 
     state.selectedDate = state.dates[state.dateWheel.selectedIndex] ?? null;
     state.dateWheel.highlight = true;
-
+    state.dateWheel.blink = (state.mode === "manual");
     finalizeAssignment(state.selectedMember, state.selectedDate);
 
     // finalizeAssignment 會把 system 拉回 READY_MEMBER；自動要維持 AUTO_RUNNING
@@ -1296,7 +1280,7 @@ function lockLists(){
   setLocked(true);
   setSystem("READY_MEMBER");
   setResult("請抽值日生");
-  setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
+  setResultSub(state.mode === "auto" ? "自動：按自動開始或中斷" : "手動：按抽值日生");
 
   el.chipAuto.textContent = "自動未執行";
 
@@ -1328,27 +1312,31 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
+  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，
+需重新輸入姓名並鎖定名單開始新轉盤遊戲！
+您確定要執行嗎 (Yes or No)?";
+  if(!confirm(msg)) return;
+
   stopAllAudio();
   clearHighlights();
 
+  // 清空資料
   state.logs = [];
   state.selectedMember = null;
   state.selectedDate = null;
-
   state.usedMembers.clear();
   state.usedDates.clear();
 
+  // 回到未鎖定（必須重新鎖定）
+  setLocked(false);
+  setSystem("INIT");
+  setResult("尚未開始");
+  setResultSub("請先輸入姓名並鎖定名單");
+
   el.chipAuto.textContent = "自動未執行";
 
-  if(state.locked){
-    setSystem("READY_MEMBER");
-    setResult("請抽值日生");
-    setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
-  }else{
-    setSystem("INIT");
-    setResult("尚未開始");
-    setResultSub("請先鎖定名單");
-  }
+  // 清空姓名輸入（確保「需重新輸入」）
+  el.inputMembers.value = "";
 
   renderLogs();
   updateCounters();
@@ -1357,45 +1345,81 @@ function resetAll(){
 }
 
 function exportPdfViaPrint(){
-  const title = "抽值日生輪盤_抽籤紀錄";
-  const rows = state.logs.map(it => `
-    <tr>
-      <td>${escapeHtml(it.time)}</td>
-      <td>「${escapeHtml(it.member)}」</td>
-      <td>「${escapeHtml(it.date)}」</td>
-    </tr>
-  `).join("");
-
-  const html = `
-<!doctype html><html><head>
-<meta charset="utf-8"/>
-<title>${title}</title>
-<style>
-  body{font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; padding:24px;}
-  h1{font-size:20px;margin:0 0 10px;}
-  .meta{color:#607080;font-size:12px;margin-bottom:14px;}
-  table{border-collapse:collapse;width:100%;}
-  th,td{border:1px solid #d9e1ea;padding:8px;font-size:13px;text-align:left;}
-  th{background:#f3f6f9;}
-</style>
-</head><body>
-<h1>${title}</h1>
-<div class="meta">共 ${state.logs.length} 筆｜列印時選擇「另存為 PDF」即可</div>
-<table>
-  <thead><tr><th>時間</th><th>值日生</th><th>日期</th></tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<script>window.onload=()=>{ setTimeout(()=>window.print(), 250); };<\/script>
-</body></html>`;
-
-  const w = window.open("", "_blank");
-  if(!w){
-    setResultSub("彈出視窗被阻擋：請允許彈出視窗後重試");
+  // 直接下載 PDF（以畫布 raster 化，避免中文字體亂碼）
+  const { jsPDF } = (window.jspdf || {});
+  if(!jsPDF){
+    setResultSub("PDF 模組載入失敗：請檢查網路是否可連到 jsdelivr，或改用瀏覽器列印另存 PDF。");
     return;
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+
+  const title = "抽值日生輪盤_抽籤紀錄";
+  const rows = state.logs.slice();
+
+  // A4 直式：用 150dpi 畫布（輸出清楚）
+  const W = 1240, H = 1754;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // 背景
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,W,H);
+
+  // 文字
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 36px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.fillText(title, 60, 90);
+
+  ctx.fillStyle = "#607080";
+  ctx.font = "24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.fillText(`共 ${rows.length} 筆`, 60, 130);
+
+  // 表格
+  const x0 = 60, y0 = 170, tableW = W - 120;
+  const col1 = 220, col2 = 420, col3 = tableW - col1 - col2;
+  const rowH = 46;
+
+  // header
+  ctx.fillStyle = "#f3f6f9";
+  ctx.fillRect(x0, y0, tableW, rowH);
+  ctx.strokeStyle = "#d9e1ea";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x0, y0, tableW, rowH);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.fillText("時間", x0 + 16, y0 + 32);
+  ctx.fillText("值日生", x0 + col1 + 16, y0 + 32);
+  ctx.fillText("日期", x0 + col1 + col2 + 16, y0 + 32);
+
+  ctx.font = "24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+
+  const maxRows = Math.floor((H - (y0 + rowH) - 80) / rowH);
+  const pageRows = rows.slice(0, maxRows);
+
+  pageRows.forEach((it, i) => {
+    const y = y0 + rowH * (i+1);
+    // row bg
+    ctx.fillStyle = (i % 2 === 0) ? "#ffffff" : "#fbfdff";
+    ctx.fillRect(x0, y, tableW, rowH);
+    ctx.strokeStyle = "#d9e1ea";
+    ctx.strokeRect(x0, y, tableW, rowH);
+
+    ctx.fillStyle = "#111827";
+    ctx.fillText(String(it.time||""), x0 + 16, y + 32);
+    ctx.fillText(String(it.member||""), x0 + col1 + 16, y + 32);
+    ctx.fillText(String(it.date||""), x0 + col1 + col2 + 16, y + 32);
+  });
+
+  const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
+  const img = canvas.toDataURL("image/jpeg", 0.92);
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  pdf.addImage(img, "JPEG", 0, 0, pageW, pageH);
+
+  const filename = "抽值日生輪盤_抽籤紀錄.pdf";
+  pdf.save(filename);
 }
 
 /** =========================
@@ -1434,7 +1458,7 @@ el.modeToggle.addEventListener("change", (e)=>{
 
   // 切換模式後不自動開始（你選 B）
   if(state.mode === "auto"){
-    setResultSub("已切換自動模式：請按「自動開始」才會執行（自動靜音）");
+    setResultSub("已切換自動模式：請按「自動開始或中斷」才會執行（自動靜音）");
   }else{
     setResultSub("已切換手動模式：請按「抽值日生」→「抽日期」");
   }
