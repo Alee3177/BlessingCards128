@@ -910,7 +910,7 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices)
 }
 
 function updateWheelAnim(wheel, nowMs){
-  const s = wheel.anim;
+  const s = wheel.spin;
   if(!s) return false;
 
   const t = (nowMs - s.startTime) / s.duration;
@@ -918,20 +918,14 @@ function updateWheelAnim(wheel, nowMs){
   if(t >= 1){
     wheel.angle = s.endAngle;
     wheel.selectedIndex = s.idx;
-    wheel.anim = null;
+    wheel.spin = null;
     return true;
   }
 
-  // 單段自然 easeOutCubic 慣性（自然、順滑停止）
+  // 自然 easeOutCubic 慣性停止
   const k = 1 - Math.pow(1 - t, 3);
   wheel.angle = s.startAngle + (s.endAngle - s.startAngle) * k;
 
-  return false;
-}
-
-  // easeOutCubic：自然、順滑、一路同一條曲線減速（不做二段補正）
-  const tt = 1 - Math.pow(1 - t, 3);
-  wheel.angle = s.startAngle + (s.targetAngle - s.startAngle) * tt;
   return false;
 }
 
