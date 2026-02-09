@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>抽值日生輪盤</title>
+  <title>抽值日生輪盤 v2</title>
   <style>
     :root{
       --bg:#F4F6F7;
@@ -110,8 +110,6 @@
     }
     .btn.secondary:hover{background:#f7f9fb;}
     .btn.danger{background: var(--danger);}
-    .btn.accent{background: var(--accent);}
-    .btn.accent:hover{filter: brightness(0.96);}
     .btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
     .toggle{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
     .radio{
@@ -226,7 +224,8 @@
 <div class="wrap">
   <div class="header">
     <div class="title">
-      <h1>抽值日生輪盤</h1>
+      <h1>抽值日生輪盤 v2</h1>
+      <div class="sub">無指針｜絲滑停轉｜金色高亮閃爍（手動）｜自動模式靜音＋不閃爍</div>
     </div>
     <div class="row">
       <span class="pill">日期總數：<strong id="dateTotal">21</strong></span>
@@ -249,8 +248,8 @@
           </label>
         </div>
         <div class="row">
-          <button class="btn danger" id="btnReset">重置（清空紀錄）</button>
-          <button class="btn accent" id="btnUnlockAudio" title="若手機/LINE阻擋音效，先點此解鎖">解鎖音效</button>
+          <button class="btn secondary" id="btnReset">重置（清空紀錄）</button>
+          <button class="btn danger" id="btnUnlockAudio" title="若手機/LINE阻擋音效，先點此解鎖">解鎖音效</button>
         </div>
       </div>
 
@@ -267,7 +266,7 @@
 
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnLock">鎖定名單</button>
-        <button class="btn accent" id="btnUnlock">解除鎖定</button>
+        <button class="btn danger" id="btnUnlock">解除鎖定</button>
         <span class="pill">狀態：<strong id="sysState">INIT</strong></span>
         <span class="pill">模式：<strong id="modeState">manual</strong></span>
       </div>
@@ -282,7 +281,7 @@
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
-        <button class="btn" id="btnAutoStart">自動開始或中斷</button>
+        <button class="btn" id="btnAutoStart">自動開始</button>
         <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
       </div>
 
@@ -642,14 +641,7 @@ function updateButtons(){
     dateLeft > 0 &&
     ["READY_MEMBER","READY_DATE"].includes(state.system);
 
-  el.btnAutoStart.textContent = "自動開始或中斷";
-
-  // AUTO_RUNNING：允許用同一按鈕中斷（即使在忙碌/旋轉中）
-  if(state.system === "AUTO_RUNNING"){
-    el.btnAutoStart.disabled = false;
-  }else{
-    el.btnAutoStart.disabled = !canAutoStart;
-  }
+  el.btnAutoStart.disabled = !canAutoStart;
 
   el.btnPdf.disabled = state.logs.length === 0 || busy;
 }
@@ -884,7 +876,7 @@ function chooseRandomIndexFrom(indices){
   return indices[k];
 }
 
-function startSpinInertia(wheel, labels, seconds, allowedIndices){
+function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices){
   const n = labels.length;
   if(n <= 0) return;
 
@@ -895,76 +887,61 @@ function startSpinInertia(wheel, labels, seconds, allowedIndices){
   const idx = chooseRandomIndexFrom(pool);
 
   const baseTarget = angleForIndexAtTop(idx, n);
-  const startAngle = wheel.angle;
+  const start = wheel.angle;
 
+  // 讓它順時針轉多圈
   const twoPi = Math.PI * 2;
-  const extraTurns = seconds >= 6 ? (8 + Math.floor(Math.random()*3)) : (5 + Math.floor(Math.random()*2));
-  let targetAngle = baseTarget + extraTurns * twoPi;
-  while(targetAngle <= startAngle + twoPi){
-    targetAngle += twoPi;
+  let end = baseTarget + extraTurns * twoPi;
+
+  // 確保 end 在 start 之後（避免反向）
+  while(end <= start + twoPi){
+    end += twoPi;
   }
 
-  const vel0 = (seconds >= 6) ? (0.72 + Math.random()*0.18) : (0.58 + Math.random()*0.16);
-  const vEnd = 0.003;
-  const nFrames = Math.max(60, Math.floor(seconds * 60));
-  const friction = Math.pow(vEnd / vel0, 1 / nFrames);
-
-  wheel.spin = {
-    idx,
-    targetAngle,
-    vel: vel0,
-    friction,
-    snap: false,
-    snapStartAngle: 0,
-    snapStart: 0,
-    snapDur: 0
+  wheel.anim = {
+    startAngle: start,
+    endAngle: end,
+    startTime: performance.now(),
+    duration: durationMs,
+    idx
   };
 }
 
-function updateWheelSpin(wheel, nowMs){
-  if(!wheel.spin) return false;
-  const s = wheel.spin;
+function updateWheelAnim(wheel, nowMs){
+  if(!wheel.anim) return false;
 
-  if(s.snap){
-    const t = Math.min(1, (nowMs - s.snapStart) / s.snapDur);
-    const k = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    wheel.angle = s.snapStartAngle + (s.targetAngle - s.snapStartAngle) * k;
-    if(t >= 1){
-      wheel.angle = s.targetAngle;
-      wheel.selectedIndex = s.idx;
-      wheel.spin = null;
-      return true;
-    }
-    return false;
+  const a = wheel.anim;
+  let t = Math.min(1, (nowMs - a.startTime) / a.duration);
+
+  let k;
+
+  // ⭐ 三段式自然慣性
+  if(t < 0.8){
+    // 前 80%：高速穩定旋轉
+    k = t / 0.8 * 0.8;
+  }
+  else if(t < 0.93){
+    // 中段：平滑減速
+    const tt = (t - 0.8) / 0.13;
+    k = 0.8 + easeOutCubic(tt) * 0.15;
+  }
+  else{
+    // 最後 7%：微慢速絲滑貼合
+    const tt = (t - 0.93) / 0.07;
+    k = 0.95 + easeOutCubic(tt) * 0.05;
   }
 
-  wheel.angle += s.vel;
-  s.vel *= s.friction;
+  wheel.angle = a.startAngle + (a.endAngle - a.startAngle) * k;
 
-  const remaining = s.targetAngle - wheel.angle;
-
-  if(remaining <= 0){
-    s.snap = true;
-    s.snapStartAngle = wheel.angle;
-    s.snapStart = nowMs;
-    s.snapDur = 280;
-    return false;
-  }
-
-  if(s.vel < 0.020 && remaining < 0.35){
-    s.snap = true;
-    s.snapStartAngle = wheel.angle;
-    s.snapStart = nowMs;
-    s.snapDur = 320;
-  }
-
-  if(s.vel < 0.006 && remaining > 1.2){
-    s.vel = 0.012;
+  if(t >= 1){
+    wheel.angle = a.endAngle;
+    wheel.selectedIndex = a.idx;
+    wheel.anim = null;
+    return true;
   }
 
   return false;
 }
-
 
 /** =========================
  *  高亮規則
@@ -1059,7 +1036,9 @@ async function spinMember(){
   }
 
   setSystem("SPIN_MEMBER");
-  startSpinInertia(state.memberWheel, state.members, 7, allowed);
+  // 轉 8~10 圈，7 秒（與 drum 同步）
+  const turns = 8 + Math.floor(Math.random()*3);
+  startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
 }
 
 async function spinDate(){
@@ -1097,7 +1076,7 @@ async function spinDate(){
   setSystem("SPIN_DATE");
   // 轉 6~8 圈，4 秒（與 dun 同步）
   const turns = 6 + Math.floor(Math.random()*3);
-  startSpinInertia(state.dateWheel, state.dates, 4, allowed);
+  startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
 }
 
 function finalizeAssignment(member, date){
@@ -1223,7 +1202,7 @@ async function runAuto(){
     }
 
     clearHighlights(); // 自動不需要上一筆閃爍殘留
-    startSpinInertia(state.memberWheel, state.members, 0.8, mAllowed);
+    startSpinToIndex(state.memberWheel, state.members, 750, 3 + Math.floor(Math.random()*2), mAllowed);
     await waitAnimDone(state.memberWheel);
     if(state.autoAbort) break;
 
@@ -1237,7 +1216,7 @@ async function runAuto(){
     }
     if(dAllowed.length === 0) break;
 
-    startSpinInertia(state.dateWheel, state.dates, 0.6, dAllowed);
+    startSpinToIndex(state.dateWheel, state.dates, 750, 3 + Math.floor(Math.random()*2), dAllowed);
     await waitAnimDone(state.dateWheel);
     if(state.autoAbort) break;
 
@@ -1347,14 +1326,10 @@ function unlockLists(){
 }
 
 function resetAll(){
-  const msg = `資料紀錄將被清空(clear) & 歸零(reset)，
-需重新輸入姓名並鎖定名單開始新轉盤遊戲！
-您確定要執行嗎 (Yes or No)?`;
-  if(!confirm(msg)) return;
+  if(isBusy()) return;
 
-  // 中途打斷：停止一切
-  abortAuto("已重置：回到 INIT");
   stopAllAudio();
+  clearHighlights();
 
   state.logs = [];
   state.selectedMember = null;
@@ -1363,16 +1338,124 @@ function resetAll(){
   state.usedMembers.clear();
   state.usedDates.clear();
 
-  // 回到未鎖定（必須重新鎖定）
-  setLocked(false);
-  setSystem("INIT");
-  setResult("尚未開始");
-  setResultSub("請先輸入姓名並鎖定名單");
-
   el.chipAuto.textContent = "自動未執行";
+
+  if(state.locked){
+    setSystem("READY_MEMBER");
+    setResult("請抽值日生");
+    setResultSub(state.mode === "auto" ? "自動：按自動開始" : "手動：按抽值日生");
+  }else{
+    setSystem("INIT");
+    setResult("尚未開始");
+    setResultSub("請先鎖定名單");
+  }
 
   renderLogs();
   updateCounters();
   redrawAll(performance.now());
   updateButtons();
 }
+
+function exportPdfViaPrint(){
+  const title = "抽值日生輪盤_抽籤紀錄";
+  const rows = state.logs.map(it => `
+    <tr>
+      <td>${escapeHtml(it.time)}</td>
+      <td>「${escapeHtml(it.member)}」</td>
+      <td>「${escapeHtml(it.date)}」</td>
+    </tr>
+  `).join("");
+
+  const html = `
+<!doctype html><html><head>
+<meta charset="utf-8"/>
+<title>${title}</title>
+<style>
+  body{font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; padding:24px;}
+  h1{font-size:20px;margin:0 0 10px;}
+  .meta{color:#607080;font-size:12px;margin-bottom:14px;}
+  table{border-collapse:collapse;width:100%;}
+  th,td{border:1px solid #d9e1ea;padding:8px;font-size:13px;text-align:left;}
+  th{background:#f3f6f9;}
+</style>
+</head><body>
+<h1>${title}</h1>
+<div class="meta">共 ${state.logs.length} 筆｜列印時選擇「另存為 PDF」即可</div>
+<table>
+  <thead><tr><th>時間</th><th>值日生</th><th>日期</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<script>window.onload=()=>{ setTimeout(()=>window.print(), 250); };<\/script>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if(!w){
+    setResultSub("彈出視窗被阻擋：請允許彈出視窗後重試");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+/** =========================
+ *  事件綁定
+ *  ========================= */
+el.btnLock.onclick = lockLists;
+el.btnUnlock.onclick = unlockLists;
+el.btnReset.onclick = resetAll;
+
+el.btnSpinMember.onclick = spinMember;
+el.btnSpinDate.onclick = spinDate;
+
+el.btnAutoStart.onclick = runAuto;
+el.btnPdf.onclick = exportPdfViaPrint;
+el.btnUnlockAudio.onclick = unlockAudio;
+
+// 模式切換（可中途，但忙碌/旋轉中禁止；切到 auto 不會自動開始，你選 B）
+el.modeToggle.addEventListener("change", (e)=>{
+  const t = e.target;
+  if(!(t && t.name==="mode")) return;
+
+  if(!canSwitchMode()){
+    const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
+    radios.forEach(r => r.checked = (r.value === state.mode));
+    setResultSub("旋轉中不可切換模式");
+    return;
+  }
+
+  // ✅ 允許中途打斷自動：只要 AUTO_RUNNING 且切到手動，就立刻中止
+  const nextMode = t.value;
+  if(state.system === "AUTO_RUNNING" && nextMode === "manual"){
+    abortAuto("已切換手動模式（中止自動）");
+  }
+
+  setMode(nextMode);
+
+  // 切換模式後不自動開始（你選 B）
+  if(state.mode === "auto"){
+    setResultSub("已切換自動模式：請按「自動開始」才會執行（自動靜音）");
+  }else{
+    setResultSub("已切換手動模式：請按「抽值日生」→「抽日期」");
+  }
+  updateButtons();
+});
+
+/** =========================
+ *  初始
+ *  ========================= */
+function init(){
+  el.inputDates.value = DUTY_DATES.join("\n");
+  el.dateTotal.textContent = String(DUTY_DATES.length);
+
+  setMode("manual");
+  setLocked(false);
+  updateCounters();
+  renderLogs();
+  redrawAll(performance.now());
+  if(!rafId) rafId = requestAnimationFrame(tick);
+}
+init();
+</script>
+</body>
+</html>
