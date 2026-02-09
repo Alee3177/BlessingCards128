@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>抽值日生輪盤</title>
+  <title>抽值日生輪盤 v2</title>
   <style>
     :root{
       --bg:#F4F6F7;
@@ -283,7 +283,7 @@
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
-        <button class="btn" id="btnAutoStart">自動開始或中斷</button>
+        <button class="btn" id="btnAutoStart">自動開始</button>
         <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
       </div>
 
@@ -914,12 +914,20 @@ function updateWheelAnim(wheel, nowMs){
   if(!s) return false;
 
   const t = (nowMs - s.startMs) / s.durMs;
+
   if(t >= 1){
     wheel.angle = s.targetAngle;
     wheel.selectedIndex = s.idx;
     wheel.spin = null;
     return true;
   }
+
+  // ⭐ 單段自然 easeOutCubic 慣性
+  const k = easeOutCubic(t);
+  wheel.angle = s.startAngle + (s.targetAngle - s.startAngle) * k;
+
+  return false;
+}
 
   // easeOutCubic：自然、順滑、一路同一條曲線減速（不做二段補正）
   const tt = 1 - Math.pow(1 - t, 3);
@@ -1312,9 +1320,10 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
-  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，
-需重新輸入姓名並鎖定名單開始新轉盤遊戲！
-您確定要執行嗎 (Yes or No)?";
+  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，\n" +
+              "需重新輸入姓名並鎖定名單開始新轉盤遊戲！\n" +
+              "您確定要執行嗎 (Yes or No)?";
+
   if(!confirm(msg)) return;
 
   stopAllAudio();
@@ -1327,7 +1336,7 @@ function resetAll(){
   state.usedMembers.clear();
   state.usedDates.clear();
 
-  // 回到未鎖定（必須重新鎖定）
+  // 🔥 強制回到 INIT
   setLocked(false);
   setSystem("INIT");
   setResult("尚未開始");
@@ -1335,7 +1344,7 @@ function resetAll(){
 
   el.chipAuto.textContent = "自動未執行";
 
-  // 清空姓名輸入（確保「需重新輸入」）
+  // 清空姓名輸入（確保重新開始）
   el.inputMembers.value = "";
 
   renderLogs();
@@ -1345,27 +1354,29 @@ function resetAll(){
 }
 
 function exportPdfViaPrint(){
+
   // 直接下載 PDF（以畫布 raster 化，避免中文字體亂碼）
   const { jsPDF } = (window.jspdf || {});
   if(!jsPDF){
-    setResultSub("PDF 模組載入失敗：請檢查網路是否可連到 jsdelivr，或改用瀏覽器列印另存 PDF。");
+    setResultSub("PDF 模組載入失敗：請檢查網路是否可連到 jsdelivr。");
     return;
   }
 
   const title = "抽值日生輪盤_抽籤紀錄";
   const rows = state.logs.slice();
 
-  // A4 直式：用 150dpi 畫布（輸出清楚）
+  // A4 直式：150dpi
   const W = 1240, H = 1754;
   const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
 
   // 背景
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0,0,W,H);
 
-  // 文字
+  // 標題
   ctx.fillStyle = "#111827";
   ctx.font = "bold 36px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
   ctx.fillText(title, 60, 90);
@@ -1379,7 +1390,6 @@ function exportPdfViaPrint(){
   const col1 = 220, col2 = 420, col3 = tableW - col1 - col2;
   const rowH = 46;
 
-  // header
   ctx.fillStyle = "#f3f6f9";
   ctx.fillRect(x0, y0, tableW, rowH);
   ctx.strokeStyle = "#d9e1ea";
@@ -1394,12 +1404,9 @@ function exportPdfViaPrint(){
 
   ctx.font = "24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
 
-  const maxRows = Math.floor((H - (y0 + rowH) - 80) / rowH);
-  const pageRows = rows.slice(0, maxRows);
-
-  pageRows.forEach((it, i) => {
+  rows.forEach((it, i) => {
     const y = y0 + rowH * (i+1);
-    // row bg
+
     ctx.fillStyle = (i % 2 === 0) ? "#ffffff" : "#fbfdff";
     ctx.fillRect(x0, y, tableW, rowH);
     ctx.strokeStyle = "#d9e1ea";
@@ -1418,8 +1425,7 @@ function exportPdfViaPrint(){
   const pageH = pdf.internal.pageSize.getHeight();
   pdf.addImage(img, "JPEG", 0, 0, pageW, pageH);
 
-  const filename = "抽值日生輪盤_抽籤紀錄.pdf";
-  pdf.save(filename);
+  pdf.save("抽值日生輪盤_抽籤紀錄.pdf");
 }
 
 /** =========================
@@ -1457,12 +1463,12 @@ el.modeToggle.addEventListener("change", (e)=>{
   setMode(nextMode);
 
   // 切換模式後不自動開始（你選 B）
-  if(state.mode === "auto"){
-    setResultSub("已切換自動模式：請按「自動開始或中斷」才會執行（自動靜音）");
-  }else{
-    setResultSub("已切換手動模式：請按「抽值日生」→「抽日期」");
-  }
-  updateButtons();
+if(state.mode === "auto"){
+  setResultSub("已切換自動模式：請按「自動開始或中斷」才會執行（自動靜音）");
+}else{
+  setResultSub("已切換手動模式：請按「抽值日生」→「抽日期」");
+}
+updateButtons();
 });
 
 /** =========================
