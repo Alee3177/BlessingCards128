@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>抽值日生輪盤</title>
+  <style>
+    :root{
+      --bg:#F4F6F7;
+      --card:#FFFFFF;
+      --ink:#1F2D3D;
+      --muted:#607080;
+      --line:#E5E9EF;
+      --accent:#48C9B0;
+      --accent2:#5DADE2;
+      --danger:#E74C3C;
+      --btn:#2C3E50;
+      --btn2:#3B5166;
+      --shadow: 0 10px 30px rgba(31,45,61,.10);
+      --radius:16px;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .wrap{
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
+    }
+    .header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      margin-bottom: 12px;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:4px;
+    }
+    h1{font-size:20px; margin:0; letter-spacing:.5px;}
+    .sub{font-size:13px; color:var(--muted);}
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 12px;
+    }
+    @media (max-width: 940px){
+      .grid{grid-template-columns:1fr;}
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .row > *{flex:0 0 auto;}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fbfcfd;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .pill strong{color:var(--ink); font-weight:700;}
+    textarea{
+      width: 100%;
+      min-height: 88px;
+      resize: vertical;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      outline: none;
+      background: #fbfcfd;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    textarea:focus{border-color: rgba(93,173,226,.7); box-shadow: 0 0 0 3px rgba(93,173,226,.15);}
+    label{
+      display:block;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 4px 0 6px;
+    }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: var(--btn);
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .06s ease, background .15s ease, opacity .15s ease;
+    }
+    .btn:hover{background: var(--btn2);}
+    .btn:active{transform: scale(.98);}
+    .btn.secondary{
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    .btn.secondary:hover{background:#f7f9fb;}
+    .btn.danger{
+      background: var(--danger);
+    }
+    .btn:disabled{
+      opacity: .45;
+      cursor: not-allowed;
+      transform:none;
+    }
+    .toggle{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .radio{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background:#fbfcfd;
+      cursor:pointer;
+      user-select:none;
+      font-size:14px;
+      color:var(--ink);
+    }
+    .radio input{accent-color: var(--accent2);}
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .wheels{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 940px){
+      .wheels{grid-template-columns:1fr;}
+    }
+    .wheelCard{
+      background:#fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+    .wheelHead{
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .wheelHead .name{
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+    .wheelHead .meta{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    canvas{
+      width: 100%;
+      height: auto;
+      display:block;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+      border: 1px solid var(--line);
+    }
+
+    .status{
+      margin-top: 12px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap:wrap;
+    }
+    .status .big{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .4px;
+      color: var(--ink);
+    }
+    .status .small{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status .right{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .chip{
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(72,201,176,.12);
+      color: #136f61;
+      border: 1px solid rgba(72,201,176,.25);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .logCard{
+      margin-top: 12px;
+      background:#fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+    .logHead{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap;
+      margin-bottom: 8px;
+    }
+    .logHead .ttl{font-weight:900;}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size: 13px;
+    }
+    th,td{
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+      text-align:left;
+      vertical-align:top;
+    }
+    th{color:var(--muted); font-weight:800; font-size:12px;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+    .muted{color:var(--muted);}
+    .empty{
+      padding: 10px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">
+        <h1>抽值日生輪盤</h1>
+        <div class="sub">雙輪盤（人 / 日期）｜手動＋自動（可中途切換但旋轉中鎖定）｜日期用完即完成</div>
+      </div>
+      <div class="row">
+        <span class="pill">日期總數：<strong id="dateTotal">21</strong></span>
+        <span class="pill">剩餘日期：<strong id="dateLeft">0</strong></span>
+        <span class="pill">人池狀態：<strong id="memberLeft">0</strong></span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div class="toggle" id="modeToggle">
+            <label class="radio" title="手動：每次按鈕抽人→抽日期">
+              <input type="radio" name="mode" value="manual" checked />
+              手動模式
+            </label>
+            <label class="radio" title="自動：按自動開始後，剩餘日期快速跑完">
+              <input type="radio" name="mode" value="auto" />
+              自動模式（快速動畫）
+            </label>
+          </div>
+          <div class="row">
+            <button class="btn secondary" id="btnReset">重置（清空紀錄）</button>
+            <button class="btn danger" id="btnUnlockAudio" title="若手機/LINE阻擋音效，先點此解鎖">解鎖音效</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label>👤 姓名名單（每行一個 / 逗號分隔皆可）</label>
+          <textarea id="inputMembers" placeholder="例：
+小明
+小華
+小美"></textarea>
+          <div class="hint">鎖定後才可開始抽。人數少於日期時，抽完一輪會自動重置人池（日期不會重置）。</div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label>📅 值日生日期（固定 21 次；一般不用改）</label>
+          <textarea id="inputDates"></textarea>
+          <div class="hint">第二輪日期輪盤只顯示「剩餘日期」。</div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="btnLock">鎖定名單</button>
+          <button class="btn secondary" id="btnUnlock">解除鎖定</button>
+
+          <span class="pill">狀態：<strong id="sysState">INIT</strong></span>
+          <span class="pill">模式：<strong id="modeState">manual</strong></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="pill">使用方式：<strong>手動</strong>：抽姓名→抽日期；<strong>自動</strong>：切到自動後再按「自動開始」</div>
+            <div class="hint">你可以先手動抽幾次（例如 6 次），再切自動，按「自動開始」把剩下的跑完。</div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="btnSpinMember">抽姓名</button>
+          <button class="btn" id="btnSpinDate">抽日期</button>
+          <button class="btn" id="btnAutoStart">自動開始</button>
+          <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
+        </div>
+
+        <div class="status">
+          <div>
+            <div class="big" id="resultText">尚未開始</div>
+            <div class="small" id="resultSub">請先鎖定名單</div>
+          </div>
+          <div class="right">
+            <span class="chip" id="chipLocked">未鎖定</span>
+            <span class="chip" id="chipAuto">自動未執行</span>
+          </div>
+        </div>
+
+        <div class="hint" style="margin-top:10px;">
+          PDF 產出使用「瀏覽器列印」方式（避免中文字型亂碼）。按下後會開新視窗，你選擇「列印 / 另存為 PDF」即可。
+        </div>
+      </div>
+    </div>
+
+    <div class="wheels">
+      <div class="wheelCard">
+        <div class="wheelHead">
+          <div class="name">👤 人輪盤</div>
+          <div class="meta">切分：<span id="memberSlices">0</span>｜目前選中：<span id="memberPick" class="mono muted">-</span></div>
+        </div>
+        <canvas id="memberCanvas" width="600" height="600"></canvas>
+      </div>
+
+      <div class="wheelCard">
+        <div class="wheelHead">
+          <div class="name">📅 日期輪盤</div>
+          <div class="meta">切分：<span id="dateSlices">0</span>｜目前選中：<span id="datePick" class="mono muted">-</span></div>
+        </div>
+        <canvas id="dateCanvas" width="600" height="600"></canvas>
+      </div>
+    </div>
+
+    <div class="logCard">
+      <div class="logHead">
+        <div class="ttl">抽籤紀錄</div>
+        <div class="row">
+          <span class="pill">紀錄筆數：<strong id="logCount">0</strong></span>
+        </div>
+      </div>
+
+      <div id="logEmpty" class="empty">尚無紀錄</div>
+      <div style="overflow:auto;">
+        <table id="logTable" style="display:none;">
+          <thead>
+            <tr>
+              <th style="min-width:120px;">時間</th>
+              <th style="min-width:140px;">姓名</th>
+              <th style="min-width:140px;">值日生日期</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+/** =========================
+ *  固定日期（紅字版，21 次）
+ *  ========================= */
+const DUTY_DATES = [
+  "2/22",
+  "3/15","3/29",
+  "4/12","4/26",
+  "5/3","5/17",
+  "6/7","6/21",
+  "7/5","7/19",
+  "8/2","8/16",
+  "9/6","9/20",
+  "10/4","10/18",
+  "11/1","11/15",
+  "12/6","12/20"
+];
+
+/** =========================
+ *  工具
+ *  ========================= */
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+function parseLines(text){
+  const raw = (text||"").replace(/\r/g,"\n");
+  const parts = raw.split(/[\n,，]+/).map(s=>s.trim()).filter(Boolean);
+  // 去重（保持順序）
+  const seen = new Set();
+  const out = [];
+  for (const p of parts){
+    if(!seen.has(p)){
+      seen.add(p);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+function nowStamp(){
+  const now = new Date();
+  const hh = now.getHours();
+  const mm = String(now.getMinutes()).padStart(2,"0");
+  const ss = String(now.getSeconds()).padStart(2,"0");
+  const period = hh < 12 ? "上午" : "下午";
+  const hour12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${period} ${hour12}:${mm}:${ss}`;
+}
+
+function canSwitchMode(){
+  return ["READY_MEMBER","READY_DATE","FINISHED","INIT"].includes(state.system);
+}
+
+function isBusy(){
+  return ["SPIN_MEMBER","SPIN_DATE","AUTO_RUNNING"].includes(state.system);
+}
+
+/** =========================
+ *  音效（可選）：dun.mp3
+ *  ========================= */
+let audioUnlocked = false;
+let dunAudio = null;
+
+function ensureDun(){
+  if(!dunAudio){
+    // 若你放在 duty/ 下，就用 "dun.mp3"
+    // 若放 repo 根目錄 audio/，就改成 "../audio/dun.mp3"
+    dunAudio = new Audio("dun.mp3");
+    dunAudio.preload = "auto";
+  }
+  return dunAudio;
+}
+
+async function unlockAudio(){
+  try{
+    const a = ensureDun();
+    // 以極短播放方式解鎖（部分瀏覽器仍可能阻擋，但多數可行）
+    a.volume = 0.001;
+    await a.play();
+    a.pause();
+    a.currentTime = 0;
+    a.volume = 1.0;
+    audioUnlocked = true;
+    setResultSub("音效已解鎖（若仍無聲，請再點一次）");
+  }catch(e){
+    audioUnlocked = false;
+    setResultSub("音效仍可能被阻擋（請在同頁面再點一次）");
+  }
+}
+
+function playDun(){
+  try{
+    const a = ensureDun();
+    a.currentTime = 0;
+    a.play().catch(()=>{});
+  }catch(e){}
+}
+
+/** =========================
+ *  狀態
+ *  ========================= */
+const state = {
+  locked: false,
+  mode: "manual",
+  system: "INIT",
+
+  members: [],
+  availableMembers: [],
+  dates: [],
+  availableDates: [],
+
+  selectedMember: null,
+  selectedDate: null,
+
+  logs: [],
+
+  memberWheel: { angle: 0, spinning: false },
+  dateWheel:   { angle: 0, spinning: false },
+
+  autoRequested: false
+};
+
+/** =========================
+ *  DOM
+ *  ========================= */
+const el = {
+  dateTotal: document.getElementById("dateTotal"),
+  dateLeft: document.getElementById("dateLeft"),
+  memberLeft: document.getElementById("memberLeft"),
+
+  inputMembers: document.getElementById("inputMembers"),
+  inputDates: document.getElementById("inputDates"),
+
+  btnLock: document.getElementById("btnLock"),
+  btnUnlock: document.getElementById("btnUnlock"),
+  btnReset: document.getElementById("btnReset"),
+  btnUnlockAudio: document.getElementById("btnUnlockAudio"),
+
+  btnSpinMember: document.getElementById("btnSpinMember"),
+  btnSpinDate: document.getElementById("btnSpinDate"),
+  btnAutoStart: document.getElementById("btnAutoStart"),
+  btnPdf: document.getElementById("btnPdf"),
+
+  sysState: document.getElementById("sysState"),
+  modeState: document.getElementById("modeState"),
+
+  chipLocked: document.getElementById("chipLocked"),
+  chipAuto: document.getElementById("chipAuto"),
+
+  resultText: document.getElementById("resultText"),
+  resultSub: document.getElementById("resultSub"),
+
+  memberCanvas: document.getElementById("memberCanvas"),
+  dateCanvas: document.getElementById("dateCanvas"),
+
+  memberSlices: document.getElementById("memberSlices"),
+  dateSlices: document.getElementById("dateSlices"),
+  memberPick: document.getElementById("memberPick"),
+  datePick: document.getElementById("datePick"),
+
+  logCount: document.getElementById("logCount"),
+  logEmpty: document.getElementById("logEmpty"),
+  logTable: document.getElementById("logTable"),
+  logBody: document.getElementById("logBody"),
+
+  modeToggle: document.getElementById("modeToggle")
+};
+
+el.inputDates.value = DUTY_DATES.join("\n");
+el.dateTotal.textContent = String(DUTY_DATES.length);
+
+/** =========================
+ *  UI 更新
+ *  ========================= */
+function setSystem(s){
+  state.system = s;
+  el.sysState.textContent = s;
+  updateButtons();
+}
+
+function setMode(m){
+  state.mode = m;
+  el.modeState.textContent = m;
+  el.chipAuto.textContent = (m === "auto") ? "自動模式已選擇" : "自動未執行";
+}
+
+function setLocked(v){
+  state.locked = v;
+  el.chipLocked.textContent = v ? "已鎖定" : "未鎖定";
+  el.chipLocked.style.background = v ? "rgba(93,173,226,.12)" : "rgba(231,76,60,.10)";
+  el.chipLocked.style.borderColor = v ? "rgba(93,173,226,.25)" : "rgba(231,76,60,.22)";
+  el.chipLocked.style.color = v ? "#1c5b86" : "#a03a2d";
+  updateButtons();
+}
+
+function setResult(text){
+  el.resultText.textContent = text;
+}
+function setResultSub(text){
+  el.resultSub.textContent = text;
+}
+
+function updateCounters(){
+  el.dateLeft.textContent = String(state.availableDates.length);
+  el.memberLeft.textContent = String(state.availableMembers.length);
+
+  el.memberSlices.textContent = String(state.availableMembers.length);
+  el.dateSlices.textContent = String(state.availableDates.length);
+
+  el.memberPick.textContent = state.selectedMember ?? "-";
+  el.datePick.textContent = state.selectedDate ?? "-";
+}
+
+function updateButtons(){
+  const locked = state.locked;
+  const busy = isBusy();
+
+  // mode radios
+  const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
+  radios.forEach(r => {
+    r.disabled = !canSwitchMode(); // 旋轉中不可切
+  });
+
+  el.btnLock.disabled = busy;
+  el.btnUnlock.disabled = busy;
+
+  el.btnSpinMember.disabled = !locked || busy || state.availableMembers.length === 0 || state.availableDates.length === 0 || state.system !== "READY_MEMBER";
+  el.btnSpinDate.disabled   = !locked || busy || state.selectedMember == null || state.availableDates.length === 0 || state.system !== "READY_DATE";
+
+  // 自動開始：必須選 auto 且在可開始狀態
+  const canAutoStart = locked && !busy && state.mode === "auto" && state.availableDates.length > 0 && ["READY_MEMBER","READY_DATE"].includes(state.system);
+  el.btnAutoStart.disabled = !canAutoStart;
+
+  // PDF：有紀錄才可
+  el.btnPdf.disabled = state.logs.length === 0 || busy;
+
+  // Reset：忙碌時不給按
+  el.btnReset.disabled = busy;
+}
+
+function renderLogs(){
+  el.logCount.textContent = String(state.logs.length);
+  if(state.logs.length === 0){
+    el.logEmpty.style.display = "block";
+    el.logTable.style.display = "none";
+    return;
+  }
+  el.logEmpty.style.display = "none";
+  el.logTable.style.display = "table";
+  el.logBody.innerHTML = "";
+  for(const it of state.logs){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="mono">${escapeHtml(it.time)}</td>
+      <td>「${escapeHtml(it.member)}」</td>
+      <td>「${escapeHtml(it.date)}」</td>
+    `;
+    el.logBody.appendChild(tr);
+  }
+}
+
+function escapeHtml(s){
+  return (s??"").toString()
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/** =========================
+ *  Wheel drawing
+ *  ========================= */
+function getCtx(canvas){
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  // 保持 canvas 清晰
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientWidth; // 正方
+  const size = Math.min(cssW, cssH);
+  canvas.style.height = size + "px";
+  canvas.width  = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return ctx;
+}
+
+function drawWheel(canvas, labels, angle, theme){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.clientWidth;
+  const H = canvas.clientWidth;
+  const cx = W/2, cy = H/2;
+  const r = Math.min(W,H) * 0.46;
+
+  // clear
+  ctx.clearRect(0,0,W,H);
+
+  // base circle
+  ctx.beginPath();
+  ctx.arc(cx,cy,r+8,0,Math.PI*2);
+  ctx.fillStyle = "rgba(31,45,61,.04)";
+  ctx.fill();
+
+  // no data
+  if(!labels || labels.length === 0){
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(96,112,128,.25)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(96,112,128,.8)";
+    ctx.font = "700 16px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("（無資料）", cx, cy);
+    drawPointer(ctx, cx, cy, r);
+    return;
+  }
+
+  const n = labels.length;
+  const step = Math.PI*2 / n;
+
+  // slices
+  for(let i=0;i<n;i++){
+    const a0 = angle + i*step;
+    const a1 = a0 + step;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,a0,a1,false);
+    ctx.closePath();
+
+    const color = (i%2===0) ? theme.c1 : theme.c2;
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.65)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // text
+    const mid = (a0+a1)/2;
+    const tx = cx + Math.cos(mid) * (r*0.70);
+    const ty = cy + Math.sin(mid) * (r*0.70);
+
+    ctx.save();
+    ctx.translate(tx,ty);
+    ctx.rotate(mid + Math.PI/2);
+
+    ctx.fillStyle = theme.text;
+    ctx.font = "700 14px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let t = labels[i];
+    // 太長就截斷
+    if(t.length > 10) t = t.slice(0,10) + "…";
+    ctx.fillText(t, 0, 0);
+
+    ctx.restore();
+  }
+
+  // center
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.18,0,Math.PI*2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(96,112,128,.25)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // center label
+  ctx.fillStyle = "rgba(31,45,61,.75)";
+  ctx.font = "800 14px system-ui, -apple-system, 'Noto Sans TC', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(theme.center, cx, cy);
+
+  drawPointer(ctx, cx, cy, r);
+}
+
+function drawPointer(ctx, cx, cy, r){
+  // pointer at top (12 o'clock), pointing inward
+  const px = cx;
+  const py = cy - r - 10;
+
+  ctx.save();
+  // small shadow
+  ctx.beginPath();
+  ctx.moveTo(px, py + 6);
+  ctx.lineTo(px - 14, py + 34);
+  ctx.lineTo(px + 14, py + 34);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(31,45,61,.12)";
+  ctx.fill();
+
+  // pointer
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px - 14, py + 28);
+  ctx.lineTo(px + 14, py + 28);
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(96,112,128,.35)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+const THEME_MEMBER = {
+  c1: "rgba(93,173,226,.85)",
+  c2: "rgba(72,201,176,.80)",
+  text: "#ffffff",
+  center: "人"
+};
+const THEME_DATE = {
+  c1: "rgba(93,173,226,.55)",
+  c2: "rgba(244,246,247,1)",
+  text: "rgba(31,45,61,.85)",
+  center: "日"
+};
+
+function resizeCanvases(){
+  // 讓 canvas 以 clientWidth 設定繪圖座標（我們用 CSS 大小作為繪圖座標）
+  [el.memberCanvas, el.dateCanvas].forEach(c=>{
+    const ctx = c.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const size = Math.min(c.clientWidth, c.clientWidth);
+    c.style.height = size + "px";
+    c.width  = Math.round(size * dpr);
+    c.height = Math.round(size * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  });
+}
+
+function redrawAll(){
+  resizeCanvases();
+
+  // 重要：我們使用 canvas 的「CSS座標」作為繪圖座標（transform 已設定為 dpr）
+  // 所以在 drawWheel 內用 clientWidth 當 W/H。
+  drawWheel(
+    el.memberCanvas,
+    state.availableMembers,
+    state.memberWheel.angle,
+    THEME_MEMBER
+  );
+  drawWheel(
+    el.dateCanvas,
+    state.availableDates,
+    state.dateWheel.angle,
+    THEME_DATE
+  );
+}
+
+window.addEventListener("resize", ()=>{
+  redrawAll();
+});
+
+let rafId = null;
+function tick(){
+  // 轉動（若旋轉中）
+  if(state.memberWheel.spinning){
+    state.memberWheel.angle += state.memberWheel.v;
+    state.memberWheel.v *= state.memberWheel.friction;
+  }
+  if(state.dateWheel.spinning){
+    state.dateWheel.angle += state.dateWheel.v;
+    state.dateWheel.v *= state.dateWheel.friction;
+  }
+
+  redrawAll();
+  rafId = requestAnimationFrame(tick);
+}
+
+/** =========================
+ *  選取 index（指針在 12 點方向）
+ *  ========================= */
+function pickIndex(labels, angle){
+  const n = labels.length;
+  if(n <= 0) return -1;
+  const step = Math.PI * 2 / n;
+
+  // 指針方向 = -90deg（12點）
+  // 我們要找指針落在哪個 slice：把指針角度換到輪盤角度座標
+  // slice i 範圍：[angle + i*step, angle+(i+1)*step)
+  // 指針角度為 -PI/2，因此求 (pointerAngle - angle) / step
+  const pointer = -Math.PI/2;
+
+  let x = (pointer - angle) / step;
+  // 轉為 0..n-1 的 index
+  let idx = Math.floor((x % n + n) % n);
+  // 修正：我們 slice 是以 angle + i*step 走，idx 即為選中 i
+  return idx;
+}
+
+/** =========================
+ *  Spin 控制（rAF）
+ *  ========================= */
+async function spinMember(durationMs=600){
+  if(!state.locked) return;
+  if(state.system !== "READY_MEMBER") return;
+  if(state.availableMembers.length === 0) return;
+  if(state.availableDates.length === 0) return;
+
+  setSystem("SPIN_MEMBER");
+  state.memberWheel.spinning = true;
+  state.memberWheel.v = 0.38 + Math.random()*0.20;
+  state.memberWheel.friction = 0.985;
+
+  // 固定時間後停止
+  await sleep(durationMs);
+  state.memberWheel.spinning = false;
+
+  // 取結果
+  const idx = pickIndex(state.availableMembers, state.memberWheel.angle);
+  state.selectedMember = state.availableMembers[idx] ?? null;
+  updateCounters();
+
+  // 進入下一步
+  setSystem("READY_DATE");
+  setResult(`抽中「${state.selectedMember}」`);
+  setResultSub("請抽日期");
+}
+
+async function spinDate(durationMs=600){
+  if(!state.locked) return;
+  if(state.system !== "READY_DATE") return;
+  if(state.availableDates.length === 0) return;
+  if(!state.selectedMember) return;
+
+  setSystem("SPIN_DATE");
+  state.dateWheel.spinning = true;
+  state.dateWheel.v = 0.38 + Math.random()*0.20;
+  state.dateWheel.friction = 0.985;
+
+  await sleep(durationMs);
+  state.dateWheel.spinning = false;
+
+  // 取結果
+  const idx = pickIndex(state.availableDates, state.dateWheel.angle);
+  state.selectedDate = state.availableDates[idx] ?? null;
+  updateCounters();
+
+  // 完成一次分配
+  finalizeAssignment(state.selectedMember, state.selectedDate);
+}
+
+/** =========================
+ *  完成一次：記錄 + 移除 + 狀態判斷
+ *  ========================= */
+function finalizeAssignment(member, date){
+  if(!member || !date) {
+    setResult("結果異常（member/date 為空）");
+    setResultSub("請重置後再試");
+    setSystem("READY_MEMBER");
+    return;
+  }
+
+  // 顯示中央結果（指定：只顯示一行「值日生「日期」」）
+  setResult(`值日生「${date}」`);
+  setResultSub(`姓名：${member}`);
+
+  // 音效（可選）
+  playDun();
+
+  // 記錄
+  const time = nowStamp();
+  state.logs.push({ time, member, date });
+  renderLogs();
+
+  // 移除人
+  state.availableMembers = state.availableMembers.filter(n => n !== member);
+
+  // 移除日期
+  state.availableDates = state.availableDates.filter(d => d !== date);
+
+  // 清空暫存選中
+  state.selectedMember = null;
+  state.selectedDate = null;
+
+  updateCounters();
+
+  // 完成判斷
+  if(state.availableDates.length === 0){
+    setSystem("FINISHED");
+    setResult("🎉 全年度值日生分配完成");
+    setResultSub("可下載 PDF，或按重置重新開始");
+    el.chipAuto.textContent = "完成";
+    updateButtons();
+    return;
+  }
+
+  // 若人池用完 → 重置
+  if(state.availableMembers.length === 0){
+    state.availableMembers = [...state.members];
+  }
+
+  // 回到第一輪
+  setSystem("READY_MEMBER");
+  setResult("請抽姓名");
+  setResultSub("手動：按抽姓名；自動：切到自動後按自動開始");
+}
+
+/** =========================
+ *  自動模式（雙輪盤快速動畫）
+ *  ========================= */
+async function runAuto(){
+  if(!state.locked) return;
+  if(state.mode !== "auto") return;
+  if(isBusy()) return;
+  if(state.availableDates.length === 0) return;
+
+  // 只能從 READY_MEMBER / READY_DATE 開始
+  if(!["READY_MEMBER","READY_DATE"].includes(state.system)) return;
+
+  setSystem("AUTO_RUNNING");
+  el.chipAuto.textContent = "自動執行中…";
+  updateButtons();
+
+  // 若在 READY_DATE（代表已抽到人但尚未抽日期）——
+  // 成熟做法：先補抽日期一次，然後再進 while
+  if(state.system === "AUTO_RUNNING"){
+    // nothing
+  }
+
+  // 自動循環：每次要抽「一個人 + 一個日期」
+  while(state.availableDates.length > 0){
+
+    // 若人池空 → 重置
+    if(state.availableMembers.length === 0){
+      state.availableMembers = [...state.members];
+    }
+
+    // 若目前不在 READY_MEMBER，強制回到 READY_MEMBER（保護）
+    if(state.system !== "AUTO_RUNNING"){
+      // 理論上不會發生；保護用
+      setSystem("AUTO_RUNNING");
+    }
+
+    // Step 1: spin member
+    // 自動模式也要顯示輪盤動作，因此我們直接走 spinMember 內的旋轉方式，
+    // 但不走它的狀態機（我們用 AUTO_RUNNING）
+    // => 手動 spinMember 會切狀態到 READY_DATE，這裡不適用，所以做一個 autoSpinMember
+    await autoSpinMember(550);
+
+    // Step 2: spin date
+    await autoSpinDate(550);
+
+    // Step 3: finalize
+    finalizeAssignment(state.selectedMember, state.selectedDate);
+
+    // finalize 會把 system 設為 READY_MEMBER 或 FINISHED
+    // 我們在自動模式要保持 AUTO_RUNNING 狀態直到結束
+    if(state.availableDates.length === 0){
+      break;
+    }
+
+    // 把 system 拉回 AUTO_RUNNING（避免 finalize 設 READY_MEMBER）
+    state.system = "AUTO_RUNNING";
+    el.sysState.textContent = "AUTO_RUNNING";
+    updateButtons();
+
+    await sleep(350);
+  }
+
+  // 結束
+  setSystem("FINISHED");
+  el.chipAuto.textContent = "完成";
+  updateButtons();
+}
+
+async function autoSpinMember(durationMs=550){
+  state.memberWheel.spinning = true;
+  state.memberWheel.v = 0.42 + Math.random()*0.18;
+  state.memberWheel.friction = 0.985;
+  await sleep(durationMs);
+  state.memberWheel.spinning = false;
+
+  const idx = pickIndex(state.availableMembers, state.memberWheel.angle);
+  state.selectedMember = state.availableMembers[idx] ?? null;
+  el.memberPick.textContent = state.selectedMember ?? "-";
+}
+
+async function autoSpinDate(durationMs=550){
+  state.dateWheel.spinning = true;
+  state.dateWheel.v = 0.42 + Math.random()*0.18;
+  state.dateWheel.friction = 0.985;
+  await sleep(durationMs);
+  state.dateWheel.spinning = false;
+
+  const idx = pickIndex(state.availableDates, state.dateWheel.angle);
+  state.selectedDate = state.availableDates[idx] ?? null;
+  el.datePick.textContent = state.selectedDate ?? "-";
+}
+
+/** =========================
+ *  Lock / Reset / PDF
+ *  ========================= */
+function lockLists(){
+  const members = parseLines(el.inputMembers.value);
+  const dates = parseLines(el.inputDates.value);
+
+  if(members.length < 1){
+    setResult("請先輸入姓名名單");
+    setResultSub("每行一個姓名");
+    return;
+  }
+  if(dates.length < 1){
+    setResult("日期清單為空");
+    setResultSub("請填入日期");
+    return;
+  }
+
+  state.members = members;
+  state.availableMembers = [...members];
+
+  state.dates = dates;
+  state.availableDates = [...dates];
+
+  state.logs = [];
+  state.selectedMember = null;
+  state.selectedDate = null;
+
+  setLocked(true);
+  setMode(state.mode || "manual");
+
+  setSystem("READY_MEMBER");
+  setResult("請抽姓名");
+  setResultSub("手動：按抽姓名；自動：切到自動後按自動開始");
+
+  renderLogs();
+  updateCounters();
+  redrawAll();
+}
+
+function unlockLists(){
+  setLocked(false);
+  state.system = "INIT";
+  el.sysState.textContent = "INIT";
+  setResult("尚未開始");
+  setResultSub("請先鎖定名單");
+  updateButtons();
+  updateCounters();
+  redrawAll();
+}
+
+function resetAll(){
+  if(isBusy()) return;
+  // 清空紀錄，但保留輸入框內容
+  state.logs = [];
+  state.selectedMember = null;
+  state.selectedDate = null;
+
+  // 重置池（若已鎖定）
+  if(state.locked){
+    state.availableMembers = [...state.members];
+    state.availableDates = [...state.dates];
+    setSystem("READY_MEMBER");
+    setResult("請抽姓名");
+    setResultSub("手動：按抽姓名；自動：切到自動後按自動開始");
+  }else{
+    setSystem("INIT");
+    setResult("尚未開始");
+    setResultSub("請先鎖定名單");
+  }
+  el.chipAuto.textContent = (state.mode === "auto") ? "自動模式已選擇" : "自動未執行";
+
+  renderLogs();
+  updateCounters();
+  redrawAll();
+}
+
+function exportPdfViaPrint(){
+  // 使用瀏覽器列印（最穩，避免中文字亂碼）
+  const title = "抽值日生輪盤_抽籤紀錄";
+  const rows = state.logs.map(it => `
+    <tr>
+      <td>${escapeHtml(it.time)}</td>
+      <td>「${escapeHtml(it.member)}」</td>
+      <td>「${escapeHtml(it.date)}」</td>
+    </tr>
+  `).join("");
+
+  const html = `
+<!doctype html><html><head>
+<meta charset="utf-8"/>
+<title>${title}</title>
+<style>
+  body{font-family: system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; padding:24px;}
+  h1{font-size:20px;margin:0 0 10px;}
+  .meta{color:#607080;font-size:12px;margin-bottom:14px;}
+  table{border-collapse:collapse;width:100%;}
+  th,td{border:1px solid #d9e1ea;padding:8px;font-size:13px;text-align:left;}
+  th{background:#f3f6f9;}
+</style>
+</head><body>
+<h1>${title}</h1>
+<div class="meta">共 ${state.logs.length} 筆｜列印時選擇「另存為 PDF」即可</div>
+<table>
+  <thead><tr><th>時間</th><th>姓名</th><th>值日生日期</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<script>window.onload=()=>{ setTimeout(()=>window.print(), 250); };</script>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if(!w){
+    setResultSub("彈出視窗被阻擋：請允許彈出視窗後重試");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+/** =========================
+ *  事件綁定
+ *  ========================= */
+el.btnLock.onclick = lockLists;
+el.btnUnlock.onclick = unlockLists;
+el.btnReset.onclick = resetAll;
+
+el.btnSpinMember.onclick = ()=> spinMember(650);
+el.btnSpinDate.onclick = ()=> spinDate(650);
+
+el.btnAutoStart.onclick = ()=> runAuto();
+
+el.btnPdf.onclick = exportPdfViaPrint;
+
+el.btnUnlockAudio.onclick = unlockAudio;
+
+// 模式切換（可中途，但忙碌/旋轉中禁止）
+el.modeToggle.addEventListener("change", (e)=>{
+  const t = e.target;
+  if(!(t && t.name==="mode")) return;
+
+  if(!canSwitchMode()){
+    // 回復 UI
+    const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
+    radios.forEach(r => r.checked = (r.value === state.mode));
+    setResultSub("旋轉中不可切換模式");
+    return;
+  }
+
+  setMode(t.value);
+
+  // 切換模式後不自動開始（你選 B）
+  if(state.mode === "auto"){
+    setResultSub("已切換自動模式：請按「自動開始」才會執行");
+  }else{
+    setResultSub("已切換手動模式：請按「抽姓名」→「抽日期」");
+  }
+  updateButtons();
+});
+
+// 初始
+function init(){
+  setMode("manual");
+  setLocked(false);
+  updateCounters();
+  renderLogs();
+  redrawAll();
+  if(!rafId) rafId = requestAnimationFrame(tick);
+}
+init();
+</script>
+</body>
+</html>
