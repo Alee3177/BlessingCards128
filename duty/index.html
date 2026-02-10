@@ -503,14 +503,14 @@ const state = {
 
   memberWheel: {
     angle: 0,
-    anim: null,
+    spin: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
   },
   dateWheel: {
     angle: 0,
-    anim: null,
+    spin: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
@@ -903,13 +903,14 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices)
     end += twoPi;
   }
 
-  wheel.anim = {
-    startAngle: start,
-    endAngle: end,
-    startTime: performance.now(),
-    duration: durationMs,
-    idx
-  };
+wheel.spin = {
+  startAngle: start,
+  endAngle: end,
+  startTime: performance.now(),
+  duration: durationMs,
+  idx
+};
+
 }
 
 function updateWheelAnim(wheel, nowMs){
@@ -949,39 +950,43 @@ function clearHighlights(){
  *  ========================= */
 let rafId = null;
 function tick(nowMs){
-  // anim update
+
   const mDone = updateWheelAnim(state.memberWheel, nowMs);
   const dDone = updateWheelAnim(state.dateWheel, nowMs);
 
-  // 第一輪停下（值日生）
-  if(mDone && state.system === "SPIN_MEMBER"){
-    const idx = state.memberWheel.selectedIndex;
-    state.selectedMember = state.members[idx] ?? null;
-    el.memberPick.textContent = state.selectedMember ?? "-";
+  // 🚨 AUTO 模式下，不讓 tick 接管流程
+  if(state.mode !== "auto"){
 
-    // 手動：第一輪抽中要高亮閃爍；自動：不閃（blink=false）
-    state.memberWheel.highlight = true;
-    state.memberWheel.blink = (state.mode === "manual");
-    setSystem("READY_DATE");
-    setResult(`抽中值日生「${state.selectedMember}」`);
-    setResultSub("請抽日期");
-    updateCounters();
-  }
+    if(mDone && state.system === "SPIN_MEMBER"){
+      const idx = state.memberWheel.selectedIndex;
+      state.selectedMember = state.members[idx] ?? null;
+      el.memberPick.textContent = state.selectedMember ?? "-";
 
-  // 第二輪停下（日期）
-  if(dDone && state.system === "SPIN_DATE"){
-    const idx = state.dateWheel.selectedIndex;
-    state.selectedDate = state.dates[idx] ?? null;
-    el.datePick.textContent = state.selectedDate ?? "-";
+      state.memberWheel.highlight = true;
+      state.memberWheel.blink = true;
 
-    state.dateWheel.highlight = true;
-    state.dateWheel.blink = (state.mode === "manual");
-    finalizeAssignment(state.selectedMember, state.selectedDate);
+      setSystem("READY_DATE");
+      setResult(`抽中值日生「${state.selectedMember}」`);
+      setResultSub("請抽日期");
+      updateCounters();
+    }
+
+    if(dDone && state.system === "SPIN_DATE"){
+      const idx = state.dateWheel.selectedIndex;
+      state.selectedDate = state.dates[idx] ?? null;
+      el.datePick.textContent = state.selectedDate ?? "-";
+
+      state.dateWheel.highlight = true;
+      state.dateWheel.blink = true;
+
+      finalizeAssignment(state.selectedMember, state.selectedDate);
+    }
   }
 
   redrawAll(nowMs);
   rafId = requestAnimationFrame(tick);
 }
+
 
 /** =========================
  *  抽取流程
@@ -1128,8 +1133,8 @@ function abortAuto(reason){
   // 停止動畫
   state.autoAbort = true;
   try{
-    state.memberWheel.anim = null;
-    state.dateWheel.anim = null;
+    state.memberWheel.spin = null;
+    state.dateWheel.spin = null;
   }catch(e){}
   stopAllAudio();
 
@@ -1197,6 +1202,7 @@ async function runAuto(){
 
     state.selectedMember = state.members[state.memberWheel.selectedIndex] ?? null;
     state.memberWheel.highlight = true; // 但不閃（blink=false）
+	state.memberWheel.blink = false;
 
     // === 抽日期（只抽未用）===
     const dAllowed = [];
@@ -1211,11 +1217,11 @@ async function runAuto(){
 
     state.selectedDate = state.dates[state.dateWheel.selectedIndex] ?? null;
     state.dateWheel.highlight = true;
-    state.dateWheel.blink = (state.mode === "manual");
+    state.dateWheel.blink = false;
     finalizeAssignment(state.selectedMember, state.selectedDate);
 
     // finalizeAssignment 會把 system 拉回 READY_MEMBER；自動要維持 AUTO_RUNNING
-    if(state.system === "FINISHED") break;
+    if(state.system === "FINISHED") break; 
     state.system = "AUTO_RUNNING";
     el.sysState.textContent = "AUTO_RUNNING";
 
@@ -1244,8 +1250,11 @@ async function runAuto(){
 function waitAnimDone(wheel){
   return new Promise(resolve=>{
     const check = ()=>{
-      if(!wheel.anim) resolve();
-      else requestAnimationFrame(check);
+      if(!wheel.spin){
+        resolve();
+      }else{
+        requestAnimationFrame(check);
+      }
     };
     check();
   });
