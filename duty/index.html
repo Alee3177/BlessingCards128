@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>抽值日生輪盤 v2</title>
+  <title>抽值日生輪盤</title>
   <style>
     :root{
       --bg:#F4F6F7;
@@ -110,7 +110,10 @@
     }
     .btn.secondary:hover{background:#f7f9fb;}
     .btn.danger{background: var(--danger);}
-    .btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+    
+    .btn.success{background:#2ECC71;color:#fff;}
+    .btn.success:hover{filter:brightness(0.96);} 
+.btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
     .toggle{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
     .radio{
       display:inline-flex; align-items:center; gap:8px;
@@ -250,8 +253,8 @@
           </label>
         </div>
         <div class="row">
-          <button class="btn secondary" id="btnReset">重置（清空紀錄）</button>
-          <button class="btn danger" id="btnUnlockAudio" title="若手機/LINE阻擋音效，先點此解鎖">解鎖音效</button>
+          <button class="btn danger" id="btnReset">重置（清空紀錄）</button>
+          <button class="btn success" id="btnUnlockAudio" title="若手機/LINE阻擋音效，先點此解鎖">解鎖音效</button>
         </div>
       </div>
 
@@ -268,7 +271,7 @@
 
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnLock">鎖定名單</button>
-        <button class="btn danger" id="btnUnlock">解除鎖定</button>
+        <button class="btn success" id="btnUnlock">解除鎖定</button>
         <span class="pill">狀態：<strong id="sysState">INIT</strong></span>
         <span class="pill">模式：<strong id="modeState">manual</strong></span>
       </div>
@@ -283,7 +286,7 @@
       <div class="row" style="margin-top:10px;">
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
-        <button class="btn" id="btnAutoStart">自動開始</button>
+        <button class="btn" id="btnAutoStart">自動開始或中斷</button>
         <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
       </div>
 
@@ -1314,10 +1317,12 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
-  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，\n" +
-              "需重新輸入姓名並鎖定名單開始新轉盤遊戲！\n" +
-              "您確定要執行嗎 (Yes or No)?";
-
+  const msg =
+    "資料紀錄將被清空(clear) & 歸零(reset)，
+" +
+    "需重新輸入姓名並鎖定名單開始新轉盤遊戲！
+" +
+    "您確定要執行嗎 (Yes or No)?";
   if(!confirm(msg)) return;
 
   stopAllAudio();
@@ -1327,18 +1332,18 @@ function resetAll(){
   state.logs = [];
   state.selectedMember = null;
   state.selectedDate = null;
+
   state.usedMembers.clear();
   state.usedDates.clear();
 
-  // 🔥 強制回到 INIT
+  // 回到未鎖定（必須重新鎖定）
   setLocked(false);
   setSystem("INIT");
   setResult("尚未開始");
   setResultSub("請先輸入姓名並鎖定名單");
-
   el.chipAuto.textContent = "自動未執行";
 
-  // 清空姓名輸入（確保重新開始）
+  // 清空姓名輸入（避免誤用舊名單）
   el.inputMembers.value = "";
 
   renderLogs();
