@@ -109,7 +109,7 @@
       border-color: var(--line);
     }
     .btn.secondary:hover{background:#f7f9fb;}
-    .btn.danger{background: var(--danger);}
+    .btn.danger{background: var(--danger); color:white;}
     .btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
     .toggle{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
     .radio{
@@ -219,10 +219,10 @@
     .empty{padding: 10px 0; color: var(--muted); font-size: 14px;}
   
 
-    .btn.success{background:var(--ok); color:white;}
+    .btn.success{background:var(--accent); color:white;}
     .btn.success:hover{filter:brightness(.98);}
     #sysState.finished{color:var(--danger); font-weight:900;}
-    .btn.pdfReady{background:var(--accent); color:var(--danger); font-weight:900;}
+    .btn.pdfReady{background:var(--accent2); color:#fff; font-weight:900;}
     .blink{animation:blink 1s steps(1,end) infinite;}
     @keyframes blink{50%{filter:brightness(1.25);} }
     
@@ -431,11 +431,11 @@ let audioStopTimer = null;
 
 function ensureAudio(){
   if(!drumAudio){
-    drumAudio = new Audio("../audio/drum.mp3");
+    drumAudio = new Audio("audio/drum.mp3");
     drumAudio.preload = "auto";
   }
   if(!dunAudio){
-    dunAudio = new Audio("../audio/dun.mp3");
+    dunAudio = new Audio("audio/dun.mp3");
     dunAudio.preload = "auto";
   }
 }
@@ -513,14 +513,14 @@ const state = {
 
   memberWheel: {
     angle: 0,
-    anim: null,
+    spin: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
   },
   dateWheel: {
     angle: 0,
-    anim: null,
+    spin: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
@@ -656,13 +656,16 @@ function updateButtons(){
   const canPdf = (state.system === "FINISHED") && state.logs.length > 0 && !state.pdfDownloaded;
   el.btnPdf.disabled = !canPdf;
 
-  if(canPdf){
-    el.btnPdf.classList.add("pdfReady", "blink");
-  }else{
-    el.btnPdf.classList.remove("pdfReady", "blink");
-  }
+if(canPdf){
+  el.btnPdf.disabled = false;
+  el.btnPdf.classList.remove("secondary");
+  el.btnPdf.classList.add("pdfReady", "blink");
+}else{
+  el.btnPdf.disabled = true;
+  el.btnPdf.classList.remove("pdfReady", "blink");
+  el.btnPdf.classList.add("secondary");
 }
-
+}
 
 function renderLogs(){
   el.logCount.textContent = String(state.logs.length);
@@ -907,40 +910,47 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices)
   const baseTarget = angleForIndexAtTop(idx, n);
   const start = wheel.angle;
 
-  // 讓它順時針轉多圈
   const twoPi = Math.PI * 2;
-  let end = baseTarget + extraTurns * twoPi;
+// 固定轉 extraTurns 圈
+let end = start + extraTurns * twoPi;
 
-  // 確保 end 在 start 之後（避免反向）
-  while(end <= start + twoPi){
-    end += twoPi;
-  }
+// 計算目標 index 對齊頂部的最終角度
+const finalAngle = angleForIndexAtTop(idx, n);
 
-  wheel.anim = {
+// 計算需要補的微調角度（確保對齊）
+const delta = ((finalAngle - end) % twoPi + twoPi) % twoPi;
+
+end += delta;
+
+  // ✅ 統一使用 spin
+  wheel.spin = {
     startAngle: start,
     endAngle: end,
     startTime: performance.now(),
     duration: durationMs,
     idx
   };
+
+  wheel.highlight = false;
+  wheel.blink = false;
 }
 
 function updateWheelAnim(wheel, nowMs){
-  const a = wheel.anim;
-  if(!a) return false;
+  const s = wheel.spin;
+  if(!s) return false;
 
-  const t = Math.min(1, (nowMs - a.startTime) / a.duration);
-
-  // 自然 easeOutCubic 慣性停止（一路一條曲線）
-  const k = 1 - Math.pow(1 - t, 3);
-  wheel.angle = a.startAngle + (a.endAngle - a.startAngle) * k;
+  const t = (nowMs - s.startTime) / s.duration;
 
   if(t >= 1){
-    wheel.angle = a.endAngle;
-    wheel.selectedIndex = a.idx;
-    wheel.anim = null;
+    wheel.angle = s.endAngle;
+    wheel.selectedIndex = s.idx;
+    wheel.spin = null;
     return true;
   }
+
+  const k = 1 - Math.pow(1 - t, 3);
+  wheel.angle = s.startAngle + (s.endAngle - s.startAngle) * k;
+
   return false;
 }
 
@@ -1035,27 +1045,28 @@ async function spinMember(){
   // 轉 8~10 圈，7 秒（與 drum 同步）
   const turns = 8 + Math.floor(Math.random()*3);
 
-  if(state.mode === "manual"){
-    ensureAudio();
-    try{
-      drumAudio.currentTime = 0;
-      await drumAudio.play(); // 👈 等音檔真的開始播放
-    }catch(e){}
-    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
-  }else{
-    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
-  }
+if(state.mode === "manual"){
+  ensureAudio();
+
+  drumAudio.currentTime = 0;
+  drumAudio.play().catch(()=>{});
+
+  // 👇 立刻開始轉盤
+  startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+}else{
+  startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+}
 }
 
 async function spinDate(){
   if(!state.locked) return;
   if(state.system !== "READY_DATE") return;
 
-  // 可抽日期索引（排除已用）
   const allowed = [];
   for(let i=0;i<state.dates.length;i++){
     if(!state.usedDates.has(state.dates[i])) allowed.push(i);
   }
+
   if(allowed.length === 0){
     setSystem("FINISHED");
     setResult("🎉 全年度值日生分配完成（21 / 21）");
@@ -1065,18 +1076,16 @@ async function spinDate(){
   }
 
   stopAllAudio();
-
   setSystem("SPIN_DATE");
 
-  // 轉 6~8 圈，4 秒（與 dun 同步）
   const turns = 6 + Math.floor(Math.random()*3);
 
   if(state.mode === "manual"){
     ensureAudio();
-    try{
-      dunAudio.currentTime = 0;
-      await dunAudio.play();
-    }catch(e){}
+
+    dunAudio.currentTime = 0;
+    dunAudio.play().catch(()=>{});   // ❌ 不要 await
+
     startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
   }else{
     startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
@@ -1260,7 +1269,7 @@ async function runAuto(){
 function waitAnimDone(wheel){
   return new Promise(resolve=>{
     const check = ()=>{
-      if(!wheel.anim) resolve();
+      if(!wheel.spin) resolve();
       else requestAnimationFrame(check);
     };
     check();
@@ -1403,7 +1412,7 @@ function exportPdfViaPrint(){
 
   // 表格
   const x0 = 60, y0 = 170, tableW = W - 120;
-  const col1 = 280, col2 = 300, col3 = tableW - col1 - col2;
+  const col1 = 320, col2 = 340, col3 = tableW - col1 - col2;
   const rowH = 46;
 
   ctx.fillStyle = "#f3f6f9";
@@ -1496,6 +1505,7 @@ function init(){
 
   setMode("manual");
   setLocked(false);
+  ensureAudio();
   updateCounters();
   renderLogs();
   redrawAll(performance.now());
