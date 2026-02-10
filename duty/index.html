@@ -559,7 +559,11 @@ const el = {
   logTable: document.getElementById("logTable"),
   logBody: document.getElementById("logBody"),
 
-  modeToggle: document.getElementById("modeToggle")
+  modeToggle: document.getElementById("modeToggle"),
+
+  // 🔊 加在這裡
+  drumAudio: document.getElementById("drumAudio"),
+  dunAudio: document.getElementById("dunAudio")
 };
 
 el.inputDates.value = DUTY_DATES.join("\n");
@@ -1004,35 +1008,38 @@ async function spinMember(){
     return;
   }
 
-  // 人池用完：自動重置（只影響灰化，不影響日期）
   if(state.members.length > 0 && state.usedMembers.size >= state.members.length){
     state.usedMembers.clear();
   }
 
-  // 可抽的值日生索引（排除本輪已抽過）
   const allowed = [];
   for(let i=0;i<state.members.length;i++){
     if(!state.usedMembers.has(state.members[i])) allowed.push(i);
   }
   if(allowed.length === 0){
-    // 保護：若資料異常
     state.usedMembers.clear();
     for(let i=0;i<state.members.length;i++) allowed.push(i);
   }
 
-  // 下一位開始：清除兩輪高亮 + 停止音效（符合你「直到下一位抽值日生」才清除）
   clearHighlights();
   stopAllAudio();
 
-  // 手動第一輪：drum 7 秒
-  if(state.mode === "manual"){
-    playAudioLimited("drum", 7000);
-  }
-
   setSystem("SPIN_MEMBER");
-  // 轉 8~10 圈，7 秒（與 drum 同步）
+
   const turns = 8 + Math.floor(Math.random()*3);
-  startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+
+  if(state.mode === "manual"){
+    const audio = el.drumAudio;
+    audio.currentTime = 0;
+
+    try{
+      await audio.play();   // 👈 等音檔真的開始播放
+    }catch(e){}
+
+    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+  }else{
+    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+  }
 }
 
 async function spinDate(){
@@ -1493,5 +1500,10 @@ function init(){
 }
 init();
 </script>
+
+<!-- 🔊 音效預載入（一定要在 script 外面） -->
+<audio id="drumAudio" src="audio/drum.mp3" preload="auto"></audio>
+<audio id="dunAudio"  src="audio/dun.mp3"  preload="auto"></audio>
+
 </body>
 </html>
