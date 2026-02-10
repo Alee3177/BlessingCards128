@@ -1317,12 +1317,10 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
-  const msg =
-    "資料紀錄將被清空(clear) & 歸零(reset)，
-" +
-    "需重新輸入姓名並鎖定名單開始新轉盤遊戲！
-" +
-    "您確定要執行嗎 (Yes or No)?";
+const msg = `資料紀錄將被清空(clear) & 歸零(reset)，
+需重新輸入姓名並鎖定名單開始新轉盤遊戲！
+您確定要執行嗎 (Yes or No)?`;
+
   if(!confirm(msg)) return;
 
   stopAllAudio();
