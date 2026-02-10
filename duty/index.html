@@ -36,15 +36,15 @@
       gap:12px; margin-bottom: 12px;
     }
     .title{display:flex; flex-direction:column; gap:4px;}
-    h1{font-size:20px; margin:0; letter-spacing:.5px;}
-    .sub{font-size:13px; color:var(--muted);}
+    h1{font-size:24px; margin:0; letter-spacing:.5px;}
+    .sub{font-size:14px; color:var(--muted);}
     .pill{
       display:inline-flex; align-items:center; gap:8px;
       padding: 8px 10px;
       border: 1px solid var(--line);
       border-radius: 999px;
       background: #fbfcfd;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--muted);
     }
     .pill strong{color:var(--ink); font-weight:800;}
@@ -66,7 +66,7 @@
     .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
     label{
       display:block;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--muted);
       margin: 4px 0 6px;
     }
@@ -84,7 +84,7 @@
     }
     textarea:focus{border-color: rgba(93,173,226,.7); box-shadow: 0 0 0 3px rgba(93,173,226,.15);}
     .hint{
-      font-size: 12px;
+      font-size: 14px;
       color: var(--muted);
       margin-top: 6px;
     }
@@ -110,10 +110,7 @@
     }
     .btn.secondary:hover{background:#f7f9fb;}
     .btn.danger{background: var(--danger);}
-    
-    .btn.success{background:#2ECC71;color:#fff;}
-    .btn.success:hover{filter:brightness(0.96);} 
-.btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
+    .btn:disabled{opacity:.45; cursor:not-allowed; transform:none;}
     .toggle{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
     .radio{
       display:inline-flex; align-items:center; gap:8px;
@@ -149,7 +146,7 @@
       gap: 8px; margin-bottom: 8px;
     }
     .wheelHead .name{font-weight:900; letter-spacing:.3px;}
-    .wheelHead .meta{font-size: 12px; color: var(--muted);}
+    .wheelHead .meta{font-size: 14px; color: var(--muted);}
     canvas{
       width: 100%;
       height: auto;
@@ -179,7 +176,7 @@
       color: var(--ink);
     }
     .status .small{
-      font-size: 12px;
+      font-size: 14px;
       color: var(--muted);
     }
     .chip{
@@ -188,7 +185,7 @@
       background: rgba(72,201,176,.12);
       color: #136f61;
       border: 1px solid rgba(72,201,176,.25);
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 800;
     }
 
@@ -209,7 +206,7 @@
     table{
       width:100%;
       border-collapse:collapse;
-      font-size: 13px;
+      font-size: 14px;
     }
     th,td{
       border-bottom: 1px solid var(--line);
@@ -217,10 +214,22 @@
       text-align:left;
       vertical-align:top;
     }
-    th{color:var(--muted); font-weight:900; font-size:12px;}
+    th{color:var(--muted); font-weight:900; font-size:14px;}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
-    .empty{padding: 10px 0; color: var(--muted); font-size: 13px;}
-  </style>
+    .empty{padding: 10px 0; color: var(--muted); font-size: 14px;}
+  
+
+    .btn.success{background:var(--ok); color:white;}
+    .btn.success:hover{filter:brightness(.98);}
+    #sysState.finished{color:var(--danger); font-weight:900;}
+    .btn.pdfReady{background:var(--accent); color:var(--danger); font-weight:900;}
+    .blink{animation:blink 1s steps(1,end) infinite;}
+    @keyframes blink{50%{filter:brightness(1.25);} }
+    
+
+#resultText{font-size:18px; font-weight:800;}
+#resultSub{font-size:14px;}
+</style>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 </head>
@@ -498,19 +507,20 @@ const state = {
 
   // 自動流程中斷旗標（允許中途打斷）
   autoAbort: false,
+  pdfDownloaded: false,
 
   logs: [],
 
   memberWheel: {
     angle: 0,
-    spin: null,
+    anim: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
   },
   dateWheel: {
     angle: 0,
-    spin: null,
+    anim: null,
     selectedIndex: -1,
     highlight: false,
     blink: true
@@ -559,11 +569,7 @@ const el = {
   logTable: document.getElementById("logTable"),
   logBody: document.getElementById("logBody"),
 
-  modeToggle: document.getElementById("modeToggle"),
-
-  // 🔊 加在這裡
-  drumAudio: document.getElementById("drumAudio"),
-  dunAudio: document.getElementById("dunAudio")
+  modeToggle: document.getElementById("modeToggle")
 };
 
 el.inputDates.value = DUTY_DATES.join("\n");
@@ -578,6 +584,8 @@ function setResultSub(t){ el.resultSub.textContent = t; }
 function setSystem(s){
   state.system = s;
   el.sysState.textContent = s;
+  if(s === "FINISHED") el.sysState.classList.add("finished");
+  else el.sysState.classList.remove("finished");
   updateButtons();
 }
 
@@ -635,25 +643,26 @@ function updateButtons(){
   el.btnLock.disabled = busy;
   el.btnUnlock.disabled = busy;
   el.btnReset.disabled = busy;
+  el.btnUnlockAudio.disabled = busy;
 
-  // 完成後一律鎖住抽籤
-  const finished = (state.system === "FINISHED");
+  // 手動抽：需鎖定、且在 READY_* 才可按
+  el.btnSpinMember.disabled = busy || !locked || state.system !== "READY_MEMBER";
+  el.btnSpinDate.disabled   = busy || !locked || state.system !== "READY_DATE";
 
-  el.btnSpinMember.disabled = finished || !locked || busy || dateLeft <= 0 || state.system !== "READY_MEMBER";
-  el.btnSpinDate.disabled   = finished || !locked || busy || !state.selectedMember || dateLeft <= 0 || state.system !== "READY_DATE";
+  // 自動：只在 auto 模式 + 鎖定時可按；AUTO_RUNNING 也允許按（變成中斷）
+  el.btnAutoStart.disabled  = busy || !locked || state.mode !== "auto";
 
-  const canAutoStart =
-    !finished &&
-    locked &&
-    !busy &&
-    state.mode === "auto" &&
-    dateLeft > 0 &&
-    ["READY_MEMBER","READY_DATE"].includes(state.system);
+  // PDF：平常禁用；只有 FINISHED 才可用（且未下載過）
+  const canPdf = (state.system === "FINISHED") && state.logs.length > 0 && !state.pdfDownloaded;
+  el.btnPdf.disabled = !canPdf;
 
-  el.btnAutoStart.disabled = !canAutoStart;
-
-  el.btnPdf.disabled = state.logs.length === 0 || busy;
+  if(canPdf){
+    el.btnPdf.classList.add("pdfReady", "blink");
+  }else{
+    el.btnPdf.classList.remove("pdfReady", "blink");
+  }
 }
+
 
 function renderLogs(){
   el.logCount.textContent = String(state.logs.length);
@@ -907,33 +916,31 @@ function startSpinToIndex(wheel, labels, durationMs, extraTurns, allowedIndices)
     end += twoPi;
   }
 
-wheel.spin = {
-  startAngle: start,
-  endAngle: end,
-  startTime: performance.now(),
-  duration: durationMs,
-  idx
-};
-
+  wheel.anim = {
+    startAngle: start,
+    endAngle: end,
+    startTime: performance.now(),
+    duration: durationMs,
+    idx
+  };
 }
 
 function updateWheelAnim(wheel, nowMs){
-  const s = wheel.spin;
-  if(!s) return false;
+  const a = wheel.anim;
+  if(!a) return false;
 
-  const t = (nowMs - s.startTime) / s.duration;
+  const t = Math.min(1, (nowMs - a.startTime) / a.duration);
+
+  // 自然 easeOutCubic 慣性停止（一路一條曲線）
+  const k = 1 - Math.pow(1 - t, 3);
+  wheel.angle = a.startAngle + (a.endAngle - a.startAngle) * k;
 
   if(t >= 1){
-    wheel.angle = s.endAngle;
-    wheel.selectedIndex = s.idx;
-    wheel.spin = null;
+    wheel.angle = a.endAngle;
+    wheel.selectedIndex = a.idx;
+    wheel.anim = null;
     return true;
   }
-
-  // 自然 easeOutCubic 慣性停止
-  const k = 1 - Math.pow(1 - t, 3);
-  wheel.angle = s.startAngle + (s.endAngle - s.startAngle) * k;
-
   return false;
 }
 
@@ -954,43 +961,39 @@ function clearHighlights(){
  *  ========================= */
 let rafId = null;
 function tick(nowMs){
-
+  // anim update
   const mDone = updateWheelAnim(state.memberWheel, nowMs);
   const dDone = updateWheelAnim(state.dateWheel, nowMs);
 
-  // 🚨 AUTO 模式下，不讓 tick 接管流程
-  if(state.mode !== "auto"){
+  // 第一輪停下（值日生）
+  if(mDone && state.system === "SPIN_MEMBER"){
+    const idx = state.memberWheel.selectedIndex;
+    state.selectedMember = state.members[idx] ?? null;
+    el.memberPick.textContent = state.selectedMember ?? "-";
 
-    if(mDone && state.system === "SPIN_MEMBER"){
-      const idx = state.memberWheel.selectedIndex;
-      state.selectedMember = state.members[idx] ?? null;
-      el.memberPick.textContent = state.selectedMember ?? "-";
+    // 手動：第一輪抽中要高亮閃爍；自動：不閃（blink=false）
+    state.memberWheel.highlight = true;
+    state.memberWheel.blink = (state.mode === "manual");
+    setSystem("READY_DATE");
+    setResult(`抽中值日生「${state.selectedMember}」`);
+    setResultSub("請抽日期");
+    updateCounters();
+  }
 
-      state.memberWheel.highlight = true;
-      state.memberWheel.blink = true;
+  // 第二輪停下（日期）
+  if(dDone && state.system === "SPIN_DATE"){
+    const idx = state.dateWheel.selectedIndex;
+    state.selectedDate = state.dates[idx] ?? null;
+    el.datePick.textContent = state.selectedDate ?? "-";
 
-      setSystem("READY_DATE");
-      setResult(`抽中值日生「${state.selectedMember}」`);
-      setResultSub("請抽日期");
-      updateCounters();
-    }
-
-    if(dDone && state.system === "SPIN_DATE"){
-      const idx = state.dateWheel.selectedIndex;
-      state.selectedDate = state.dates[idx] ?? null;
-      el.datePick.textContent = state.selectedDate ?? "-";
-
-      state.dateWheel.highlight = true;
-      state.dateWheel.blink = true;
-
-      finalizeAssignment(state.selectedMember, state.selectedDate);
-    }
+    state.dateWheel.highlight = true;
+    state.dateWheel.blink = false;
+    finalizeAssignment(state.selectedMember, state.selectedDate);
   }
 
   redrawAll(nowMs);
   rafId = requestAnimationFrame(tick);
 }
-
 
 /** =========================
  *  抽取流程
@@ -1008,64 +1011,47 @@ async function spinMember(){
     return;
   }
 
+  // 人池用完：自動重置（只影響灰化，不影響日期）
   if(state.members.length > 0 && state.usedMembers.size >= state.members.length){
     state.usedMembers.clear();
   }
 
+  // 可抽的值日生索引（排除本輪已抽過）
   const allowed = [];
   for(let i=0;i<state.members.length;i++){
     if(!state.usedMembers.has(state.members[i])) allowed.push(i);
   }
-
   if(allowed.length === 0){
     state.usedMembers.clear();
     for(let i=0;i<state.members.length;i++) allowed.push(i);
   }
 
+  // 下一位開始：清除兩輪高亮 + 停止音效
   clearHighlights();
   stopAllAudio();
 
   setSystem("SPIN_MEMBER");
 
+  // 轉 8~10 圈，7 秒（與 drum 同步）
   const turns = 8 + Math.floor(Math.random()*3);
 
   if(state.mode === "manual"){
-    const audio = el.drumAudio;
-
-    if(audio){                      // 🛡 防止 undefined 爆掉
-      audio.currentTime = 0;
-      try{
-        await audio.play();         // 等播放成功
-      }catch(e){
-        console.warn("drum 播放失敗", e);
-      }
-    }
+    ensureAudio();
+    try{
+      drumAudio.currentTime = 0;
+      await drumAudio.play(); // 👈 等音檔真的開始播放
+    }catch(e){}
+    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+  }else{
+    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
   }
-
-  startSpinToIndex(
-    state.memberWheel,
-    state.members,
-    7000,
-    turns,
-    allowed
-  );
 }
 
 async function spinDate(){
   if(!state.locked) return;
   if(state.system !== "READY_DATE") return;
-  if(!state.selectedMember) return;
 
-  const dateLeft = state.dates.length - state.usedDates.size;
-  if(dateLeft <= 0){
-    setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成（21 / 21）");
-    setResultSub("可下載 PDF，或按重置重新開始");
-    stopAllAudio();
-    return;
-  }
-
-  // 可抽的日期索引（排除已抽過）
+  // 可抽日期索引（排除已用）
   const allowed = [];
   for(let i=0;i<state.dates.length;i++){
     if(!state.usedDates.has(state.dates[i])) allowed.push(i);
@@ -1078,15 +1064,23 @@ async function spinDate(){
     return;
   }
 
-  // 手動第二輪：dun 4 秒
-  if(state.mode === "manual"){
-    playAudioLimited("dun", 4000);
-  }
+  stopAllAudio();
 
   setSystem("SPIN_DATE");
+
   // 轉 6~8 圈，4 秒（與 dun 同步）
   const turns = 6 + Math.floor(Math.random()*3);
-  startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
+
+  if(state.mode === "manual"){
+    ensureAudio();
+    try{
+      dunAudio.currentTime = 0;
+      await dunAudio.play();
+    }catch(e){}
+    startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
+  }else{
+    startSpinToIndex(state.dateWheel, state.dates, 4000, turns, allowed);
+  }
 }
 
 function finalizeAssignment(member, date){
@@ -1149,8 +1143,8 @@ function abortAuto(reason){
   // 停止動畫
   state.autoAbort = true;
   try{
-    state.memberWheel.spin = null;
-    state.dateWheel.spin = null;
+    state.memberWheel.anim = null;
+    state.dateWheel.anim = null;
   }catch(e){}
   stopAllAudio();
 
@@ -1217,8 +1211,8 @@ async function runAuto(){
     if(state.autoAbort) break;
 
     state.selectedMember = state.members[state.memberWheel.selectedIndex] ?? null;
-    state.memberWheel.highlight = true; // 但不閃（blink=false）
-	state.memberWheel.blink = false;
+    state.memberWheel.highlight = true;
+    state.memberWheel.blink = false;
 
     // === 抽日期（只抽未用）===
     const dAllowed = [];
@@ -1237,7 +1231,7 @@ async function runAuto(){
     finalizeAssignment(state.selectedMember, state.selectedDate);
 
     // finalizeAssignment 會把 system 拉回 READY_MEMBER；自動要維持 AUTO_RUNNING
-    if(state.system === "FINISHED") break; 
+    if(state.system === "FINISHED") break;
     state.system = "AUTO_RUNNING";
     el.sysState.textContent = "AUTO_RUNNING";
 
@@ -1266,11 +1260,8 @@ async function runAuto(){
 function waitAnimDone(wheel){
   return new Promise(resolve=>{
     const check = ()=>{
-      if(!wheel.spin){
-        resolve();
-      }else{
-        requestAnimationFrame(check);
-      }
+      if(!wheel.anim) resolve();
+      else requestAnimationFrame(check);
     };
     check();
   });
@@ -1301,6 +1292,7 @@ function lockLists(){
   state.usedDates.clear();
 
   state.logs = [];
+  state.pdfDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
 
@@ -1324,6 +1316,7 @@ function unlockLists(){
   stopAllAudio();
   clearHighlights();
 
+  state.pdfDownloaded = false;
   setLocked(false);
   state.usedMembers.clear();
   state.usedDates.clear();
@@ -1342,9 +1335,9 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
-const msg = `資料紀錄將被清空(clear) & 歸零(reset)，
-需重新輸入姓名並鎖定名單開始新轉盤遊戲！
-您確定要執行嗎 (Yes or No)?`;
+  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，\n" +
+              "需重新輸入姓名並鎖定名單開始新轉盤遊戲！\n" +
+              "您確定要執行嗎 (Yes or No)?";
 
   if(!confirm(msg)) return;
 
@@ -1353,20 +1346,21 @@ const msg = `資料紀錄將被清空(clear) & 歸零(reset)，
 
   // 清空資料
   state.logs = [];
+  state.pdfDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
-
   state.usedMembers.clear();
   state.usedDates.clear();
 
-  // 回到未鎖定（必須重新鎖定）
+  // 🔥 強制回到 INIT
   setLocked(false);
   setSystem("INIT");
   setResult("尚未開始");
   setResultSub("請先輸入姓名並鎖定名單");
+
   el.chipAuto.textContent = "自動未執行";
 
-  // 清空姓名輸入（避免誤用舊名單）
+  // 清空姓名輸入（確保重新開始）
   el.inputMembers.value = "";
 
   renderLogs();
@@ -1400,16 +1394,16 @@ function exportPdfViaPrint(){
 
   // 標題
   ctx.fillStyle = "#111827";
-  ctx.font = "bold 36px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.font = "bold 24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
   ctx.fillText(title, 60, 90);
 
   ctx.fillStyle = "#607080";
-  ctx.font = "24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.font = "14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
   ctx.fillText(`共 ${rows.length} 筆`, 60, 130);
 
   // 表格
   const x0 = 60, y0 = 170, tableW = W - 120;
-  const col1 = 220, col2 = 420, col3 = tableW - col1 - col2;
+  const col1 = 280, col2 = 300, col3 = tableW - col1 - col2;
   const rowH = 46;
 
   ctx.fillStyle = "#f3f6f9";
@@ -1419,12 +1413,12 @@ function exportPdfViaPrint(){
   ctx.strokeRect(x0, y0, tableW, rowH);
 
   ctx.fillStyle = "#111827";
-  ctx.font = "bold 24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.font = "bold 14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
   ctx.fillText("時間", x0 + 16, y0 + 32);
   ctx.fillText("值日生", x0 + col1 + 16, y0 + 32);
   ctx.fillText("日期", x0 + col1 + col2 + 16, y0 + 32);
 
-  ctx.font = "24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
+  ctx.font = "14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
 
   rows.forEach((it, i) => {
     const y = y0 + rowH * (i+1);
@@ -1461,7 +1455,7 @@ el.btnSpinMember.onclick = spinMember;
 el.btnSpinDate.onclick = spinDate;
 
 el.btnAutoStart.onclick = runAuto;
-el.btnPdf.onclick = exportPdfViaPrint;
+el.btnPdf.onclick = ()=>{ exportPdfViaPrint(); state.pdfDownloaded = true; updateButtons(); };
 el.btnUnlockAudio.onclick = unlockAudio;
 
 // 模式切換（可中途，但忙碌/旋轉中禁止；切到 auto 不會自動開始，你選 B）
@@ -1509,10 +1503,5 @@ function init(){
 }
 init();
 </script>
-
-<!-- 🔊 音效預載入（一定要在 script 外面） -->
-<audio id="drumAudio" src="../audio/drum.mp3" preload="auto"></audio>
-<audio id="dunAudio"  src="../audio/dun.mp3"  preload="auto"></audio>
-
 </body>
 </html>
