@@ -1016,6 +1016,7 @@ async function spinMember(){
   for(let i=0;i<state.members.length;i++){
     if(!state.usedMembers.has(state.members[i])) allowed.push(i);
   }
+
   if(allowed.length === 0){
     state.usedMembers.clear();
     for(let i=0;i<state.members.length;i++) allowed.push(i);
@@ -1030,16 +1031,24 @@ async function spinMember(){
 
   if(state.mode === "manual"){
     const audio = el.drumAudio;
-    audio.currentTime = 0;
 
-    try{
-      await audio.play();   // 👈 等音檔真的開始播放
-    }catch(e){}
-
-    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
-  }else{
-    startSpinToIndex(state.memberWheel, state.members, 7000, turns, allowed);
+    if(audio){                      // 🛡 防止 undefined 爆掉
+      audio.currentTime = 0;
+      try{
+        await audio.play();         // 等播放成功
+      }catch(e){
+        console.warn("drum 播放失敗", e);
+      }
+    }
   }
+
+  startSpinToIndex(
+    state.memberWheel,
+    state.members,
+    7000,
+    turns,
+    allowed
+  );
 }
 
 async function spinDate(){
@@ -1502,8 +1511,8 @@ init();
 </script>
 
 <!-- 🔊 音效預載入（一定要在 script 外面） -->
-<audio id="drumAudio" src="audio/drum.mp3" preload="auto"></audio>
-<audio id="dunAudio"  src="audio/dun.mp3"  preload="auto"></audio>
+<audio id="drumAudio" src="../audio/drum.mp3" preload="auto"></audio>
+<audio id="dunAudio"  src="../audio/dun.mp3"  preload="auto"></audio>
 
 </body>
 </html>
