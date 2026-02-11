@@ -376,6 +376,12 @@ const DUTY_DATES = [
 ];
 
 /** =========================
+ *  localStorage Key
+ *  ========================= */
+const LS_KEY_DATES = "duty_dates";
+const LS_KEY_MEMBERS = "duty_members";
+
+/** =========================
  *  工具
  *  ========================= */
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
@@ -571,9 +577,6 @@ const el = {
 
   modeToggle: document.getElementById("modeToggle")
 };
-
-el.inputDates.value = DUTY_DATES.join("\n");
-el.dateTotal.textContent = String(DUTY_DATES.length);
 
 /** =========================
  *  UI helpers
@@ -1015,7 +1018,7 @@ async function spinMember(){
   const dateLeft = state.dates.length - state.usedDates.size;
   if(dateLeft <= 0){
     setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
     setResultSub("可下載 PDF，或按重置重新開始");
     stopAllAudio();
     return;
@@ -1069,7 +1072,7 @@ async function spinDate(){
 
   if(allowed.length === 0){
     setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
     setResultSub("可下載 PDF，或按重置重新開始");
     stopAllAudio();
     return;
@@ -1130,7 +1133,7 @@ function finalizeAssignment(member, date){
   // ✅ 完成判斷：只有「日期 21 次全部抽完」才 FINISHED（你選 A）
   if(state.usedDates.size >= state.dates.length){
     setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
     setResultSub("可下載 PDF，或按重置重新開始");
     el.chipAuto.textContent = "完成";
     stopAllAudio();
@@ -1152,8 +1155,8 @@ function abortAuto(reason){
   // 停止動畫
   state.autoAbort = true;
   try{
-    state.memberWheel.anim = null;
-    state.dateWheel.anim = null;
+    state.memberWheel.spin = null;
+    state.dateWheel.spin = null;
   }catch(e){}
   stopAllAudio();
 
@@ -1180,7 +1183,7 @@ async function runAuto(){
   const dateLeft = state.dates.length - state.usedDates.size;
   if(dateLeft <= 0){
     setSystem("FINISHED");
-    setResult("🎉 全年度值日生分配完成（21 / 21）");
+    setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
     setResultSub("可下載 PDF，或按重置重新開始");
     return;
   }
@@ -1352,6 +1355,10 @@ function resetAll(){
 
   stopAllAudio();
   clearHighlights();
+  
+    // 🔥 清除 localStorage
+  localStorage.removeItem(LS_KEY_DATES);
+  localStorage.removeItem(LS_KEY_MEMBERS);
 
   // 清空資料
   state.logs = [];
@@ -1360,6 +1367,10 @@ function resetAll(){
   state.selectedDate = null;
   state.usedMembers.clear();
   state.usedDates.clear();
+  
+  // 🔥 清空 textarea
+  el.inputMembers.value = "";
+  el.inputDates.value = "";
 
   // 🔥 強制回到 INIT
   setLocked(false);
@@ -1368,9 +1379,6 @@ function resetAll(){
   setResultSub("請先輸入姓名並鎖定名單");
 
   el.chipAuto.textContent = "自動未執行";
-
-  // 清空姓名輸入（確保重新開始）
-  el.inputMembers.value = "";
 
   renderLogs();
   updateCounters();
@@ -1454,6 +1462,34 @@ function exportPdfViaPrint(){
 }
 
 /** =========================
+ *  日期解析與同步
+ *  ========================= */
+
+function parseDatesFromTextarea(text){
+  return text
+    .split(/\r?\n|,/)        // 支援換行或逗號
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function refreshDatesFromInput(){
+  const dates = parseDatesFromTextarea(el.inputDates.value);
+
+  state.dates = dates;
+
+  // 🔥 這才是關鍵：更新右上角總數
+  el.dateTotal.textContent = String(dates.length);
+
+  // 如果還沒鎖定才更新輪盤
+  if(!state.locked){
+    redrawAll(performance.now());
+  }
+
+  updateCounters();
+  updateButtons();
+}
+
+/** =========================
  *  事件綁定
  *  ========================= */
 el.btnLock.onclick = lockLists;
@@ -1466,6 +1502,17 @@ el.btnSpinDate.onclick = spinDate;
 el.btnAutoStart.onclick = runAuto;
 el.btnPdf.onclick = ()=>{ exportPdfViaPrint(); state.pdfDownloaded = true; updateButtons(); };
 el.btnUnlockAudio.onclick = unlockAudio;
+
+el.inputDates.addEventListener("input", ()=>{
+  if(state.locked) return;
+  localStorage.setItem(LS_KEY_DATES, el.inputDates.value);
+  refreshDatesFromInput();
+});
+
+el.inputMembers.addEventListener("input", ()=>{
+  if(state.locked) return;
+  localStorage.setItem(LS_KEY_MEMBERS, el.inputMembers.value);
+});
 
 // 模式切換（可中途，但忙碌/旋轉中禁止；切到 auto 不會自動開始，你選 B）
 el.modeToggle.addEventListener("change", (e)=>{
@@ -1500,18 +1547,35 @@ updateButtons();
  *  初始
  *  ========================= */
 function init(){
-  el.inputDates.value = DUTY_DATES.join("\n");
-  el.dateTotal.textContent = String(DUTY_DATES.length);
+
+  // 🔥 優先讀 localStorage
+  const savedDates = localStorage.getItem(LS_KEY_DATES);
+  const savedMembers = localStorage.getItem(LS_KEY_MEMBERS);
+
+  if(savedDates){
+    el.inputDates.value = savedDates;
+  }else{
+    el.inputDates.value = DUTY_DATES.join("\n");
+  }
+
+  if(savedMembers){
+    el.inputMembers.value = savedMembers;
+  }
 
   setMode("manual");
   setLocked(false);
+
   ensureAudio();
-  updateCounters();
+
+  refreshDatesFromInput();   // 用 textarea 內容更新總數
+
   renderLogs();
   redrawAll(performance.now());
+
   if(!rafId) rafId = requestAnimationFrame(tick);
 }
 init();
+
 </script>
 </body>
 </html>
