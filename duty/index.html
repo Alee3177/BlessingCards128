@@ -872,11 +872,30 @@ function redrawAll(nowMs){
   resizeCanvas(el.memberCanvas);
   resizeCanvas(el.dateCanvas);
 
-  drawWheel(el.memberCanvas, state.members, state.memberWheel.angle, THEME_MEMBER, state.memberWheel, nowMs);
-  drawWheel(el.dateCanvas, state.dates, state.dateWheel.angle, THEME_DATE, state.dateWheel, nowMs);
+  // 🔥 未鎖定時不要顯示切片（回到藍色圓 INIT 畫面）
+  const memberLabels = state.locked ? state.members : [];
+  const dateLabels   = state.locked ? state.dates   : [];
+
+  drawWheel(
+    el.memberCanvas,
+    memberLabels,
+    state.memberWheel.angle,
+    THEME_MEMBER,
+    state.memberWheel,
+    nowMs
+  );
+
+  drawWheel(
+    el.dateCanvas,
+    dateLabels,
+    state.dateWheel.angle,
+    THEME_DATE,
+    state.dateWheel,
+    nowMs
+  );
 }
 
-window.addEventListener("resize", ()=> redrawAll(performance.now()) );
+window.addEventListener("resize", ()=> redrawAll(performance.now()));
 
 /** =========================
  *  無指針，但仍需「選中參考線」
@@ -1291,14 +1310,23 @@ function lockLists(){
     setResultSub("可用：換行 / 逗號 / 空格 分隔");
     return;
   }
+
   if(dates.length < 1){
     setResult("日期清單為空");
     setResultSub("請填入日期（例：2/22 3/15 …）");
     return;
   }
 
+  // 🔥 存進 state
   state.members = members;
   state.dates = dates;
+
+  // 🔥 同步右上角日期總數
+  el.dateTotal.textContent = String(dates.length);
+
+  // 🔥 存入 localStorage
+  localStorage.setItem(LS_KEY_DATES, el.inputDates.value);
+  localStorage.setItem(LS_KEY_MEMBERS, el.inputMembers.value);
 
   state.usedMembers.clear();
   state.usedDates.clear();
@@ -1313,8 +1341,13 @@ function lockLists(){
 
   setLocked(true);
   setSystem("READY_MEMBER");
+
   setResult("請抽值日生");
-  setResultSub(state.mode === "auto" ? "自動：按自動開始或中斷" : "手動：按抽值日生");
+  setResultSub(
+    state.mode === "auto"
+      ? "自動：按自動開始或中斷"
+      : "手動：按抽值日生"
+  );
 
   el.chipAuto.textContent = "自動未執行";
 
@@ -1347,32 +1380,49 @@ function unlockLists(){
 function resetAll(){
   if(isBusy()) return;
 
-  const msg = "資料紀錄將被清空(clear) & 歸零(reset)，\n" +
-              "需重新輸入姓名並鎖定名單開始新轉盤遊戲！\n" +
-              "您確定要執行嗎 (Yes or No)?";
+  const msg =
+    "資料紀錄將被清空(clear) & 歸零(reset)，\n" +
+    "需重新輸入姓名並鎖定名單開始新轉盤遊戲！\n" +
+    "您確定要執行嗎 (Yes or No)?";
 
   if(!confirm(msg)) return;
 
   stopAllAudio();
   clearHighlights();
-  
-    // 🔥 清除 localStorage
+
+  // 🔥 清除 localStorage
   localStorage.removeItem(LS_KEY_DATES);
   localStorage.removeItem(LS_KEY_MEMBERS);
 
-  // 清空資料
+  // 🔥 清空 state
   state.logs = [];
   state.pdfDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
+
+  state.members = [];
+  state.dates = [];
+
   state.usedMembers.clear();
   state.usedDates.clear();
-  
+
+  // 🔥 重置輪盤狀態
+  state.memberWheel.angle = 0;
+  state.memberWheel.selectedIndex = -1;
+  state.memberWheel.spin = null;
+
+  state.dateWheel.angle = 0;
+  state.dateWheel.selectedIndex = -1;
+  state.dateWheel.spin = null;
+
   // 🔥 清空 textarea
   el.inputMembers.value = "";
   el.inputDates.value = "";
 
-  // 🔥 強制回到 INIT
+  // 🔥 更新右上角數字
+  el.dateTotal.textContent = "0";
+
+  // 🔥 回到 INIT
   setLocked(false);
   setSystem("INIT");
   setResult("尚未開始");
