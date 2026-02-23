@@ -586,12 +586,18 @@ const el = {
 function exportCsv(){
   if(!state.logs.length) return;
 
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isWindows = /Windows/i.test(navigator.userAgent);
 
-  // 表頭
+  // Windows：用 Tab 分隔（TSV）+ UTF-16LE（Excel 雙擊最穩）
+  // 非 Windows：用逗號（CSV）+ UTF-8 BOM（Sheets/手機最穩）
+  const sep = isWindows ? "\t" : ",";
+  const ext = isWindows ? "tsv" : "csv";
+  const filename = `抽值日生輪盤_抽籤紀錄.${ext}`;
+
+  // header
   const header = ["時間","模式","值日生","日期"];
 
-  // 內容（以 log 為準；不要用 state.mode 推斷）
+  // rows：建議 mode 直接用 item.mode（你 log 裡應該已存 手動/自動）
   const rows = state.logs.map(item => ([
     item.time ?? "",
     item.mode ?? "",
@@ -599,36 +605,40 @@ function exportCsv(){
     item.date ?? ""
   ]));
 
-  // 手機/Sheets 不建議用 sep=, 與 ="..."
-  // Windows Excel 可加 sep=, 提升「雙擊開啟」的分欄成功率
-  let csv = "";
-  if(!isMobile) csv += "sep=,\r\n";
+  // Windows Excel：加 sep=TAB 行（可提升分欄穩定）
+  let text = "";
+  if(isWindows) text += "sep=\t\r\n";
 
-  csv += [header, ...rows]
-    .map(cols => cols.map(csvEscape).join(","))
+  // 組內容（TSV/CSV 都用同一套 escape）
+  text += [header, ...rows]
+    .map(cols => cols.map(v => escapeCell(v, sep)).join(sep))
     .join("\r\n");
 
-  if(isMobile){
-    // UTF-8 BOM：手機/Sheets 最穩
-    const bytes = toUTF8BytesWithBOM(csv);
-    downloadBlob(new Blob([bytes], {type:"text/csv;charset=utf-8;"}), "抽值日生輪盤_抽籤紀錄.csv");
+  let blob;
+  if(isWindows){
+    // UTF-16LE + BOM
+    const bytes = toUTF16LEBytesWithBOM(text);
+    blob = new Blob([bytes], { type: "text/tab-separated-values" });
   }else{
-    // UTF-16LE BOM：Windows Excel 雙擊最穩
-    const bytes = toUTF16LEBytesWithBOM(csv);
-    downloadBlob(new Blob([bytes], {type:"text/csv"}), "抽值日生輪盤_抽籤紀錄.csv");
+    // UTF-8 + BOM
+    const bytes = toUTF8BytesWithBOM(text);
+    blob = new Blob([bytes], { type: "text/csv;charset=utf-8;" });
   }
+
+  downloadBlob(blob, filename);
 
   state.csvDownloaded = true;
   updateButtons();
 }
 
-function csvEscape(v){
+// === helpers ===
+
+function escapeCell(v, sep){
   const s = String(v ?? "");
-  // CSV 規則：有 " 或 , 或 換行，就必須用 " 包起來，且 " 變成 ""
-  if(/[",\r\n]/.test(s)){
-    return `"${s.replace(/"/g,'""')}"`;
-  }
-  return s;
+  // TSV：主要要處理換行與引號；CSV：還要處理逗號
+  const needQuote = /["\r\n]/.test(s) || (sep === "," && s.includes(","));
+  if(!needQuote) return s;
+  return `"${s.replace(/"/g,'""')}"`;
 }
 
 function downloadBlob(blob, filename){
@@ -643,26 +653,22 @@ function downloadBlob(blob, filename){
 }
 
 function toUTF8BytesWithBOM(str){
-  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-  if(typeof TextEncoder !== "undefined"){
-    const body = new TextEncoder().encode(str);
-    const out = new Uint8Array(bom.length + body.length);
-    out.set(bom, 0);
-    out.set(body, bom.length);
-    return out;
-  }
-  // fallback
-  return new Blob(["\uFEFF" + str], {type:"text/csv;charset=utf-8;"});
+  const bom = new Uint8Array([0xEF,0xBB,0xBF]);
+  const body = new TextEncoder().encode(str);
+  const out = new Uint8Array(bom.length + body.length);
+  out.set(bom, 0);
+  out.set(body, bom.length);
+  return out;
 }
 
 function toUTF16LEBytesWithBOM(str){
-  // BOM: FF FE + little-endian UTF-16
+  // BOM: FF FE
   const buf = new ArrayBuffer(2 + str.length * 2);
   const view = new DataView(buf);
   view.setUint8(0, 0xFF);
   view.setUint8(1, 0xFE);
   for(let i=0;i<str.length;i++){
-    view.setUint16(2 + i*2, str.charCodeAt(i), true);
+    view.setUint16(2 + i*2, str.charCodeAt(i), true); // true = little-endian
   }
   return new Uint8Array(buf);
 }
