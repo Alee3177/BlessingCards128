@@ -586,50 +586,85 @@ const el = {
 function exportCsv(){
   if(!state.logs.length) return;
 
-  // Excel 友善：指定分隔符號
-  // + BOM 避免中文亂碼
-  let csv = "sep=,\n";
-  csv += "時間,模式,值日生,日期\n";
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // 文字保護：避免 Excel 自動把日期變成「12月6日」或自動轉型
-  // - 時間、日期都當文字輸出：加上 ="..."
-  // - 值日生也可用 ="..."（避免被當數字）
-state.logs.forEach(item=>{
-  const timeText   = item.time ?? "";
-  const modeText   = item.mode ?? (state.mode === "auto" ? "自動" : "手動");
-  const memberText = item.member ?? "";
-  const dateText   = item.date ?? "";
+  // 表頭
+  const header = ["時間","模式","值日生","日期"];
 
-  // 用 ="..." 避免 Excel 自動把時間/日期亂轉型，也避免欄位太窄看起來怪
-    csv += `="${timeText}",="${modeText}",="${memberText}",="${dateText}"\n`;
-  });
+  // 內容（以 log 為準；不要用 state.mode 推斷）
+  const rows = state.logs.map(item => ([
+    item.time ?? "",
+    item.mode ?? "",
+    item.member ?? "",
+    item.date ?? ""
+  ]));
 
-  // ✅ 轉成 UTF-16LE + BOM（Excel 直接雙擊開也不會亂碼）
-  const utf16le = toUTF16LEWithBOM(csv);
-  const blob = new Blob([utf16le], { type: "text/csv;charset=utf-16le;" });
+  // 手機/Sheets 不建議用 sep=, 與 ="..."
+  // Windows Excel 可加 sep=, 提升「雙擊開啟」的分欄成功率
+  let csv = "";
+  if(!isMobile) csv += "sep=,\r\n";
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "抽值日生輪盤_抽籤紀錄.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  csv += [header, ...rows]
+    .map(cols => cols.map(csvEscape).join(","))
+    .join("\r\n");
+
+  if(isMobile){
+    // UTF-8 BOM：手機/Sheets 最穩
+    const bytes = toUTF8BytesWithBOM(csv);
+    downloadBlob(new Blob([bytes], {type:"text/csv;charset=utf-8;"}), "抽值日生輪盤_抽籤紀錄.csv");
+  }else{
+    // UTF-16LE BOM：Windows Excel 雙擊最穩
+    const bytes = toUTF16LEBytesWithBOM(csv);
+    downloadBlob(new Blob([bytes], {type:"text/csv"}), "抽值日生輪盤_抽籤紀錄.csv");
+  }
 
   state.csvDownloaded = true;
   updateButtons();
 }
 
-// 把字串轉成 UTF-16LE ArrayBuffer（含 BOM）
-function toUTF16LEWithBOM(str){
-  const buf = new ArrayBuffer((str.length + 1) * 2);
-  const view = new Uint16Array(buf);
-  view[0] = 0xFEFF; // BOM
-  for(let i=0;i<str.length;i++){
-    view[i+1] = str.charCodeAt(i);
+function csvEscape(v){
+  const s = String(v ?? "");
+  // CSV 規則：有 " 或 , 或 換行，就必須用 " 包起來，且 " 變成 ""
+  if(/[",\r\n]/.test(s)){
+    return `"${s.replace(/"/g,'""')}"`;
   }
-  return buf;
+  return s;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toUTF8BytesWithBOM(str){
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  if(typeof TextEncoder !== "undefined"){
+    const body = new TextEncoder().encode(str);
+    const out = new Uint8Array(bom.length + body.length);
+    out.set(bom, 0);
+    out.set(body, bom.length);
+    return out;
+  }
+  // fallback
+  return new Blob(["\uFEFF" + str], {type:"text/csv;charset=utf-8;"});
+}
+
+function toUTF16LEBytesWithBOM(str){
+  // BOM: FF FE + little-endian UTF-16
+  const buf = new ArrayBuffer(2 + str.length * 2);
+  const view = new DataView(buf);
+  view.setUint8(0, 0xFF);
+  view.setUint8(1, 0xFE);
+  for(let i=0;i<str.length;i++){
+    view.setUint16(2 + i*2, str.charCodeAt(i), true);
+  }
+  return new Uint8Array(buf);
 }
 
 /** =========================
