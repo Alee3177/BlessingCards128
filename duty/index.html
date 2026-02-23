@@ -581,7 +581,7 @@ const el = {
 };
 
 /** =========================
- *  匯出 CSV（Excel 友善版）
+ *  匯出 CSV（Excel 100% 不亂碼版）
  *  ========================= */
 function exportCsv(){
   if(!state.logs.length) return;
@@ -596,14 +596,17 @@ function exportCsv(){
   // - 值日生也可用 ="..."（避免被當數字）
 state.logs.forEach(item=>{
   const timeText   = item.time ?? "";
-  const modeText   = item.mode ?? "";
+  const modeText   = item.mode ?? (state.mode === "auto" ? "自動" : "手動");
   const memberText = item.member ?? "";
   const dateText   = item.date ?? "";
 
-  csv += `="${timeText}",="${modeText}",="${memberText}",="${dateText}"\n`;
-});
+  // 用 ="..." 避免 Excel 自動把時間/日期亂轉型，也避免欄位太窄看起來怪
+    csv += `="${timeText}",="${modeText}",="${memberText}",="${dateText}"\n`;
+  });
 
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  // ✅ 轉成 UTF-16LE + BOM（Excel 直接雙擊開也不會亂碼）
+  const utf16le = toUTF16LEWithBOM(csv);
+  const blob = new Blob([utf16le], { type: "text/csv;charset=utf-16le;" });
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -616,6 +619,17 @@ state.logs.forEach(item=>{
 
   state.csvDownloaded = true;
   updateButtons();
+}
+
+// 把字串轉成 UTF-16LE ArrayBuffer（含 BOM）
+function toUTF16LEWithBOM(str){
+  const buf = new ArrayBuffer((str.length + 1) * 2);
+  const view = new Uint16Array(buf);
+  view[0] = 0xFEFF; // BOM
+  for(let i=0;i<str.length;i++){
+    view[i+1] = str.charCodeAt(i);
+  }
+  return buf;
 }
 
 /** =========================
