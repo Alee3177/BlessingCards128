@@ -222,7 +222,7 @@
     .btn.success{background:var(--accent); color:white;}
     .btn.success:hover{filter:brightness(.98);}
     #sysState.finished{color:var(--danger); font-weight:900;}
-    .btn.pdfReady{background:var(--accent2); color:var(--danger); font-weight:900;}
+    .btn.csvReady{background:var(--accent2); color:var(--danger); font-weight:900;}
     .blink{animation:blink 1s steps(1,end) infinite;}
     @keyframes blink{50%{filter:brightness(1.25);} }
     
@@ -230,7 +230,6 @@
 #resultText{font-size:18px; font-weight:800;}
 #resultSub{font-size:14px;}
 </style>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 </head>
 
@@ -242,7 +241,7 @@
       <div class="sub"></div>
     </div>
     <div class="row">
-      <span class="pill">日期總數：<strong id="dateTotal">21</strong></span>
+      <span class="pill">日期總數：<strong id="dateTotal">0</strong></span>
       <span class="pill">剩餘日期：<strong id="dateLeft">0</strong></span>
       <span class="pill">值日生池：<strong id="memberLeft">0</strong></span>
     </div>
@@ -296,7 +295,7 @@
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
         <button class="btn" id="btnAutoStart">自動開始或中斷</button>
-        <button class="btn secondary" id="btnPdf">抽籤紀錄 PDF</button>
+        <button class="btn secondary" id="btnCsv">抽籤紀錄 CSV</button>
       </div>
 
       <div class="status">
@@ -310,9 +309,6 @@
         </div>
       </div>
 
-      <div class="hint" style="margin-top:10px;">
-        PDF 使用「瀏覽器列印」：避免中文字亂碼（會開新視窗，選擇「另存為 PDF」）。
-      </div>
     </div>
   </div>
 
@@ -358,6 +354,14 @@
 </div>
 
 <script>
+/* =====================================================
+   Project : 抽值日生輪盤
+   Version : v3.0 (Stable)
+   Author  : 李明隆/ Anderson Lee
+   Final   : 2026-02-11
+   Notes   : INIT 藍色圓 / 自動中斷 / localStorage / PDF 下載
+   ===================================================== */
+
 /** =========================
  *  固定日期（紅字版 21 次）
  *  ========================= */
@@ -422,7 +426,7 @@ function canSwitchMode(){
   return !["SPIN_MEMBER","SPIN_DATE"].includes(state.system);
 }
 function isBusy(){
-  return ["SPIN_MEMBER","SPIN_DATE","AUTO_RUNNING"].includes(state.system);
+  return ["SPIN_MEMBER","SPIN_DATE"].includes(state.system);
 }
 
 /** =========================
@@ -513,9 +517,9 @@ const state = {
 
   // 自動流程中斷旗標（允許中途打斷）
   autoAbort: false,
-  pdfDownloaded: false,
 
   logs: [],
+  csvDownloaded: false,
 
   memberWheel: {
     angle: 0,
@@ -552,7 +556,7 @@ const el = {
   btnSpinMember: document.getElementById("btnSpinMember"),
   btnSpinDate: document.getElementById("btnSpinDate"),
   btnAutoStart: document.getElementById("btnAutoStart"),
-  btnPdf: document.getElementById("btnPdf"),
+  btnCsv: document.getElementById("btnCsv"),
 
   sysState: document.getElementById("sysState"),
   modeState: document.getElementById("modeState"),
@@ -577,6 +581,35 @@ const el = {
 
   modeToggle: document.getElementById("modeToggle")
 };
+
+/** =========================
+ *  匯出 CSV
+ *  ========================= */
+function exportCsv(){
+  if(!state.logs.length) return;
+
+  let csv = "時間,值日生,日期\n";
+
+  state.logs.forEach(item=>{
+    csv += `"${item.time}","${item.member}","${item.date}"\n`;
+  });
+
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "抽值日生輪盤_抽籤紀錄.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  state.csvDownloaded = true;
+  updateButtons();
+}
 
 /** =========================
  *  UI helpers
@@ -635,7 +668,7 @@ function updateCounters(){
 
 function updateButtons(){
   const locked = state.locked;
-  const busy = isBusy();
+  const spinning = (state.system === "SPIN_MEMBER" || state.system === "SPIN_DATE");
 
   const dateLeft = state.dates.length - state.usedDates.size;
 
@@ -643,30 +676,32 @@ function updateButtons(){
   const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
   radios.forEach(r => { r.disabled = !canSwitchMode(); });
 
-  el.btnLock.disabled = busy;
-  el.btnUnlock.disabled = busy;
-  el.btnReset.disabled = busy;
-  el.btnUnlockAudio.disabled = busy;
+el.btnLock.disabled = spinning;
+el.btnUnlock.disabled = spinning;
+el.btnReset.disabled = spinning;
+el.btnUnlockAudio.disabled = spinning;
 
-  // 手動抽：需鎖定、且在 READY_* 才可按
-  el.btnSpinMember.disabled = busy || !locked || state.system !== "READY_MEMBER";
-  el.btnSpinDate.disabled   = busy || !locked || state.system !== "READY_DATE";
+el.btnSpinMember.disabled = spinning || !locked || state.system !== "READY_MEMBER";
+el.btnSpinDate.disabled   = spinning || !locked || state.system !== "READY_DATE";
 
-  // 自動：只在 auto 模式 + 鎖定時可按；AUTO_RUNNING 也允許按（變成中斷）
-  el.btnAutoStart.disabled  = busy || !locked || state.mode !== "auto";
+// ✅ AUTO_RUNNING 仍可按（用來中斷）
+el.btnAutoStart.disabled  = spinning || !locked || state.mode !== "auto";
 
-  // PDF：平常禁用；只有 FINISHED 才可用（且未下載過）
-  const canPdf = (state.system === "FINISHED") && state.logs.length > 0 && !state.pdfDownloaded;
-  el.btnPdf.disabled = !canPdf;
+el.btnAutoStart.textContent = (state.system === "AUTO_RUNNING") ? "中斷自動" : "自動開始或中斷";
 
-if(canPdf){
-  el.btnPdf.disabled = false;
-  el.btnPdf.classList.remove("secondary");
-  el.btnPdf.classList.add("pdfReady", "blink");
+// CSV：平常禁用；只有 FINISHED 才可用（且未下載過）
+const canCsv = (state.system === "FINISHED") 
+  && state.logs.length > 0 
+  && !state.csvDownloaded;
+
+el.btnCsv.disabled = !canCsv;
+
+if(canCsv){
+  el.btnCsv.classList.remove("secondary");
+  el.btnCsv.classList.add("csvReady", "blink");
 }else{
-  el.btnPdf.disabled = true;
-  el.btnPdf.classList.remove("pdfReady", "blink");
-  el.btnPdf.classList.add("secondary");
+  el.btnCsv.classList.remove("csvReady", "blink");
+  el.btnCsv.classList.add("secondary");
 }
 }
 
@@ -1258,7 +1293,7 @@ async function runAuto(){
 
     state.selectedDate = state.dates[state.dateWheel.selectedIndex] ?? null;
     state.dateWheel.highlight = true;
-    state.dateWheel.blink = false;
+    state.dateWheel.blink = (state.mode === "manual");
     finalizeAssignment(state.selectedMember, state.selectedDate);
 
     // finalizeAssignment 會把 system 拉回 READY_MEMBER；自動要維持 AUTO_RUNNING
@@ -1332,7 +1367,7 @@ function lockLists(){
   state.usedDates.clear();
 
   state.logs = [];
-  state.pdfDownloaded = false;
+  state.csvDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
 
@@ -1361,7 +1396,7 @@ function unlockLists(){
   stopAllAudio();
   clearHighlights();
 
-  state.pdfDownloaded = false;
+  state.csvDownloaded = false;
   setLocked(false);
   state.usedMembers.clear();
   state.usedDates.clear();
@@ -1396,7 +1431,7 @@ function resetAll(){
 
   // 🔥 清空 state
   state.logs = [];
-  state.pdfDownloaded = false;
+  state.csvDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
 
@@ -1405,7 +1440,7 @@ function resetAll(){
 
   state.usedMembers.clear();
   state.usedDates.clear();
-
+  
   // 🔥 重置輪盤狀態
   state.memberWheel.angle = 0;
   state.memberWheel.selectedIndex = -1;
@@ -1436,80 +1471,7 @@ function resetAll(){
   updateButtons();
 }
 
-function exportPdfViaPrint(){
 
-  // 直接下載 PDF（以畫布 raster 化，避免中文字體亂碼）
-  const { jsPDF } = (window.jspdf || {});
-  if(!jsPDF){
-    setResultSub("PDF 模組載入失敗：請檢查網路是否可連到 jsdelivr。");
-    return;
-  }
-
-  const title = "抽值日生輪盤_抽籤紀錄";
-  const rows = state.logs.slice();
-
-  // A4 直式：150dpi
-  const W = 1240, H = 1754;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-
-  // 背景
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0,0,W,H);
-
-  // 標題
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 24px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
-  ctx.fillText(title, 60, 90);
-
-  ctx.fillStyle = "#607080";
-  ctx.font = "14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
-  ctx.fillText(`共 ${rows.length} 筆`, 60, 130);
-
-  // 表格
-  const x0 = 60, y0 = 170, tableW = W - 120;
-  const col1 = 320, col2 = 340, col3 = tableW - col1 - col2;
-  const rowH = 46;
-
-  ctx.fillStyle = "#f3f6f9";
-  ctx.fillRect(x0, y0, tableW, rowH);
-  ctx.strokeStyle = "#d9e1ea";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x0, y0, tableW, rowH);
-
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
-  ctx.fillText("時間", x0 + 16, y0 + 32);
-  ctx.fillText("值日生", x0 + col1 + 16, y0 + 32);
-  ctx.fillText("日期", x0 + col1 + col2 + 16, y0 + 32);
-
-  ctx.font = "14px system-ui, -apple-system, Noto Sans TC, PingFang TC, Microsoft JhengHei, sans-serif";
-
-  rows.forEach((it, i) => {
-    const y = y0 + rowH * (i+1);
-
-    ctx.fillStyle = (i % 2 === 0) ? "#ffffff" : "#fbfdff";
-    ctx.fillRect(x0, y, tableW, rowH);
-    ctx.strokeStyle = "#d9e1ea";
-    ctx.strokeRect(x0, y, tableW, rowH);
-
-    ctx.fillStyle = "#111827";
-    ctx.fillText(String(it.time||""), x0 + 16, y + 32);
-    ctx.fillText(String(it.member||""), x0 + col1 + 16, y + 32);
-    ctx.fillText(String(it.date||""), x0 + col1 + col2 + 16, y + 32);
-  });
-
-  const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
-  const img = canvas.toDataURL("image/jpeg", 0.92);
-
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  pdf.addImage(img, "JPEG", 0, 0, pageW, pageH);
-
-  pdf.save("抽值日生輪盤_抽籤紀錄.pdf");
-}
 
 /** =========================
  *  日期解析與同步
@@ -1550,8 +1512,9 @@ el.btnSpinMember.onclick = spinMember;
 el.btnSpinDate.onclick = spinDate;
 
 el.btnAutoStart.onclick = runAuto;
-el.btnPdf.onclick = ()=>{ exportPdfViaPrint(); state.pdfDownloaded = true; updateButtons(); };
 el.btnUnlockAudio.onclick = unlockAudio;
+
+el.btnCsv.onclick = exportCsv;
 
 el.inputDates.addEventListener("input", ()=>{
   if(state.locked) return;
@@ -1602,11 +1565,7 @@ function init(){
   const savedDates = localStorage.getItem(LS_KEY_DATES);
   const savedMembers = localStorage.getItem(LS_KEY_MEMBERS);
 
-  if(savedDates){
-    el.inputDates.value = savedDates;
-  }else{
-    el.inputDates.value = DUTY_DATES.join("\n");
-  }
+el.inputDates.value = savedDates ?? DUTY_DATES.join("\n");
 
   if(savedMembers){
     el.inputMembers.value = savedMembers;
