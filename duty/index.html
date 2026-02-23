@@ -222,7 +222,7 @@
     .btn.success{background:var(--accent); color:white;}
     .btn.success:hover{filter:brightness(.98);}
     #sysState.finished{color:var(--danger); font-weight:900;}
-    .btn.csvReady{background:var(--accent2); color:var(--danger); font-weight:900;}
+    .btn.exportReady{background:var(--accent2); color:var(--danger); font-weight:900;}
     .blink{animation:blink 1s steps(1,end) infinite;}
     @keyframes blink{50%{filter:brightness(1.25);} }
     
@@ -295,7 +295,7 @@
         <button class="btn" id="btnSpinMember">抽值日生</button>
         <button class="btn" id="btnSpinDate">抽日期</button>
         <button class="btn" id="btnAutoStart">自動開始或中斷</button>
-        <button class="btn secondary" id="btnCsv">抽籤紀錄 CSV</button>
+        <button class="btn secondary" id="btnExport">抽籤紀錄 EXCEL</button>
       </div>
 
       <div class="status">
@@ -359,7 +359,7 @@
    Version : v3.0 (Stable)
    Author  : 李明隆/ Anderson Lee
    Final   : 2026-02-11
-   Notes   : INIT 藍色圓 / 自動中斷 / localStorage / PDF 下載
+   Notes   : INIT 藍色圓 / 自動中斷 / localStorage / EXCEL 下載
    ===================================================== */
 
 /** =========================
@@ -517,7 +517,7 @@ const state = {
   autoAbort: false,
 
   logs: [],
-  csvDownloaded: false,
+  xlsxDownloaded: false,
 
   memberWheel: {
     angle: 0,
@@ -554,7 +554,7 @@ const el = {
   btnSpinMember: document.getElementById("btnSpinMember"),
   btnSpinDate: document.getElementById("btnSpinDate"),
   btnAutoStart: document.getElementById("btnAutoStart"),
-  btnCsv: document.getElementById("btnCsv"),
+  btnExport: document.getElementById("btnExport"),
 
   sysState: document.getElementById("sysState"),
   modeState: document.getElementById("modeState"),
@@ -583,51 +583,48 @@ const el = {
 /** =========================
  *  匯出 CSV（Excel 100% 不亂碼版）
  *  ========================= */
-function exportCsv(){
+/** =========================
+ *  匯出 Excel (.xlsx)
+ *  ========================= */
+function exportXlsx(){
   if(!state.logs.length) return;
-
-  const isWindows = /Windows/i.test(navigator.userAgent);
-
-  // Windows：用 Tab 分隔（TSV）+ UTF-16LE（Excel 雙擊最穩）
-  // 非 Windows：用逗號（CSV）+ UTF-8 BOM（Sheets/手機最穩）
-  const sep = isWindows ? "\t" : ",";
-  const ext = isWindows ? "tsv" : "csv";
-  const filename = `抽值日生輪盤_抽籤紀錄.${ext}`;
-
-  // header
-  const header = ["時間","模式","值日生","日期"];
-
-  // rows：建議 mode 直接用 item.mode（你 log 裡應該已存 手動/自動）
-  const rows = state.logs.map(item => ([
-    item.time ?? "",
-    item.mode ?? "",
-    item.member ?? "",
-    item.date ?? ""
-  ]));
-
-  // Windows Excel：加 sep=TAB 行（可提升分欄穩定）
-  let text = "";
-  if(isWindows) text += "sep=\t\r\n";
-
-  // 組內容（TSV/CSV 都用同一套 escape）
-  text += [header, ...rows]
-    .map(cols => cols.map(v => escapeCell(v, sep)).join(sep))
-    .join("\r\n");
-
-  let blob;
-  if(isWindows){
-    // UTF-16LE + BOM
-    const bytes = toUTF16LEBytesWithBOM(text);
-    blob = new Blob([bytes], { type: "text/tab-separated-values" });
-  }else{
-    // UTF-8 + BOM
-    const bytes = toUTF8BytesWithBOM(text);
-    blob = new Blob([bytes], { type: "text/csv;charset=utf-8;" });
+  
+  if(typeof XLSX === "undefined"){
+    setResultSub("XLSX 套件尚未載入：請確認 xlsx.full.min.js 放在主 script 之前");
+    return;
   }
 
-  downloadBlob(blob, filename);
+  // 1) 組資料（含模式欄位）
+  const aoa = [
+    ["時間","模式","值日生","日期"],
+    ...state.logs.map(item => [
+      item.time ?? "",
+      item.mode ?? "",        // 你應該已在 log 裡存 "手動"/"自動"
+      item.member ?? "",
+      item.date ?? ""
+    ])
+  ];
 
-  state.csvDownloaded = true;
+  // 2) 轉成 worksheet
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // 3) 設定欄寬（wch = 字元寬度）
+  ws["!cols"] = [
+    { wch: 14 },  // 時間：加寬，避免你說的「太小」
+    { wch: 8  },  // 模式
+    { wch: 14 },  // 值日生
+    { wch: 10 }   // 日期
+  ];
+
+  // 4) 建 workbook
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "抽籤紀錄");
+
+  // 5) 下載（中文 OK）
+  XLSX.writeFile(wb, "抽值日生輪盤_抽籤紀錄.xlsx", { compression: true });
+
+  // 6) 狀態（沿用你的控制邏輯）
+  state.xlsxDownloaded = true;   // 你若想改名，也可以改成 xlsxDownloaded
   updateButtons();
 }
 
@@ -732,8 +729,6 @@ function updateButtons(){
   const locked = state.locked;
   const spinning = (state.system === "SPIN_MEMBER" || state.system === "SPIN_DATE");
 
-  const dateLeft = state.dates.length - state.usedDates.size;
-
   // mode radios：旋轉中（SPIN_*）禁止；AUTO_RUNNING 可切換（用來中途打斷）
   const radios = el.modeToggle.querySelectorAll('input[type="radio"]');
   radios.forEach(r => { r.disabled = !canSwitchMode(); });
@@ -751,19 +746,19 @@ el.btnAutoStart.disabled  = spinning || !locked || state.mode !== "auto";
 
 el.btnAutoStart.textContent = (state.system === "AUTO_RUNNING") ? "中斷自動" : "自動開始或中斷";
 
-// CSV：平常禁用；只有 FINISHED 才可用（且未下載過）
-const canCsv = (state.system === "FINISHED") 
+// EXCEL：平常禁用；只有 FINISHED 才可用（且未下載過）
+const canXlsx = (state.system === "FINISHED") 
   && state.logs.length > 0 
-  && !state.csvDownloaded;
+  && !state.xlsxDownloaded;
 
-el.btnCsv.disabled = !canCsv;
+el.btnExport.disabled = !canXlsx;
 
-if(canCsv){
-  el.btnCsv.classList.remove("secondary");
-  el.btnCsv.classList.add("csvReady", "blink");
+if(canXlsx){
+  el.btnExport.classList.remove("secondary");
+  el.btnExport.classList.add("exportReady", "blink");
 }else{
-  el.btnCsv.classList.remove("csvReady", "blink");
-  el.btnCsv.classList.add("secondary");
+  el.btnExport.classList.remove("exportReady", "blink");
+  el.btnExport.classList.add("secondary");
 }
 }
 
@@ -1135,7 +1130,7 @@ async function spinMember(){
   if(dateLeft <= 0){
     setSystem("FINISHED");
     setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
-    setResultSub("可下載 PDF，或按重置重新開始");
+    setResultSub("可下載 EXCEL，或按重置重新開始");
     stopAllAudio();
     return;
   }
@@ -1189,7 +1184,7 @@ async function spinDate(){
   if(allowed.length === 0){
     setSystem("FINISHED");
     setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
-    setResultSub("可下載 PDF，或按重置重新開始");
+    setResultSub("可下載 EXCEL，或按重置重新開始");
     stopAllAudio();
     return;
   }
@@ -1255,7 +1250,7 @@ function finalizeAssignment(member, date){
   if(state.usedDates.size >= state.dates.length){
     setSystem("FINISHED");
     setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
-    setResultSub("可下載 PDF，或按重置重新開始");
+    setResultSub("可下載 EXCEL，或按重置重新開始");
     el.chipAuto.textContent = "完成";
     stopAllAudio();
     return;
@@ -1401,7 +1396,7 @@ function waitAnimDone(wheel){
 }
 
 /** =========================
- *  Lock / Reset / PDF
+ *  Lock / Reset
  *  ========================= */
 function lockLists(){
   const members = parseLines(el.inputMembers.value);
@@ -1434,7 +1429,7 @@ function lockLists(){
   state.usedDates.clear();
 
   state.logs = [];
-  state.csvDownloaded = false;
+  state.xlsxDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
 
@@ -1463,7 +1458,7 @@ function unlockLists(){
   stopAllAudio();
   clearHighlights();
 
-  state.csvDownloaded = false;
+  state.xlsxDownloaded = false;
   setLocked(false);
   state.usedMembers.clear();
   state.usedDates.clear();
@@ -1498,7 +1493,7 @@ function resetAll(){
 
   // 🔥 清空 state
   state.logs = [];
-  state.csvDownloaded = false;
+  state.xlsxDownloaded = false;
   state.selectedMember = null;
   state.selectedDate = null;
 
@@ -1581,7 +1576,7 @@ el.btnSpinDate.onclick = spinDate;
 el.btnAutoStart.onclick = runAuto;
 el.btnUnlockAudio.onclick = unlockAudio;
 
-el.btnCsv.onclick = exportCsv;
+el.btnExport.onclick = exportXlsx;
 
 el.inputDates.addEventListener("input", ()=>{
   if(state.locked) return;
@@ -1622,6 +1617,8 @@ if(state.mode === "auto"){
 }
 updateButtons();
 });
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 /** =========================
  *  初始
