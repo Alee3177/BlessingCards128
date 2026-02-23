@@ -404,12 +404,10 @@ function parseLines(text){
 
 function nowStamp(){
   const now = new Date();
-  const hh = now.getHours();
+  const hh = String(now.getHours()).padStart(2,"0");
   const mm = String(now.getMinutes()).padStart(2,"0");
   const ss = String(now.getSeconds()).padStart(2,"0");
-  const period = hh < 12 ? "上午" : "下午";
-  const hour12 = hh % 12 === 0 ? 12 : hh % 12;
-  return `${period} ${hour12}:${mm}:${ss}`;
+  return `${hh}:${mm}:${ss}`; // 例如 18:24:06
 }
 
 function escapeHtml(s){
@@ -583,20 +581,29 @@ const el = {
 };
 
 /** =========================
- *  匯出 CSV
+ *  匯出 CSV（Excel 友善版）
  *  ========================= */
 function exportCsv(){
   if(!state.logs.length) return;
 
-  let csv = "時間,值日生,日期\n";
+  // Excel 友善：指定分隔符號
+  // + BOM 避免中文亂碼
+  let csv = "sep=,\n";
+  csv += "時間,模式,值日生,日期\n";
 
-  state.logs.forEach(item=>{
-    csv += `"${item.time}","${item.member}","${item.date}"\n`;
-  });
+  // 文字保護：避免 Excel 自動把日期變成「12月6日」或自動轉型
+  // - 時間、日期都當文字輸出：加上 ="..."
+  // - 值日生也可用 ="..."（避免被當數字）
+state.logs.forEach(item=>{
+  const timeText   = item.time ?? "";
+  const modeText   = item.mode ?? "";
+  const memberText = item.member ?? "";
+  const dateText   = item.date ?? "";
 
-  const blob = new Blob(["\uFEFF" + csv], {
-    type: "text/csv;charset=utf-8;"
-  });
+  csv += `="${timeText}",="${modeText}",="${memberText}",="${dateText}"\n`;
+});
+
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1171,7 +1178,12 @@ function finalizeAssignment(member, date){
 
   // 記錄（時間後綴：單純顯示手動/自動；你選 C）
   const time = `${nowStamp()}（${state.mode === "auto" ? "自動" : "手動"}）`;
-  state.logs.push({ time, member, date });
+  state.logs.push({
+  time,
+  member,
+  date,
+  mode: state.mode === "auto" ? "自動" : "手動"
+});
   renderLogs();
 
   // 標記：日期已用；值日生本輪已用（兩輪都「不刪除」，改灰化＋不可再抽）
@@ -1238,7 +1250,7 @@ async function runAuto(){
   if(dateLeft <= 0){
     setSystem("FINISHED");
     setResult(`🎉 全年度值日生分配完成（${state.usedDates.size} / ${state.dates.length}）`);
-    setResultSub("可下載 PDF，或按重置重新開始");
+    setResultSub("可下載 CSV，或按重置重新開始");
     return;
   }
 
